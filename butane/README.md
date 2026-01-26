@@ -37,7 +37,7 @@ podman run --rm -it \
     iso customize \
         --live-ignition setup.ign \
         --dest-ignition workstation.ign \
-        --pre-install detect-device.sh \
+        --pre-install butane/detect-device.sh \
         -o workstation-$(uname -m).iso \
         $(ls -1 fedora-coreos-*-live-iso.$(uname -m).iso | tail -n1)
 ```

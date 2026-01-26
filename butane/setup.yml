@@ -6,4 +6,4 @@ storage:
     - path: /usr/local/sbin/detect-device.sh
       mode: 0755
       contents:
-        local: ./detect-device.sh
+        local: ./butane/detect-device.sh
