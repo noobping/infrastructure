@@ -48,17 +48,23 @@ jobs:
       - name: Build tools
         run: |
           dnf -y update
-          dnf -y install git podman buildah skopeo jq ca-certificates
+          dnf -y install git podman buildah skopeo jq ca-certificates fuse-overlayfs
 
       - name: Storage
         run: |
-          mkdir -p /mnt/containers
+          mkdir -p /var/lib/containers /run/containers
           cat > /etc/containers/storage.conf <<'EOF'
           [storage]
-          driver = "vfs"
-          graphroot = "/mnt/containers/storage"
-          runroot = "/mnt/containers/run"
+          driver = "overlay"
+          runroot = "/run/containers/storage"
+          graphroot = "/var/lib/containers/storage"
+
+          [storage.options]
+          mount_program = "/usr/bin/fuse-overlayfs"
           EOF
+
+          # sanity
+          buildah info
           df -h
 
       - name: Repository
