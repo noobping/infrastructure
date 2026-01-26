@@ -11,7 +11,7 @@ yq ea '. as $item ireduce ({}; . *+ $item)' base.yml workstation.yml > workstati
 Build ignition file:
 
 ```sh
-butane --pretty --strict setup.bu > setup.ign
+butane --pretty --strict --files-dir . setup.bu > setup.ign
 butane --pretty --strict workstation.bu > workstation.ign
 ```
 
