@@ -1,28 +1,18 @@
 
-# Desktop ignition
-
-## os
-
-Build the operating systyem:
-
-```sh
-podman build -t ghcr.io/noobping/workstation:latest .
-```
-
-## ISO
+# Butane
 
 Build the butane files:
 
 ```sh
-yq ea '. as $item ireduce ({}; . *+ $item)' base.yml setup.yml > setup.bu
-yq ea '. as $item ireduce ({}; . *+ $item)' base.yml workstation.yml > workstation.bu
+yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/setup.yml > butane/setup.bu
+yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/workstation.yml > butane/workstation.bu
 ```
 
 Build ignition file:
 
 ```sh
-butane --pretty --strict --files-dir . setup.bu > setup.ign
-butane --pretty --strict workstation.bu > workstation.ign
+butane --pretty --strict --files-dir . butane/setup.bu > setup.ign
+butane --pretty --strict butane/workstation.bu > workstation.ign
 ```
 
 Download live ISO
