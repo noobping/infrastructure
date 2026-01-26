@@ -17,11 +17,11 @@ RUN rpm-ostree install -y cachefilesd \
     android-tools \
     aemu libvirt qemu-kvm \
     nautilus nautilus-python python3-pygit2 \
-    steam-devices \
-    --apply-live && \
+    steam-devices && \
   rm -rf /var/cache/* && \
   ostree container commit
 COPY cachefilesd.conf /etc/cachefilesd.conf
-RUN systemctl set-default graphical.target && \
-    systemctl enable gdm && \
-    ostree container commit
+RUN ln -sf /usr/lib/systemd/system/graphical.target /etc/systemd/system/default.target && \
+  mkdir -p /etc/systemd/system/graphical.target.wants && \
+  ln -sf /usr/lib/systemd/system/gdm.service /etc/systemd/system/graphical.target.wants/gdm.service && \
+  ostree container commit
