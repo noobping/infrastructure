@@ -35,7 +35,7 @@ podman run --rm -it \
     -v $PWD:/work:Z -w /work \
     quay.io/coreos/coreos-installer:release \
     iso customize \
-        --setup-ignition setup.ign \
+        --live-ignition setup.ign \
         --dest-ignition workstation.ign \
         --pre-install scripts/detect-device.sh \
         -o workstation-$(uname -m).iso \
