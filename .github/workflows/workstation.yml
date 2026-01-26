@@ -25,20 +25,20 @@ jobs:
         include:
           - arch: amd64
             runs_on: ubuntu-latest
-            platform: linux/amd64
           - arch: arm64
             runs_on: ubuntu-24.04-arm
-            platform: linux/arm64
 
     runs-on: ${{ matrix.runs_on }}
 
     container:
       image: fedora:43
+      options: >-
+        --privileged
+        --security-opt seccomp=unconfined
 
     permissions:
       contents: read
       packages: write
-      id-token: write
 
     steps:
       - name: Checkout
@@ -52,21 +52,26 @@ jobs:
 
       - name: Repository
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u "${{ github.actor }}" --password-stdin
+          echo "${{ secrets.GITHUB_TOKEN }}" | buildah login -u "${{ github.actor }}" --password-stdin ghcr.io
 
       - name: Build & Push
         working-directory: workstation
+        env:
+          BUILDAH_ISOLATION: chroot
         run: |
-          podman build \
-            --pull=always \
+          IMAGE="${IMAGE_NAME}:${{ matrix.arch }}"
+
+          buildah bud \
+            --pull-always \
+            --isolation=chroot \
             -f Containerfile \
-            -t "${IMAGE_NAME}:${{ matrix.arch }}" \
+            -t "$IMAGE" \
             --label org.opencontainers.image.source="${{ github.repositoryUrl }}" \
             --build-arg UID=1000 \
             --build-arg GID=1000 \
             .
 
-          podman push "${IMAGE_NAME}:${{ matrix.arch }}"
+          buildah push "$IMAGE" "docker://$IMAGE"
 
   manifest:
     name: Manifest
