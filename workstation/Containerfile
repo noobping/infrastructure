@@ -1,4 +1,6 @@
 FROM quay.io/fedora/fedora-coreos:stable
+LABEL org.opencontainers.image.title="Workstation" \
+  org.opencontainers.image.description="Nick's bootable container"
 RUN rpm-ostree install -y cachefilesd \
     gnome-shell \
     gdm \
