@@ -1,0 +1,46 @@
+variant: fcos
+version: 1.6.0
+
+passwd:
+  users:
+    - name: core
+      should_exist: false
+
+storage:
+  files:
+    - path: /etc/hostname
+      mode: 0440
+      contents:
+        inline: |
+          pc
+
+systemd:
+  units:
+    - name: zincati.service
+      enabled: true
+
+    - name: podman.socket
+      enabled: true
+
+    - name: nftables.service
+      enabled: true
+
+    - name: podman-auto-update.timer
+      enabled: true
+
+    - name: set-timezone.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Set timezone to Europe/Amsterdam
+        After=network.target
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/bin/timedatectl set-timezone Europe/Amsterdam
+
+        [Install]
+        WantedBy=multi-user.target
+
+    - name: systemd-timesyncd.service
+      enabled: true

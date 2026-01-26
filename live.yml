@@ -1,0 +1,9 @@
+variant: fcos
+version: 1.6.0
+
+storage:
+  files:
+    - path: /usr/local/sbin/detect-device.sh
+      mode: 0755
+      contents:
+        local: ./detect-device.sh
