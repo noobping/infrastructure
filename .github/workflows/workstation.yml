@@ -54,26 +54,19 @@ jobs:
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-      - name: Tag
-        id: date
-        run: |
-          echo "ymd=$(date -u +%Y%m%d)" >> $GITHUB_OUTPUT
-
       - name: Build & Push
         working-directory: workstation
         run: |
           podman build \
             --pull=always \
             -f Containerfile \
-            -t "${IMAGE_NAME}:latest-${{ matrix.arch }}" \
-            -t "${IMAGE_NAME}:${{ steps.date.outputs.ymd }}-${{ matrix.arch }}" \
+            -t "${IMAGE_NAME}:${{ matrix.arch }}" \
             --label org.opencontainers.image.source="${{ github.repositoryUrl }}" \
             --build-arg UID=1000 \
             --build-arg GID=1000 \
             .
 
-          podman push "${IMAGE_NAME}:latest-${{ matrix.arch }}"
-          podman push "${IMAGE_NAME}:${{ steps.date.outputs.ymd }}-${{ matrix.arch }}"
+          podman push "${IMAGE_NAME}:${{ matrix.arch }}"
 
   manifest:
     name: Manifest
@@ -97,5 +90,5 @@ jobs:
         run: |
           docker buildx imagetools create \
             -t "${IMAGE_NAME}:latest" \
-            "${IMAGE_NAME}:x86_64" \
+            "${IMAGE_NAME}:amd64" \
             "${IMAGE_NAME}:arm64"
