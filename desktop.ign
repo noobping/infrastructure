@@ -1,0 +1,36 @@
+{
+  "ignition": {
+    "version": "3.5.0"
+  },
+  "passwd": {
+    "users": [
+      {
+        "name": "core",
+        "sshAuthorizedKeys": [
+          "ssh-ed25519 AAAA...REPLACE_WITH_YOUR_KEY..."
+        ]
+      }
+    ]
+  },
+  "storage": {
+    "files": [
+      {
+        "path": "/etc/hostname",
+        "contents": {
+          "compression": "",
+          "source": "data:,fcos-custom"
+        },
+        "mode": 420
+      }
+    ]
+  },
+  "systemd": {
+    "units": [
+      {
+        "contents": "[Unit]\nDescription=Rebase FCOS to custom ostree-native container image (one-shot)\nWants=network-online.target\nAfter=network-online.target\nConditionPathExists=!/var/lib/rebase-to-custom-image.done\n\n[Service]\nType=oneshot\nExecStart=/usr/bin/rpm-ostree rebase ostree-unverified-registry:quay.io/\u003cyou\u003e/fcos-custom:latest\nExecStart=/usr/bin/touch /var/lib/rebase-to-custom-image.done\nExecStart=/usr/bin/systemctl reboot\n\n[Install]\nWantedBy=multi-user.target\n",
+        "enabled": true,
+        "name": "rebase-to-custom-image.service"
+      }
+    ]
+  }
+}

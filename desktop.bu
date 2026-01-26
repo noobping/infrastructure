@@ -1,0 +1,36 @@
+variant: fcos
+version: 1.6.0
+
+passwd:
+  users:
+    - name: core
+      ssh_authorized_keys:
+        - ssh-ed25519 AAAA...REPLACE_WITH_YOUR_KEY...
+
+storage:
+  files:
+    - path: /etc/hostname
+      mode: 0644
+      contents:
+        inline: fcos-custom
+
+systemd:
+  units:
+    - name: rebase-to-custom-image.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Rebase FCOS to custom ostree-native container image (one-shot)
+        Wants=network-online.target
+        After=network-online.target
+        ConditionPathExists=!/var/lib/rebase-to-custom-image.done
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/bin/rpm-ostree rebase ostree-unverified-registry:quay.io/<you>/fcos-custom:latest
+        ExecStart=/usr/bin/touch /var/lib/rebase-to-custom-image.done
+        ExecStart=/usr/bin/systemctl reboot
+
+        [Install]
+        WantedBy=multi-user.target
+
