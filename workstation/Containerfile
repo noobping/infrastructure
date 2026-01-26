@@ -19,7 +19,7 @@ RUN rpm-ostree install -y cachefilesd \
     android-tools \
     aemu libvirt qemu-kvm \
     nautilus nautilus-python python3-pygit2 \
-    steam-devices --apply-live && \
+    steam-devices && \
   rm -rf /var/cache/* && \
   ostree container commit
 COPY cachefilesd.conf /etc/cachefilesd.conf
