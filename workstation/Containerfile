@@ -1,6 +1,27 @@
 FROM quay.io/fedora/fedora-coreos:stable
-RUN rpm-ostree install -y cachefilesd && \
-    rm -rf /var/cache/* && \
-    ostree container commit
+RUN rpm-ostree install -y cachefilesd \
+    gnome-shell \
+    gdm \
+    gnome-session \
+    gnome-control-center \
+    xdg-desktop-portal \
+    xdg-desktop-portal-gtk \
+    flatpak \
+    flatpak-spawn \
+    dbus-daemon \
+    NetworkManager-wifi \
+    mesa-dri-drivers \
+    pipewire \
+    wireplumber \
+    appimaged fuse fuse-libs \
+    android-tools \
+    aemu libvirt qemu-kvm \
+    nautilus nautilus-python python3-pygit2 \
+    steam-devices \
+    --apply-live && \
+  rm -rf /var/cache/* && \
+  ostree container commit
 COPY cachefilesd.conf /etc/cachefilesd.conf
-RUN ostree container commit
+RUN systemctl set-default graphical.target && \
+    systemctl enable gdm && \
+    ostree container commit
