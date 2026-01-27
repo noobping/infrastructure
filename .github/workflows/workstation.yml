@@ -82,6 +82,8 @@ jobs:
           buildah bud \
             --pull-always \
             --isolation=chroot \
+            --layers=false \
+            --rm \
             -f Containerfile \
             -t "$IMAGE" \
             --label org.opencontainers.image.source="${{ github.repositoryUrl }}" \
@@ -90,6 +92,8 @@ jobs:
             .
 
           buildah push "$IMAGE" "docker://$IMAGE"
+          buildah rmi "$IMAGE" || true
+          buildah prune -f || true
 
   manifest:
     name: Manifest
