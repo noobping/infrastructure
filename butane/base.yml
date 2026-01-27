@@ -44,3 +44,33 @@ systemd:
 
     - name: systemd-timesyncd.service
       enabled: true
+
+    - name: fwupd-refresh.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Refresh firmware metadata and check for updates
+        Wants=network-online.target
+        After=network-online.target
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/bin/fwupdmgr refresh --force
+        ExecStart=/usr/bin/fwupdmgr get-updates
+
+    - name: fwupd-update-shutdown.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Apply firmware updates at shutdown
+        DefaultDependencies=no
+        Before=shutdown.target reboot.target halt.target
+        ConditionACPower=true
+
+        [Service]
+        Type=oneshot
+        TimeoutStartSec=0
+        ExecStart=/usr/bin/fwupdmgr update -y || true
+
+        [Install]
+        WantedBy=halt.target reboot.target shutdown.target
