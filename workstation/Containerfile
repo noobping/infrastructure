@@ -2,6 +2,7 @@ FROM quay.io/fedora/fedora-coreos:stable
 LABEL org.opencontainers.image.title="Workstation" \
   org.opencontainers.image.description="Nick's bootable container"
 RUN rpm-ostree install -y cachefilesd \
+    accountsservice \
     NetworkManager-wifi \
     aemu libvirt qemu-kvm \
     android-tools \
@@ -16,6 +17,9 @@ RUN rpm-ostree install -y cachefilesd \
     gnome-keyring \
     gnome-session \
     gnome-shell \
+    gnome-initial-setup \
+    gnome-network-displays \
+    polkit-gnome \
     libhid hidapi \
     mesa-dri-drivers \
     nautilus nautilus-python python3-pygit2 \
@@ -28,6 +32,9 @@ RUN rpm-ostree install -y cachefilesd \
     xdg-desktop-portal-gtk && \
   rm -rf /var/cache/* && \
   ostree container commit
+RUN mkdir -p /etc/sysconfig && \
+    printf "INITIAL_SETUP_ENABLE=YES\n" > /etc/sysconfig/initial-setup && \
+    ostree container commit
 COPY cachefilesd.conf /etc/cachefilesd.conf
 RUN ln -sf /usr/lib/systemd/system/graphical.target /etc/systemd/system/default.target && \
   mkdir -p /etc/systemd/system/graphical.target.wants && \
