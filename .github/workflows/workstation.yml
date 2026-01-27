@@ -19,17 +19,12 @@ env:
 
 jobs:
   build:
-    name: Build (${{ matrix.arch }})
+    name: Build ${{ matrix.arch }}
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - arch: amd64
-            runs_on: ubuntu-24.04
-          - arch: arm64
-            runs_on: ubuntu-24.04-arm
-
-    runs-on: ${{ matrix.runs_on }}
+        arch: [x86_64, aarch64]
 
     container:
       image: fedora:43
@@ -73,7 +68,7 @@ jobs:
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | buildah login -u "${{ github.actor }}" --password-stdin ghcr.io
 
-      - name: Build & Push
+      - name: Build
         working-directory: workstation
         env:
           BUILDAH_ISOLATION: chroot
@@ -110,9 +105,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & Push
+      - name: Push
         run: |
           docker buildx imagetools create \
             -t "${IMAGE_NAME}:latest" \
-            "${IMAGE_NAME}:amd64" \
-            "${IMAGE_NAME}:arm64"
+            "${IMAGE_NAME}:x86_64" \
+            "${IMAGE_NAME}:aarch64"
