@@ -70,7 +70,7 @@ picture-options='zoom'\n" > /etc/dconf/db/local.d/00-background && \
 <!DOCTYPE wallpapers SYSTEM \"gnome-wp-list.dtd\">\n\
 <wallpapers>\n\
   <wallpaper deleted=\"false\">\n\
-    <name>Nick Default</name>\n\
+    <name>Nick's wallpaper</name>\n\
     <filename>/usr/share/backgrounds/nick-wallpaper.png</filename>\n\
     <options>zoom</options>\n\
   </wallpaper>\n\
