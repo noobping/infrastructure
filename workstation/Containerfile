@@ -1,6 +1,6 @@
 FROM quay.io/fedora/fedora-coreos:stable
-LABEL org.opencontainers.image.title="Workstation" \
-  org.opencontainers.image.description="Nick's bootable container"
+LABEL org.opencontainers.image.title="Workstation"
+LABEL org.opencontainers.image.description="Nick's bootable container"
 RUN rpm-ostree install -y cachefilesd \
     NetworkManager-wifi \
     accountsservice \
@@ -53,13 +53,30 @@ RUN ln -sf /usr/lib/systemd/system/graphical.target /etc/systemd/system/default.
   mkdir -p /etc/systemd/system/graphical.target.wants && \
   ln -sf /usr/lib/systemd/system/gdm.service /etc/systemd/system/graphical.target.wants/gdm.service && \
   ostree container commit
-COPY background.png /usr/share/backgrounds/
 COPY profile.png /usr/share/pixmaps/faces/nick.png
-RUN mkdir -p /var/lib/AccountsService && \
-  printf "[User]\nIcon=/usr/share/pixmaps/faces/nick.png\n" > /var/lib/AccountsService/default && \
-  ostree container commit
+COPY background.png /usr/share/backgrounds/nick-wallpaper.png
 RUN rm -f /etc/resolv.conf && \
   ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf && \
+  mkdir -p /etc/dconf/db/local.d /usr/share/gnome-background-properties && \
+  printf "[org/gnome/desktop/background]\n\
+picture-uri='file:///usr/share/backgrounds/nick-wallpaper.png'\n\
+picture-uri-dark='file:///usr/share/backgrounds/nick-wallpaper.png'\n\
+picture-options='zoom'\n\n\
+[org/gnome/desktop/screensaver]\n\
+picture-uri='file:///usr/share/backgrounds/nick-wallpaper.png'\n\
+picture-options='zoom'\n" > /etc/dconf/db/local.d/00-background && \
+  printf "<?xml version=\"1.0\"?>\n\
+<!DOCTYPE wallpapers SYSTEM \"gnome-wp-list.dtd\">\n\
+<wallpapers>\n\
+  <wallpaper deleted=\"false\">\n\
+    <name>Nick Default</name>\n\
+    <filename>/usr/share/backgrounds/nick-wallpaper.png</filename>\n\
+    <options>zoom</options>\n\
+  </wallpaper>\n\
+</wallpapers>\n" > /usr/share/gnome-background-properties/nick.xml && \
+  dconf update && \
+  mkdir -p /var/lib/AccountsService && \
+  printf "[User]\nIcon=/usr/share/pixmaps/faces/nick.png\n" > /var/lib/AccountsService/default && \
   mkdir -p /etc/skel/.bashrc.d && \
   ostree container commit
 COPY aliases/ /etc/skel/.bashrc.d/
