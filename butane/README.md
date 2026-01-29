@@ -5,7 +5,7 @@ Build the butane files:
 
 ```sh
 yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/setup.yml > butane/setup.bu
-yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/workstation.yml butane/nick.yml > butane/workstation.bu
+yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/workstation.yml > butane/workstation.bu
 ```
 
 Build ignition file:
