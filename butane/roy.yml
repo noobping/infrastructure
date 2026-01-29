@@ -1,10 +1,6 @@
 variant: fcos
 version: 1.6.0
 
-boot_device:
-  luks:
-    tpm2: true
-
 systemd:
   units:
     - name: system-flatpaks-roy.service
