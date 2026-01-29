@@ -34,6 +34,15 @@ RUN rpm-ostree install -y cachefilesd \
 RUN printf "LANG=nl_NL.UTF-8\n" > /etc/locale.conf && \
   ln -sf /usr/share/zoneinfo/Europe/Amsterdam /etc/localtime && \
   ostree container commit
+RUN printf "KEYMAP=us\nXKBLAYOUT=us\nXKBVARIANT=intl\n" > /etc/vconsole.conf && \
+  mkdir -p /etc/X11/xorg.conf.d && \
+  printf 'Section "InputClass"\n\
+Identifier "keyboard-all"\n\
+MatchIsKeyboard "on"\n\
+Option "XkbLayout" "us"\n\
+Option "XkbVariant" "intl"\n\
+EndSection\n' > /etc/X11/xorg.conf.d/00-keyboard.conf && \
+  ostree container commit
 RUN mkdir -p /etc/sysconfig && \
     printf "INITIAL_SETUP_ENABLE=YES\n" > /etc/sysconfig/initial-setup && \
     ostree container commit
