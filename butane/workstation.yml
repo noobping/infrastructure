@@ -30,7 +30,6 @@ systemd:
 
         [Install]
         WantedBy=multi-user.target
-
     - name: system-flatpaks.service
       enabled: true
       contents: |
@@ -52,15 +51,19 @@ systemd:
           com.mattjakeman.ExtensionManager \
           de.philippun1.turtle \
           io.github.kolunmi.Bazaar \
+          it.mijorus.gearlever \
           net.nokyan.Resources \
           org.flatpak.Builder \
           org.getzola.zola \
+          org.gnome.Calendar \
           org.gnome.Decibels \
           org.gnome.Epiphany \
           org.gnome.Fractal \
+          org.gnome.Geary \
           org.gnome.Papers \
           org.gnome.Showtime \
           org.gnome.TextEditor \
+          org.gnome.clocks \
           page.tesk.Refine
         ExecStart=/usr/bin/touch /var/lib/system-flatpaks.done
 
