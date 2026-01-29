@@ -8,8 +8,9 @@ systemd:
       contents: |
         [Unit]
         Description=Install system Flatpaks
+        After=system-flatpaks.service
+        Requires=system-flatpaks.service
         Wants=network-online.target
-        After=network-online.target
         ConditionPathExists=/var/lib/rebase.done
         ConditionPathExists=!/var/lib/system-flatpaks-nick.done
 
