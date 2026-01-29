@@ -58,6 +58,9 @@ systemd:
         ExecStart=/usr/bin/fwupdmgr refresh --force
         ExecStart=/usr/bin/fwupdmgr get-updates
 
+        [Install]
+        WantedBy=multi-user.target
+
     - name: fwupd-update-shutdown.service
       enabled: true
       contents: |
