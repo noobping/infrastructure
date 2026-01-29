@@ -21,10 +21,11 @@ RUN rpm-ostree install -y cachefilesd \
     gnome-session \
     gnome-shell \
     libhid hidapi \
-    mesa-dri-drivers \
+    mesa-dri-drivers switcheroo-control \
     nautilus nautilus-python python3-pygit2 \
     openrgb-udev-rules \
     pipewire \
+    power-profiles-daemon upower nut \
     steam-devices \
     toolbox git \
     wireplumber \
