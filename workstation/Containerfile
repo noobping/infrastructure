@@ -8,8 +8,7 @@ RUN rpm-ostree install -y cachefilesd \
     android-tools \
     cups bluez dconf-editor \
     dbus-daemon \
-    flatpak \
-    flatpak-spawn \
+    flatpak flatpak-spawn \
     fuse fuse-libs gvfs-fuse \
     gdm \
     gnome-control-center \
@@ -41,7 +40,7 @@ RUN ln -sf /usr/lib/systemd/system/graphical.target /etc/systemd/system/default.
   ostree container commit
 RUN rm -f /etc/resolv.conf && \
   ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf && \
+  mkdir -p /etc/skel/.bashrc.d && \
   ostree container commit
-COPY aliases/ /etc/profile.d/
-RUN chmod 0644 /etc/profile.d/*.sh && \
-    ostree container commit
+COPY aliases/ /etc/skel/.bashrc.d
+RUN ostree container commit

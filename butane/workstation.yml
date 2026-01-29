@@ -47,6 +47,8 @@ systemd:
           de.philippun1.turtle \
           io.github.kolunmi.Bazaar \
           net.nokyan.Resources \
+          org.flatpak.Builder \
+          org.getzola.zola \
           org.gnome.Decibels \
           org.gnome.Epiphany \
           org.gnome.Fractal \
