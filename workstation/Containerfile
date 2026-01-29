@@ -84,10 +84,8 @@ COPY aliases/ /etc/skel/.bashrc.d/
 COPY passwordstore.sh /passwordstore.sh
 RUN chmod +x /passwordstore.sh && rm /passwordstore.sh && ostree container commit
 RUN mkdir -p /usr/lib/bootc/kargs.d && \
-    cat > /usr/lib/bootc/kargs.d/10-splash.toml <<'EOF'
-kargs = ["rhgb", "quiet"]
-EOF
+  printf "kargs = [\"rhgb\", \"quiet\"]\n" > /usr/lib/bootc/kargs.d/10-splash.toml
 RUN kver="$(ls -1 /usr/lib/modules | sort -V | tail -n1)" && \
-    echo "Building initramfs for $kver" && \
-    dracut --force --kver "$kver" "/usr/lib/modules/$kver/initramfs.img" && \
-    ostree container commit
+  echo "Building initramfs for $kver" && \
+  dracut --force --kver "$kver" "/usr/lib/modules/$kver/initramfs.img" && \
+  ostree container commit
