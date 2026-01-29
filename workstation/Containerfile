@@ -21,7 +21,7 @@ RUN rpm-ostree install -y cachefilesd \
     libhid hidapi \
     mesa-dri-drivers \
     nautilus nautilus-python python3-pygit2 \
-    openrgb-udev-rules i2c-tools \
+    openrgb-udev-rules \
     pipewire \
     steam-devices \
     toolbox git \
@@ -31,8 +31,8 @@ RUN rpm-ostree install -y cachefilesd \
   rm -rf /var/cache/* && \
   ostree container commit
 RUN mkdir -p /etc/sysconfig && \
-  printf "INITIAL_SETUP_ENABLE=YES\n" > /etc/sysconfig/initial-setup && \
-  ostree container commit
+    printf "INITIAL_SETUP_ENABLE=YES\n" > /etc/sysconfig/initial-setup && \
+    ostree container commit
 COPY cachefilesd.conf /etc/cachefilesd.conf
 RUN ln -sf /usr/lib/systemd/system/graphical.target /etc/systemd/system/default.target && \
   mkdir -p /etc/systemd/system/graphical.target.wants && \
@@ -52,16 +52,4 @@ RUN set -euo pipefail; \
   echo "Downloading: $url"; \
   curl -fL "$url" -o /etc/skel/passwordstore.AppImage; \
   chmod +x /etc/skel/passwordstore.AppImage; \
-  ostree container commit
-RUN mkdir -p /etc/modules-load.d && \
-  cat > /etc/modules-load.d/workstation.conf <<'EOF'
-i2c-dev
-hidraw
-EOF
-RUN mkdir -p /etc/udev/rules.d && \
-  cat > /etc/udev/rules.d/99-workstation-hw.rules <<'EOF'
-KERNEL=="i2c-[0-9]*", GROUP="i2c", MODE="0660"
-KERNEL=="hidraw*", GROUP="input", MODE="0660"
-EOF
-RUN getent group i2c >/dev/null || groupadd -r i2c && \
   ostree container commit
