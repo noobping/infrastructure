@@ -42,5 +42,6 @@ RUN rm -f /etc/resolv.conf && \
   ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf && \
   mkdir -p /etc/skel/.bashrc.d && \
   ostree container commit
-COPY aliases/ /etc/skel/.bashrc.d
+COPY aliases/ /etc/skel/.bashrc.d/
+COPY apps/*.AppImage  /etc/skel/
 RUN ostree container commit
