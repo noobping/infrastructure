@@ -43,8 +43,9 @@ Option "XkbLayout" "us"\n\
 Option "XkbVariant" "intl"\n\
 EndSection\n' > /etc/X11/xorg.conf.d/00-keyboard.conf && \
   ostree container commit
-RUN mkdir -p /etc/sysconfig && \
+RUN mkdir -p /etc/sysconfig /var/lib/AccountsService && \
     printf "INITIAL_SETUP_ENABLE=YES\n" > /etc/sysconfig/initial-setup && \
+    printf "[User]\nLanguage=nl_NL.UTF-8\n" > /var/lib/AccountsService/default && \
     ostree container commit
 COPY cachefilesd.conf /etc/cachefilesd.conf
 RUN ln -sf /usr/lib/systemd/system/graphical.target /etc/systemd/system/default.target && \
