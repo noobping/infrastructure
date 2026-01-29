@@ -58,7 +58,8 @@ RUN rm -f /etc/resolv.conf && \
   mkdir -p /etc/skel/.bashrc.d && \
   ostree container commit
 COPY aliases/ /etc/skel/.bashrc.d/
-COPY noobping.png /usr/share/backgrounds/
+COPY background.png /usr/share/backgrounds/
+COPY profile.png /usr/share/pixmaps/faces/nick.png
 RUN set -euo pipefail; \
   url="$(curl -fsSL https://api.github.com/repos/noobping/PasswordStore/releases/latest \
     | grep -m1 '"browser_download_url":' \
