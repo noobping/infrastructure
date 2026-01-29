@@ -17,7 +17,6 @@ RUN rpm-ostree install -y cachefilesd \
     gnome-disk-utility \
     gnome-initial-setup \
     gnome-keyring \
-    gnome-network-displays \
     gnome-session \
     gnome-shell \
     libhid hidapi \

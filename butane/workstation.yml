@@ -46,25 +46,72 @@ systemd:
         ExecStart=/usr/bin/flatpak install --system --noninteractive flathub \
           app.devsuite.Ptyxis \
           app.drey.KeyRack \
+          com.adamcake.Bolt \
+          com.github.PintaProject.Pinta \
+          com.github.finefindus.eyedropper \
+          com.github.johnfactotum.Foliate \
           com.github.marhkb.Pods \
           com.github.tchx84.Flatseal \
+          com.google.Chrome \
           com.mattjakeman.ExtensionManager \
+          com.play0ad.zeroad \
+          com.valvesoftware.Steam \
           de.philippun1.turtle \
+          de.swsnr.turnon \
+          dev.geopjr.Tuba \
+          io.bassi.Amberol \
+          io.github.bytezz.IPLookup \
           io.github.kolunmi.Bazaar \
+          io.github.lainsce.Colorway \
+          io.github.lo2dev.Echo \
+          io.github.noobping.listenmoe \
+          io.github.plrigaux.sysd-manager \
+          io.github.ronniedroid.concessio \
+          io.github.shonebinu.Brief \
           it.mijorus.gearlever \
+          me.iepure.devtoolbox \
+          net.codelogistics.webapps \
           net.nokyan.Resources \
+          net.veloren.veloren \
+          org.cvfosammmm.Setzer \
           org.flatpak.Builder \
           org.getzola.zola \
+          org.gnome.Boxes \
+          org.gnome.Builder \
+          org.gnome.Calculator \
           org.gnome.Calendar \
+          org.gnome.Characters \
+          org.gnome.Chess \
+          org.gnome.Connections \
+          org.gnome.Contacts \
           org.gnome.Decibels \
           org.gnome.Epiphany \
+          org.gnome.Firmware \
           org.gnome.Fractal \
           org.gnome.Geary \
+          org.gnome.Logs \
+          org.gnome.Loupe \
+          org.gnome.Mahjongg \
+          org.gnome.Maps \
+          org.gnome.Mines \
+          org.gnome.NetworkDisplays \
           org.gnome.Papers \
           org.gnome.Showtime \
+          org.gnome.SimpleScan \
+          org.gnome.Snapshot \
+          org.gnome.SoundRecorder \
           org.gnome.TextEditor \
+          org.gnome.baobab \
           org.gnome.clocks \
-          page.tesk.Refine
+          org.gnome.design.IconLibrary \
+          org.gnome.gitlab.somas.Apostrophe \
+          org.inkscape.Inkscape \
+          org.libreoffice.LibreOffice \
+          org.luanti.luanti \
+          org.mozilla.firefox \
+          org.virt_manager.virt-manager \
+          page.tesk.Refine \
+          studio.planetpeanut.Bobby
         ExecStart=/usr/bin/touch /var/lib/system-flatpaks.done
 
         [Install]
