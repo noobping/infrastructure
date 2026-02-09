@@ -10,7 +10,7 @@ on:
       - ".github/workflows/workstation.yml"
 
   schedule:
-    - cron: "0 3 * * *"
+    - cron: "59 23 * * *"
 
   workflow_dispatch: {}
 
