@@ -1,0 +1,14 @@
+[connection]
+id=br0
+type=bridge
+interface-name=br0
+autoconnect=true
+
+[bridge]
+stp=false
+
+[ipv4]
+method=auto
+
+[ipv6]
+method=auto

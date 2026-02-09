@@ -4,7 +4,10 @@ LABEL org.opencontainers.image.description="Nick's bootable container"
 RUN rpm-ostree install -y cachefilesd \
     NetworkManager-wifi \
     accountsservice \
-    aemu libvirt qemu-kvm \
+    aemu qemu-kvm qemu-img virt-install \
+    libvirt libvirt-daemon-kvm libvirt-daemon libvirt-client libvirt-daemon-config-network \
+    edk2-ovmf swtpm swtpm-tools \
+    dnsmasq bridge-utils libguestfs-tools \
     android-tools \
     cups bluez dconf-editor \
     dbus-daemon \
@@ -45,20 +48,28 @@ Option "XkbLayout" "us"\n\
 Option "XkbVariant" "intl"\n\
 EndSection\n' > /etc/X11/xorg.conf.d/00-keyboard.conf && \
   ostree container commit
-RUN mkdir -p /etc/sysconfig /var/lib/AccountsService && \
+RUN mkdir -p /etc/sysconfig /var/lib/AccountsService /etc/NetworkManager/system-connections && \
     printf "INITIAL_SETUP_ENABLE=YES\n" > /etc/sysconfig/initial-setup && \
     printf "[User]\nLanguage=nl_NL.UTF-8\n" > /var/lib/AccountsService/default && \
     ostree container commit
 COPY cachefilesd.conf /etc/cachefilesd.conf
-RUN ln -sf /usr/lib/systemd/system/graphical.target /etc/systemd/system/default.target && \
-  mkdir -p /etc/systemd/system/graphical.target.wants && \
+COPY nftables.conf /etc/nftables.conf
+COPY *.nmconnection /etc/NetworkManager/system-connections/
+RUN mkdir -p /etc/systemd/system/{graphical.target.wants,multi-user.target.wants} && \
+  ln -sf /usr/lib/systemd/system/graphical.target /etc/systemd/system/default.target && \
   ln -sf /usr/lib/systemd/system/gdm.service /etc/systemd/system/graphical.target.wants/gdm.service && \
+  ln -sf /usr/lib/systemd/system/libvirtd.service /etc/systemd/system/multi-user.target.wants/libvirtd.service && \
+  ln -sf /usr/lib/systemd/system/virtlogd.service /etc/systemd/system/multi-user.target.wants/virtlogd.service && \
+  ln -sf /usr/lib/systemd/system/virtlockd.service /etc/systemd/system/multi-user.target.wants/virtlockd.service && \
+  printf 'unix_sock_group = "libvirt"\nunix_sock_rw_perms = "0770"\n' > /etc/libvirt/libvirtd.conf && \
+  chmod 0644 /etc/nftables.conf && \
+  chmod 0600 /etc/NetworkManager/system-connections/*.nmconnection && \
+  rm -f /etc/resolv.conf && \
+  ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf && \
   ostree container commit
 COPY profile.png /usr/share/pixmaps/faces/nick.png
 COPY background.png /usr/share/backgrounds/nick-wallpaper.png
-RUN rm -f /etc/resolv.conf && \
-  ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf && \
-  mkdir -p /etc/dconf/db/local.d /usr/share/gnome-background-properties && \
+RUN mkdir -p /etc/dconf/db/local.d /usr/share/gnome-background-properties && \
   printf "<?xml version=\"1.0\"?>\n\
 <!DOCTYPE wallpapers SYSTEM \"gnome-wp-list.dtd\">\n\
 <wallpapers>\n\

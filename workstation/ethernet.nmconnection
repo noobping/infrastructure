@@ -1,0 +1,15 @@
+[connection]
+id=br0-eth
+type=ethernet
+interface-name=e*
+master=br0
+slave-type=bridge
+autoconnect=true
+
+[ethernet]
+
+[ipv4]
+method=disabled
+
+[ipv6]
+method=ignore
