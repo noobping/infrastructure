@@ -1,7 +1,6 @@
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 [![Butane](https://github.com/noobping/infrastructure/actions/workflows/butane.yml/badge.svg)](https://github.com/noobping/infrastructure/actions/workflows/butane.yml)
-[![Extensions](https://github.com/noobping/infrastructure/actions/workflows/extensions.yml/badge.svg)](https://github.com/noobping/infrastructure/actions/workflows/extensions.yml)
 [![Workstation](https://github.com/noobping/infrastructure/actions/workflows/workstation.yml/badge.svg)](https://github.com/noobping/infrastructure/actions/workflows/workstation.yml)
 
 # Nick's Infrastructure
