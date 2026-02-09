@@ -48,12 +48,13 @@ Option "XkbLayout" "us"\n\
 Option "XkbVariant" "intl"\n\
 EndSection\n' > /etc/X11/xorg.conf.d/00-keyboard.conf && \
   ostree container commit
-RUN mkdir -p /etc/sysconfig /var/lib/AccountsService /etc/NetworkManager/system-connections && \
+RUN mkdir -p /etc/sysconfig /var/lib/AccountsService /etc/polkit-1/rules.d /etc/NetworkManager/system-connections && \
     printf "INITIAL_SETUP_ENABLE=YES\n" > /etc/sysconfig/initial-setup && \
     printf "[User]\nLanguage=nl_NL.UTF-8\n" > /var/lib/AccountsService/default && \
     ostree container commit
 COPY cachefilesd.conf /etc/cachefilesd.conf
 COPY nftables.conf /etc/nftables.conf
+COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY *.nmconnection /etc/NetworkManager/system-connections/
 RUN mkdir -p /etc/systemd/system/{graphical.target.wants,multi-user.target.wants} && \
   ln -sf /usr/lib/systemd/system/graphical.target /etc/systemd/system/default.target && \
@@ -63,6 +64,7 @@ RUN mkdir -p /etc/systemd/system/{graphical.target.wants,multi-user.target.wants
   ln -sf /usr/lib/systemd/system/virtlockd.service /etc/systemd/system/multi-user.target.wants/virtlockd.service && \
   printf 'unix_sock_group = "libvirt"\nunix_sock_rw_perms = "0770"\n' > /etc/libvirt/libvirtd.conf && \
   chmod 0644 /etc/nftables.conf && \
+  chmod 0644 /etc/polkit-1/rules.d/50-libvirt-access.rules && \
   chmod 0600 /etc/NetworkManager/system-connections/*.nmconnection && \
   rm -f /etc/resolv.conf && \
   ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf && \
