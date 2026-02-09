@@ -24,6 +24,7 @@ RUN rpm-ostree install -y cachefilesd \
     nautilus nautilus-python python3-pygit2 \
     openrgb-udev-rules \
     pipewire \
+    plymouth \
     power-profiles-daemon upower nut \
     steam-devices \
     toolbox git \

@@ -13,6 +13,8 @@ systemd:
       enabled: true
     - name: upower.service
       enabled: true
+    - name: plymouth-start.service
+      enabled: true
     - name: rebase-to-workstation.service
       enabled: true
       contents: |
@@ -25,6 +27,7 @@ systemd:
         [Service]
         Type=oneshot
         ExecStart=/usr/bin/rpm-ostree rebase ostree-unverified-registry:ghcr.io/noobping/workstation:latest
+        ExecStart=/usr/bin/rpm-ostree kargs --append=quiet --append=splash --append=loglevel=3 --append=systemd.show_status=false --append=rd.systemd.show_status=false
         ExecStart=/usr/bin/touch /var/lib/rebase.done
         ExecStart=/usr/bin/systemctl --no-block reboot
 
@@ -45,6 +48,7 @@ systemd:
         Type=oneshot
         ExecStart=/usr/bin/flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
         ExecStart=/usr/bin/flatpak install --system --noninteractive flathub \
+          app.devsuite.Ptyxis \
           com.mattjakeman.ExtensionManager \
           io.github.kolunmi.Bazaar \
           it.mijorus.gearlever \
