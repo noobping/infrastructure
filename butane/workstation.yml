@@ -41,7 +41,7 @@ systemd:
         Restart=on-failure
         RestartSec=30s
         StartLimitIntervalSec=0
-        ExecStart=/usr/bin/rpm-ostree rebase ostree-unverified-registry:ghcr.io/noobping/workstation:latest
+        ExecStart=/usr/bin/rpm-ostree rebase ostree-image-signed:docker://ghcr.io/noobping/workstation:latest
         ExecStart=/usr/bin/rpm-ostree kargs --append=quiet --append=splash --append=loglevel=3 --append=systemd.show_status=false --append=rd.systemd.show_status=false
         ExecStart=/usr/bin/touch /var/lib/rebase.done
         ExecStart=/usr/bin/systemctl --no-block reboot
