@@ -20,12 +20,15 @@ systemd:
       contents: |
         [Unit]
         Description=Rebase FCOS to boot container image
-        Wants=network-online.target
-        After=network-online.target
+        Wants=network-online.target NetworkManager-wait-online.service
+        After=network-online.target NetworkManager-wait-online.service
         ConditionPathExists=!/var/lib/rebase.done
 
         [Service]
         Type=oneshot
+        Restart=on-failure
+        RestartSec=30s
+        StartLimitIntervalSec=0
         ExecStart=/usr/bin/rpm-ostree rebase ostree-unverified-registry:ghcr.io/noobping/workstation:latest
         ExecStart=/usr/bin/rpm-ostree kargs --append=quiet --append=splash --append=loglevel=3 --append=systemd.show_status=false --append=rd.systemd.show_status=false
         ExecStart=/usr/bin/touch /var/lib/rebase.done
@@ -46,6 +49,9 @@ systemd:
 
         [Service]
         Type=oneshot
+        Restart=on-failure
+        RestartSec=30s
+        StartLimitIntervalSec=0
         ExecStart=/usr/bin/flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
         ExecStart=/usr/bin/flatpak install --system --noninteractive flathub \
           app.devsuite.Ptyxis \
@@ -71,6 +77,9 @@ systemd:
 
         [Service]
         Type=oneshot
+        Restart=on-failure
+        RestartSec=30s
+        StartLimitIntervalSec=0
         ExecStart=/usr/bin/flatpak update --system --noninteractive
 
         [Install]

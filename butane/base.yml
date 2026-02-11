@@ -55,6 +55,9 @@ systemd:
 
         [Service]
         Type=oneshot
+        Restart=on-failure
+        RestartSec=30s
+        StartLimitIntervalSec=0
         ExecStart=/usr/bin/fwupdmgr refresh --force
         ExecStart=/usr/bin/fwupdmgr get-updates
 
