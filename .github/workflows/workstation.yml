@@ -17,6 +17,10 @@ on:
 env:
   IMAGE_NAME: ghcr.io/noobping/workstation
 
+concurrency:
+  group: workstation
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build ${{ matrix.arch }}
