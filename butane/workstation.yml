@@ -7,6 +7,18 @@ boot_device:
 
 systemd:
   units:
+    - name: clevis-luks-askpass.service
+      mask: true
+    - name: sshd.service
+      mask: true
+    - name: getty@.service
+      mask: true
+    - name: serial-getty@.service
+      mask: true
+    - name: emergency.service
+      mask: true
+    - name: rescue.service
+      mask: true
     - name: switcheroo-control.service
       enabled: true
     - name: power-profiles-daemon.service
