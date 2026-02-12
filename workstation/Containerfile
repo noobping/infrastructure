@@ -2,7 +2,7 @@ FROM quay.io/fedora/fedora-coreos:stable
 LABEL org.opencontainers.image.title="Workstation"
 LABEL org.opencontainers.image.description="Nick's bootable container"
 RUN rpm-ostree install -y cachefilesd \
-    NetworkManager-wifi \
+    NetworkManager-wifi NetworkManager-bluetooth NetworkManager-wwan NetworkManager-cloud-setup \
     accountsservice \
     aemu qemu-kvm qemu-img virt-install \
     libvirt libvirt-daemon-kvm libvirt-daemon libvirt-client libvirt-daemon-config-network \
@@ -23,8 +23,11 @@ RUN rpm-ostree install -y cachefilesd \
     gnome-session \
     gnome-shell \
     libhid hidapi \
-    mesa-dri-drivers switcheroo-control \
-    nautilus nautilus-python python3-pygit2 \
+    mesa-dri-drivers switcheroo-control virglrenderer \
+    nautilus nautilus-python python3-pygit2 nautilus-gsconnect sushi seahorse-nautilus tnef-nautilus papers-nautilus \
+    tracker-miners ffmpegthumbnailer gstreamer1-libav gstreamer1-plugins-base gstreamer1-plugin-openh264 gstreamer1-plugins-good \
+    ptyxis \
+    browserpass pass pass-otp pass-audit python-pass-import \
     openrgb-udev-rules \
     pipewire \
     plymouth plymouth-theme-spinner \
@@ -35,18 +38,6 @@ RUN rpm-ostree install -y cachefilesd \
     xdg-desktop-portal \
     xdg-desktop-portal-gtk && \
   rm -rf /var/cache/* && \
-  ostree container commit
-RUN printf "LANG=nl_NL.UTF-8\n" > /etc/locale.conf && \
-  ln -sf /usr/share/zoneinfo/Europe/Amsterdam /etc/localtime && \
-  ostree container commit
-  RUN printf "KEYMAP=us\nXKBLAYOUT=us\nXKBVARIANT=intl\n" > /etc/vconsole.conf && \
-  mkdir -p /etc/X11/xorg.conf.d && \
-  printf 'Section "InputClass"\n\
-Identifier "keyboard-all"\n\
-MatchIsKeyboard "on"\n\
-Option "XkbLayout" "us"\n\
-Option "XkbVariant" "intl"\n\
-EndSection\n' > /etc/X11/xorg.conf.d/00-keyboard.conf && \
   ostree container commit
 RUN mkdir -p /etc/sysconfig /var/lib/AccountsService /etc/polkit-1/rules.d /etc/NetworkManager/system-connections && \
     printf "INITIAL_SETUP_ENABLE=YES\n" > /etc/sysconfig/initial-setup && \

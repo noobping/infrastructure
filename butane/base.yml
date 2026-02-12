@@ -8,11 +8,35 @@ passwd:
 
 storage:
   files:
-    - path: /etc/hostname
-      mode: 0440
+    - path: /etc/locale.conf
+      mode: 0644
       contents:
         inline: |
-          workstation
+          LANG=nl_NL.UTF-8
+
+    - path: /etc/vconsole.conf
+      mode: 0644
+      contents:
+        inline: |
+          KEYMAP=us
+          XKBLAYOUT=us
+          XKBVARIANT=intl
+
+    - path: /etc/X11/xorg.conf.d/00-keyboard.conf
+      mode: 0644
+      contents:
+        inline: |
+          Section "InputClass"
+            Identifier "keyboard-all"
+            MatchIsKeyboard "on"
+            Option "XkbLayout" "us"
+            Option "XkbVariant" "intl"
+          EndSection
+
+  links:
+    - path: /etc/localtime
+      target: /usr/share/zoneinfo/Europe/Amsterdam
+      overwrite: true
 
 systemd:
   units:
@@ -27,20 +51,6 @@ systemd:
 
     - name: podman-auto-update.timer
       enabled: true
-
-    - name: set-timezone.service
-      enabled: true
-      contents: |
-        [Unit]
-        Description=Set timezone to Europe/Amsterdam
-        After=network.target
-
-        [Service]
-        Type=oneshot
-        ExecStart=/usr/bin/timedatectl set-timezone Europe/Amsterdam
-
-        [Install]
-        WantedBy=multi-user.target
 
     - name: systemd-timesyncd.service
       enabled: true

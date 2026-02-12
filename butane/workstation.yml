@@ -5,9 +5,41 @@ boot_device:
   luks:
     tpm2: true
 
+storage:
+  files:
+    - path: /etc/hostname
+      mode: 0440
+      contents:
+        inline: |
+          workstation
+
+    - path: /etc/dconf/db/local.d/00-terminal
+      mode: 0644
+      contents:
+        inline: |
+          [org/gnome/settings-daemon/plugins/media-keys]
+          terminal=['<Control><Alt>t']
+          terminal-command='flatpak run app.devsuite.Ptyxis --new-window'
+
 systemd:
   units:
+    - name: dconf-update.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Update dconf database
+        After=multi-user.target
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/bin/dconf update
+
+        [Install]
+        WantedBy=multi-user.target
+
     - name: clevis-luks-askpass.service
+      mask: true
+    - name: clevis-luks-askpass.path
       mask: true
     - name: sshd.service
       mask: true
@@ -66,13 +98,13 @@ systemd:
         StartLimitIntervalSec=0
         ExecStart=/usr/bin/flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
         ExecStart=/usr/bin/flatpak install --system --noninteractive flathub \
-          app.devsuite.Ptyxis \
+          com.belmoussaoui.Decoder \
           com.mattjakeman.ExtensionManager \
           io.github.kolunmi.Bazaar \
-          it.mijorus.gearlever \
-          org.flatpak.Builder \
-          org.getzola.zola \
           org.gnome.Calendar \
+          org.gnome.Epiphany \
+          org.gnome.Loupe \
+          org.gnome.Papers \
           org.gnome.TextEditor
         ExecStart=/usr/bin/touch /var/lib/system-flatpaks.done
 

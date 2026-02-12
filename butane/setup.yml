@@ -7,3 +7,9 @@ storage:
       mode: 0755
       contents:
         local: ./butane/detect-device.sh
+
+    - path: /etc/hostname
+      mode: 0440
+      contents:
+        inline: |
+          setup

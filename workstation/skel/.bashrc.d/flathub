@@ -1,0 +1,2 @@
+alias flatpak-builder="flatpak run org.flatpak.Builder"
+alias zola="flatpak run org.getzola.zola"
