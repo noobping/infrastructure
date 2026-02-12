@@ -19,7 +19,7 @@ storage:
         inline: |
           [org/gnome/settings-daemon/plugins/media-keys]
           terminal=['<Control><Alt>t']
-          terminal-command='flatpak run app.devsuite.Ptyxis --new-window'
+          terminal-command='ptyxis --new-window'
 
 systemd:
   units:
