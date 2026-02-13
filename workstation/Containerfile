@@ -26,8 +26,7 @@ RUN rpm-ostree install -y cachefilesd \
     mesa-dri-drivers switcheroo-control virglrenderer \
     nautilus nautilus-python python3-pygit2 nautilus-gsconnect sushi seahorse-nautilus tnef-nautilus papers-nautilus \
     tracker-miners ffmpegthumbnailer gstreamer1-libav gstreamer1-plugins-base gstreamer1-plugin-openh264 gstreamer1-plugins-good \
-    ptyxis \
-    browserpass pass pass-otp pass-audit python-pass-import \
+    ptyxis browserpass pass pass-otp pass-audit python-pass-import \
     openrgb-udev-rules \
     pipewire \
     plymouth plymouth-theme-spinner \
@@ -77,6 +76,7 @@ RUN mkdir -p /etc/dconf/db/local.d /usr/share/gnome-background-properties && \
   printf "[User]\nIcon=/usr/share/pixmaps/faces/nick.png\n" > /var/lib/AccountsService/default && \
   mkdir -p /etc/skel/.bashrc.d && \
   ostree container commit
+RUN rpm-ostree uninstall -y dconf-editor && ostree container commit
 COPY skel /etc/skel
 COPY passwordstore.sh /passwordstore.sh
 RUN chmod +x /passwordstore.sh && /passwordstore.sh && rm /passwordstore.sh && ostree container commit
