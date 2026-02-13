@@ -46,7 +46,7 @@ COPY cachefilesd.conf /etc/cachefilesd.conf
 COPY nftables.conf /etc/nftables.conf
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY *.nmconnection /etc/NetworkManager/system-connections/
-RUN mkdir -p /etc/systemd/system/{graphical.target.wants,multi-user.target.wants} && \
+RUN mkdir -p /etc/systemd/system/{graphical.target.wants,multi-user.target.wants} /etc/dconf/db/local.d && \
   ln -sf /usr/lib/systemd/system/graphical.target /etc/systemd/system/default.target && \
   ln -sf /usr/lib/systemd/system/gdm.service /etc/systemd/system/graphical.target.wants/gdm.service && \
   ln -sf /usr/lib/systemd/system/libvirtd.service /etc/systemd/system/multi-user.target.wants/libvirtd.service && \
@@ -58,6 +58,15 @@ RUN mkdir -p /etc/systemd/system/{graphical.target.wants,multi-user.target.wants
   chmod 0600 /etc/NetworkManager/system-connections/*.nmconnection && \
   rm -f /etc/resolv.conf && \
   ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf && \
+  printf "[org/gnome/settings-daemon/plugins/media-keys]\n\
+custom-keybindings=['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/']\n\
+\n\
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/]\n\
+name='Ptyxis'\n\
+command='ptyxis --new-window'\n\
+binding='<Control><Alt>t'\n" \
+  > /etc/dconf/db/local.d/10-ptyxis-terminal && \
+  dconf update && \
   ostree container commit
 COPY profile.png /usr/share/pixmaps/faces/nick.png
 COPY background.png /usr/share/backgrounds/nick-wallpaper.png

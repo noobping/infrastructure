@@ -13,14 +13,6 @@ storage:
         inline: |
           workstation
 
-    - path: /etc/dconf/db/local.d/00-terminal
-      mode: 0644
-      contents:
-        inline: |
-          [org/gnome/settings-daemon/plugins/media-keys]
-          terminal=['<Control><Alt>t']
-          terminal-command='ptyxis --new-window'
-
 systemd:
   units:
     - name: dconf-update.service
