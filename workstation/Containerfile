@@ -58,10 +58,10 @@ RUN mkdir -p /etc/systemd/system/{graphical.target.wants,multi-user.target.wants
   chmod 0600 /etc/NetworkManager/system-connections/*.nmconnection && \
   rm -f /etc/resolv.conf && \
   ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf && \
-  printf "[org/gnome/settings-daemon/plugins/media-keys]\n\
+  printf "[/org/gnome/settings-daemon/plugins/media-keys]\n\
 custom-keybindings=['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/']\n\
 \n\
-[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/]\n\
+[/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/]\n\
 name='Ptyxis'\n\
 command='ptyxis --new-window'\n\
 binding='<Control><Alt>t'\n" \
