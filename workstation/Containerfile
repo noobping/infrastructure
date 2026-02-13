@@ -9,7 +9,7 @@ RUN rpm-ostree install -y cachefilesd \
     edk2-ovmf swtpm swtpm-tools \
     dnsmasq bridge-utils libguestfs-tools \
     android-tools \
-    cups bluez \
+    cups bluez dconf \
     dbus-daemon \
     flatpak flatpak-spawn \
     fuse fuse-libs gvfs-fuse jq curl \
@@ -39,9 +39,9 @@ RUN rpm-ostree install -y cachefilesd \
   rm -rf /var/cache/* && \
   ostree container commit
 RUN mkdir -p /etc/sysconfig /var/lib/AccountsService /etc/polkit-1/rules.d /etc/NetworkManager/system-connections && \
-    printf "INITIAL_SETUP_ENABLE=YES\n" > /etc/sysconfig/initial-setup && \
-    printf "[User]\nLanguage=nl_NL.UTF-8\n" > /var/lib/AccountsService/default && \
-    ostree container commit
+  printf "INITIAL_SETUP_ENABLE=YES\n" > /etc/sysconfig/initial-setup && \
+  printf "[User]\nLanguage=nl_NL.UTF-8\n" > /var/lib/AccountsService/default && \
+  ostree container commit
 COPY cachefilesd.conf /etc/cachefilesd.conf
 COPY nftables.conf /etc/nftables.conf
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
