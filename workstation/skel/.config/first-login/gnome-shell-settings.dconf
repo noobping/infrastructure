@@ -1,0 +1,178 @@
+[/]
+app-picker-layout=[{'org.gnome.Snapshot.desktop': <{'position': <0>}>, 'org.gnome.Decibels.desktop': <{'position': <1>}>, 'org.gnome.SoundJuicer.desktop': <{'position': <2>}>, 'org.gnome.Showtime.desktop': <{'position': <3>}>, 'io.github.wartybix.Constrict.desktop': <{'position': <4>}>, 'com.unicornsonlsd.finamp.desktop': <{'position': <5>}>, 'de.philippun1.turtle.desktop': <{'position': <6>}>, 'org.gnome.Builder.desktop': <{'position': <7>}>, 'me.iepure.devtoolbox.desktop': <{'position': <8>}>, 'com.play0ad.zeroad.desktop': <{'position': <9>}>, 'com.adamcake.Bolt.desktop': <{'position': <10>}>, 'com.valvesoftware.SteamLink.desktop': <{'position': <11>}>, 'com.valvesoftware.Steam.desktop': <{'position': <12>}>, 'com.mojang.Minecraft.desktop': <{'position': <13>}>, 'net.veloren.airshipper.desktop': <{'position': <14>}>, 'org.luanti.luanti.desktop': <{'position': <15>}>, 'io.mrarm.mcpelauncher.desktop': <{'position': <16>}>, 'dev.tchx84.Gameeky.desktop': <{'position': <17>}>, 'com.github.PintaProject.Pinta.desktop': <{'position': <18>}>, 'be.alexandervanhee.gradia.desktop': <{'position': <19>}>, 'com.google.Chrome.desktop': <{'position': <20>}>, 'org.gnome.Geary.desktop': <{'position': <21>}>, 'dev.geopjr.Tuba.desktop': <{'position': <22>}>, 'tutanota-desktop.desktop': <{'position': <23>}>}, {'org.gnome.Calendar.desktop': <{'position': <0>}>, 'org.gnome.Contacts.desktop': <{'position': <1>}>, 'org.gnome.gitlab.somas.Apostrophe.desktop': <{'position': <2>}>, 'com.github.johnfactotum.Foliate.desktop': <{'position': <3>}>, 'org.libreoffice.LibreOffice.base.desktop': <{'position': <4>}>, 'org.libreoffice.LibreOffice.draw.desktop': <{'position': <5>}>, 'org.libreoffice.LibreOffice.math.desktop': <{'position': <6>}>, 'org.libreoffice.LibreOffice.desktop': <{'position': <7>}>, 'org.libreoffice.LibreOffice.writer.desktop': <{'position': <8>}>, 'org.libreoffice.LibreOffice.calc.desktop': <{'position': <9>}>, 'org.libreoffice.LibreOffice.impress.desktop': <{'position': <10>}>, 'org.gnome.Papers.desktop': <{'position': <11>}>, 'com.github.marhkb.Pods.desktop': <{'position': <12>}>, 'org.gnome.Evolution.desktop': <{'position': <13>}>, 'org.cvfosammmm.Setzer.desktop': <{'position': <14>}>, 'com.google.Chrome.flextop.chrome-ncjnbebeamfkkddkofiijnlpkcnobgin-Default.desktop': <{'position': <15>}>, 'com.google.Chrome.flextop.chrome-cadlkienfkclaiaibeoongdcgmdikeeg-Default.desktop': <{'position': <16>}>, 'com.google.Chrome.flextop.chrome-hjlhbeffadgkonmpnblkfmhckmocohah-Default.desktop': <{'position': <17>}>, 'com.google.Chrome.flextop.chrome-hiaahoijmiljnchkelknenlcobgdbjlo-Default.desktop': <{'position': <18>}>, 'uwv-weizigingsformulier.desktop': <{'position': <19>}>, 'org.gnome.Settings.desktop': <{'position': <20>}>, 'org.fedoraproject.MediaWriter.desktop': <{'position': <21>}>, 'org.virt_manager.virt-manager.desktop': <{'position': <22>}>, 'net.nokyan.Resources.desktop': <{'position': <23>}>}, {'org.gnome.Firmware.desktop': <{'position': <0>}>, 'org.gnome.Software.desktop': <{'position': <1>}>, 'org.gnome.Boxes.desktop': <{'position': <2>}>, 'io.github.realmazharhussain.GdmSettings.desktop': <{'position': <3>}>, 'org.gnome.Weather.desktop': <{'position': <4>}>, 'org.gnome.clocks.desktop': <{'position': <5>}>, 'org.gnome.Maps.desktop': <{'position': <6>}>, 'org.gnome.Extensions.desktop': <{'position': <7>}>, 'org.gnome.Characters.desktop': <{'position': <8>}>, 'org.gnome.Tour.desktop': <{'position': <9>}>, 'org.gnome.Calculator.desktop': <{'position': <10>}>, 'io.github.kolunmi.Bazaar.desktop': <{'position': <11>}>, 'page.tesk.Refine.desktop': <{'position': <12>}>, 'io.github.bytezz.IPLookup.desktop': <{'position': <13>}>, 'io.github.lo2dev.Echo.desktop': <{'position': <14>}>, 'org.gnome.TextEditor.desktop': <{'position': <15>}>, 'com.jeffser.Alpaca.desktop': <{'position': <16>}>, 'balenaetcher.desktop': <{'position': <17>}>, 'com.github.tchx84.Flatseal.desktop': <{'position': <18>}>, 'org.gnome.Yelp.desktop': <{'position': <19>}>, 'io.gitlab.adhami3310.Impression.desktop': <{'position': <20>}>, 'org.gnome.design.IconLibrary.desktop': <{'position': <21>}>, 'it.mijorus.gearlever.desktop': <{'position': <22>}>, 'winbox.desktop': <{'position': <23>}>}, {'io.freetubeapp.FreeTube.desktop': <{'position': <0>}>, 'io.github.alainm23.planify.desktop': <{'position': <1>}>, 'io.github.Foldex.AdwSteamGtk.desktop': <{'position': <2>}>, 'Utilities': <{'position': <3>}>, 'System': <{'position': <4>}>, 'acc5d56b-ceda-4c02-8bc7-2de6e51b6da5': <{'position': <5>}>}]
+command-history=['r']
+disable-user-extensions=false
+disabled-extensions=['background-logo@fedorahosted.org', 'support@noobping.dev', 'ding@rastersoft.com', 'just-perfection-desktop@just-perfection', 'gtk4-ding@smedius.gitlab.com', 'apps-menu@gnome-shell-extensions.gcampax.github.com', 'caffeine@patapon.info', 'tasks-in-panel@fthx', 'auto-activities@CleoMenezesJr.github.io', 'fullscreen-avoider@noobsai.github.com', 'dash-in-panel@fthx', 'panel-to-bottom@davron', 'draw-on-gnome@daveprowse.github.io']
+enabled-extensions=['BingWallpaper@ineffable-gmail.com', 'reboottouefi@ubaygd.com', 'in-picture@filiprund.cz', 'appindicatorsupport@rgcjonas.gmail.com', 'category-sorted-app-grid@noobping.dev', 'set-notification-position@brgvos', 'hotedge@jonathan.jdoda.ca', 'dash-to-panel@jderose9.github.com', 'arcmenu@arcmenu.com']
+favorite-apps=['org.gnome.Ptyxis.desktop', 'password_store.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Fractal.desktop', 'org.mozilla.firefox.desktop', 'com.vscodium.codium.desktop']
+remember-mount-password=true
+welcome-dialog-last-shown-version='48.0'
+
+[extensions/appindicator]
+icon-brightness=0.0
+icon-contrast=0.0
+icon-opacity=230
+icon-saturation=0.0
+icon-size=0
+legacy-tray-enabled=true
+
+[extensions/arcmenu]
+apps-show-extra-details=true
+arc-menu-icon=7
+dash-to-panel-standalone=false
+disable-scrollview-fade-effect=true
+distro-icon=2
+extra-categories=[(3, false), (2, true), (0, true), (1, false), (4, false)]
+hide-overview-on-startup=true
+highlight-search-result-terms=true
+left-panel-width=350
+menu-button-appearance='Icon_Text'
+menu-button-icon='resource:///org/gnome/shell/extensions/arcmenu/icons/scalable/actions/icon-triple-dash-symbolic.svg'
+menu-button-text='Menu'
+menu-height=600
+menu-layout='Windows'
+menu-position-alignment=50
+multi-monitor=true
+override-menu-theme=false
+pinned-apps=[{'id': 'org.gnome.Ptyxis.desktop'}, {'id': 'de.swsnr.turnon.desktop'}, {'id': 'org.gnome.Fractal.desktop'}, {'id': 'org.mozilla.firefox.desktop'}, {'id': 'com.vscodium.codium.desktop'}, {'id': 'org.gnome.Ptyxis.desktop'}, {'id': 'com.vscodium.codium.desktop'}]
+position-in-panel='Left'
+power-options=[(0, true), (1, true), (2, true), (3, true), (4, false), (5, false), (6, false), (7, false)]
+prefs-visible-page=0
+recently-installed-apps=@as []
+right-panel-width=205
+runner-show-frequent-apps=true
+search-entry-border-radius=(true, 25)
+search-provider-open-windows=true
+search-provider-recent-files=true
+searchbar-default-top-location='Top'
+show-activities-button=false
+show-hidden-recent-files=true
+show-search-result-details=true
+update-notifier-project-version=70
+windows-disable-pinned-apps=true
+windows-layout-extra-shortcuts=[{'id': 'org.gnome.Nautilus.desktop'}, {'id': 'org.gnome.Settings.desktop'}]
+windows-show-pinned-apps=false
+
+[extensions/bingwallpaper]
+bing-json="[{\"startdate\":\"20251019\",\"fullstartdate\":\"202510190700\",\"enddate\":\"20251020\",\"url\":\"/th?id=OHR.AppleHarvest_ROW9692877404_1920x1080.jpg&rf=LaDigue_1920x1080.jpg&pid=hp\",\"urlbase\":\"/th?id=OHR.AppleHarvest_ROW9692877404\",\"copyright\":\"Apples ready for harvest, Minnesota, United States (© Tammi Mild/Getty Images)\",\"copyrightlink\":\"https://www.bing.com/search?q=harvesting+apples&form=hpcapt\",\"title\":\"Info\",\"quiz\":\"/search?q=Bing+homepage+quiz&filters=WQOskey:%22HPQuiz_20251019_AppleHarvest%22&FORM=HPQUIZ\",\"wp\":true,\"hsh\":\"77e4b79359e17b5557379d33db6d1414\",\"drk\":1,\"top\":1,\"bot\":1,\"hs\":[],\"width\":0,\"height\":0},{\"startdate\":\"20251020\",\"fullstartdate\":\"202510200700\",\"enddate\":\"20251021\",\"url\":\"/th?id=OHR.HoffmansSloth_ROW9786631767_1920x1080.jpg&rf=LaDigue_1920x1080.jpg&pid=hp\",\"urlbase\":\"/th?id=OHR.HoffmansSloth_ROW9786631767\",\"copyright\":\"Hoffmann's two-toed sloth, Ecuador (© Murray Cooper/Minden Pictures)\",\"copyrightlink\":\"https://www.bing.com/search?q=Sloth&form=hpcapt\",\"title\":\"Info\",\"quiz\":\"/search?q=Bing+homepage+quiz&filters=WQOskey:%22HPQuiz_20251020_HoffmansSloth%22&FORM=HPQUIZ\",\"wp\":true,\"hsh\":\"f4fbc7541a6d85d646b32752de69bb23\",\"drk\":1,\"top\":1,\"bot\":1,\"hs\":[],\"width\":0,\"height\":0},{\"startdate\":\"20251021\",\"fullstartdate\":\"202510210700\",\"enddate\":\"20251022\",\"url\":\"/th?id=OHR.CapAntibes_ROW9927091167_1920x1080.jpg&rf=LaDigue_1920x1080.jpg&pid=hp\",\"urlbase\":\"/th?id=OHR.CapAntibes_ROW9927091167\",\"copyright\":\"Cap d'Antibes, Provence-Alpes-Côte d'Azur, France (© Eric Rousset/Getty Images)\",\"copyrightlink\":\"https://www.bing.com/search?q=Cap+d%27Antibes&form=hpcapt\",\"title\":\"Info\",\"quiz\":\"/search?q=Bing+homepage+quiz&filters=WQOskey:%22HPQuiz_20251021_CapAntibes%22&FORM=HPQUIZ\",\"wp\":true,\"hsh\":\"098465aae80cb982e4559ec695417078\",\"drk\":1,\"top\":1,\"bot\":1,\"hs\":[],\"width\":0,\"height\":0},{\"startdate\":\"20251022\",\"fullstartdate\":\"202510220700\",\"enddate\":\"20251023\",\"url\":\"/th?id=OHR.BulgariaRocks_ROW0047570938_1920x1080.jpg&rf=LaDigue_1920x1080.jpg&pid=hp\",\"urlbase\":\"/th?id=OHR.BulgariaRocks_ROW0047570938\",\"copyright\":\"Belogradchik Rocks, Bulgaria (© EvaL Miko/Shutterstock)\",\"copyrightlink\":\"https://www.bing.com/search?q=Belogradchik+Rocks&form=hpcapt\",\"title\":\"Info\",\"quiz\":\"/search?q=Bing+homepage+quiz&filters=WQOskey:%22HPQuiz_20251022_BulgariaRocks%22&FORM=HPQUIZ\",\"wp\":true,\"hsh\":\"1862d000475fc0b6518ae6decff5d8f5\",\"drk\":1,\"top\":1,\"bot\":1,\"hs\":[],\"width\":0,\"height\":0},{\"startdate\":\"20251023\",\"fullstartdate\":\"202510230700\",\"enddate\":\"20251024\",\"url\":\"/th?id=OHR.SnowLeopard_ROW0153710664_1920x1080.jpg&rf=LaDigue_1920x1080.jpg&pid=hp\",\"urlbase\":\"/th?id=OHR.SnowLeopard_ROW0153710664\",\"copyright\":\"Snow leopard with her cubs, Spiti Valley, Cold Desert Biosphere Reserve, India (© Oriol Alamany/naturepl.com)\",\"copyrightlink\":\"https://www.bing.com/search?q=Snow+Leopard&form=hpcapt\",\"title\":\"Info\",\"quiz\":\"/search?q=Bing+homepage+quiz&filters=WQOskey:%22HPQuiz_20251023_SnowLeopard%22&FORM=HPQUIZ\",\"wp\":true,\"hsh\":\"7f4ebfa0724a67602de8a64b7f915624\",\"drk\":1,\"top\":1,\"bot\":1,\"hs\":[],\"width\":0,\"height\":0},{\"startdate\":\"20251024\",\"fullstartdate\":\"202510240700\",\"enddate\":\"20251025\",\"url\":\"/th?id=OHR.QueenMary_ROW0248943301_1920x1080.jpg&rf=LaDigue_1920x1080.jpg&pid=hp\",\"urlbase\":\"/th?id=OHR.QueenMary_ROW0248943301\",\"copyright\":\"Night view of the RMS Queen Mary, Long Beach, California, United States (© Kit Leong/Shutterstock)\",\"copyrightlink\":\"https://www.bing.com/search?q=RMS+Queen+Mary&form=hpcapt\",\"title\":\"Info\",\"quiz\":\"/search?q=Bing+homepage+quiz&filters=WQOskey:%22HPQuiz_20251024_QueenMary%22&FORM=HPQUIZ\",\"wp\":true,\"hsh\":\"ef4713639e334cce4e8df837b90b9733\",\"drk\":1,\"top\":1,\"bot\":1,\"hs\":[],\"width\":0,\"height\":0},{\"startdate\":\"20251025\",\"fullstartdate\":\"202510250700\",\"enddate\":\"20251026\",\"url\":\"/th?id=OHR.MartimoaapaFinland_ROW0416444680_1920x1080.jpg&rf=LaDigue_1920x1080.jpg&pid=hp\",\"urlbase\":\"/th?id=OHR.MartimoaapaFinland_ROW0416444680\",\"copyright\":\"Aerial view of peatland in Martimoaapa Mire Reserve, Finland (© romikatarina/Shutterstock)\",\"copyrightlink\":\"https://www.bing.com/search?q=Martimoaapa+Finland&form=hpcapt\",\"title\":\"Info\",\"quiz\":\"/search?q=Bing+homepage+quiz&filters=WQOskey:%22HPQuiz_20251025_MartimoaapaFinland%22&FORM=HPQUIZ\",\"wp\":true,\"hsh\":\"5be9a7d5a6dc342ba0984a3f4e756b2d\",\"drk\":1,\"top\":1,\"bot\":1,\"hs\":[],\"width\":0,\"height\":0},{\"startdate\":\"20251026\",\"fullstartdate\":\"202510260700\",\"enddate\":\"20251027\",\"url\":\"/th?id=OHR.PumpkinFarm_ROW0518823159_1920x1080.jpg&rf=LaDigue_1920x1080.jpg&pid=hp\",\"urlbase\":\"/th?id=OHR.PumpkinFarm_ROW0518823159\",\"copyright\":\"Pumpkin farm in North Carolina, United States (© Matthew H Irvin/Getty Images)\",\"copyrightlink\":\"https://www.bing.com/search?q=pumpkin&form=hpcapt\",\"title\":\"Info\",\"quiz\":\"/search?q=Bing+homepage+quiz&filters=WQOskey:%22HPQuiz_20251026_PumpkinFarm%22&FORM=HPQUIZ\",\"wp\":true,\"hsh\":\"464b3649981f8420c5d218c512c6f006\",\"drk\":1,\"top\":1,\"bot\":1,\"hs\":[],\"width\":0,\"height\":0}]"
+download-folder='~/Afbeeldingen/BingWallpaper/'
+hide=true
+icon-name='bing-symbolic'
+random-mode-enabled=true
+revert-to-current-image=false
+
+[extensions/caffeine]
+cli-toggle=false
+countdown-timer=1800
+duration-timer=4
+duration-timer-list=[1800, 3000, 4800]
+enable-mpris=true
+indicator-position-max=2
+inhibit-apps=['com.valvesoftware.SteamLink.desktop', 'com.valvesoftware.Steam.desktop', 'com.pikatorrent.PikaTorrent.desktop']
+prefs-default-height=624
+prefs-default-width=570
+restore-state=true
+show-notifications=false
+show-timer=true
+user-enabled=false
+
+[extensions/dash-in-panel]
+center-dash=false
+dim-dot=true
+move-date=true
+scroll-panel=false
+show-activities=false
+show-apps=false
+show-dash=false
+show-overview=true
+show-running=false
+
+[extensions/dash-to-panel]
+animate-appicon-hover-animation-extent={'RIPPLE': 4, 'PLANK': 4, 'SIMPLE': 1}
+dot-position='BOTTOM'
+extension-version=72
+hotkeys-overlay-combo='TEMPORARILY'
+intellihide=false
+isolate-monitors=true
+isolate-workspaces=false
+multi-monitors=true
+overview-click-to-exit=true
+panel-anchors='{"ENC-83730102":"MIDDLE","ENC-84920102":"MIDDLE"}'
+panel-element-positions='{"ENC-83730102":[{"element":"showAppsButton","visible":false,"position":"stackedTL"},{"element":"activitiesButton","visible":true,"position":"stackedTL"},{"element":"leftBox","visible":true,"position":"stackedTL"},{"element":"taskbar","visible":true,"position":"stackedTL"},{"element":"centerBox","visible":true,"position":"stackedBR"},{"element":"rightBox","visible":true,"position":"stackedBR"},{"element":"dateMenu","visible":true,"position":"stackedBR"},{"element":"systemMenu","visible":true,"position":"stackedBR"},{"element":"desktopButton","visible":true,"position":"stackedBR"}],"ENC-84920102":[{"element":"showAppsButton","visible":false,"position":"stackedTL"},{"element":"activitiesButton","visible":true,"position":"stackedTL"},{"element":"leftBox","visible":true,"position":"stackedTL"},{"element":"taskbar","visible":true,"position":"stackedTL"},{"element":"centerBox","visible":true,"position":"stackedBR"},{"element":"rightBox","visible":true,"position":"stackedBR"},{"element":"dateMenu","visible":true,"position":"stackedBR"},{"element":"systemMenu","visible":true,"position":"stackedBR"},{"element":"desktopButton","visible":true,"position":"stackedBR"}]}'
+panel-element-positions-monitors-sync=true
+panel-lengths='{}'
+panel-positions='{}'
+panel-sizes='{"ENC-83730102":32,"ENC-84920102":32}'
+prefs-opened=false
+primary-monitor='ENC-83730102'
+stockgs-keep-dash=false
+window-preview-title-position='TOP'
+
+[extensions/ding]
+check-x11wayland=true
+show-trash=false
+
+[extensions/draw-on-gnome]
+osd-disabled=true
+persistent-over-restarts=true
+persistent-over-toggles=true
+toggle-drawing=['<Super>d']
+
+[extensions/draw-on-gnome/drawing]
+tool-color='#7fff00ff'
+tool-palette=('Palette', ['rgb(255,105,180):HotPink', 'rgb(0,255,255):Cyan', 'rgb(255,255,0):yellow', 'rgb(255,69,0):Orangered', 'rgb(127,255,0):Chartreuse', 'rgb(148,0,211):DarkViolet', 'rgb(255,255,255):White', 'rgb(190,190,190):Gray', 'rgb(0,0,0):Black'])
+tool-size=7
+
+[extensions/gtk4-ding]
+add-volumes-opposite=true
+dark-text-in-labels=false
+show-home=false
+show-network-volumes=false
+show-second-monitor=false
+show-trash=false
+show-volumes=false
+
+[extensions/hotedge]
+fallback-in-use=false
+
+[extensions/in-picture]
+diagonal-relative=30
+gnome-version='49.3'
+
+[extensions/support]
+autoconnect=false
+reconnect-seconds=5
+telemetry-level=4
+
+[extensions/tasks-in-panel]
+accent-panel=false
+animate-on-close=false
+button-width=200
+center-tasks=false
+desaturate-icon=true
+group-windows=true
+hover-raise-window=false
+light-style=false
+move-date=true
+scroll-panel=true
+show-active-workspace=true
+show-activities=true
+show-favorites-menu=true
+show-focused-window=false
+show-plus-minus=false
+show-power-profile=false
+show-recent-apps-menu=false
+show-show-desktop=false
+show-user-id=false
+show-window-app=true
+show-window-title=false
+show-workspaces-bar=false
+undecorated-task-buttons=true
+yaru-panel=true
+
+[weather]
+automatic-location=true
+locations=[<(uint32 2, <('Dordrecht', 'EHRD', false, [(0.9066985464110543, 0.077667151713747662)], [(0.9066985464110543, 0.077667151713747662)])>)>]
+
+[world-clocks]
+locations=[<(uint32 2, <('Coordinated Universal Time (UTC)', '@UTC', false, @a(dd) [], @a(dd) [])>)>, <(uint32 2, <('Sydney', 'YSSY', true, [(-0.59253928105207498, 2.6386469349889961)], [(-0.59137572239964786, 2.6392287230418559)])>)>, <(uint32 2, <('Amsterdam', 'EHAM', true, [(0.91280719879303418, 0.083194033496160544)], [(0.91402892926943036, 0.085346600422522706)])>)>]

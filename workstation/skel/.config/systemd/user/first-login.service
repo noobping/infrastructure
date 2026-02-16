@@ -1,0 +1,11 @@
+[Unit]
+Description=First login GNOME setup
+ConditionPathExists=!%h/.config/first-login/.done
+
+[Service]
+Type=oneshot
+ExecStart=%h/.config/first-login/setup-gnome.sh
+
+[Install]
+WantedBy=default.target
+
