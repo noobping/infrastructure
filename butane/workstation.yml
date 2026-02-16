@@ -13,30 +13,8 @@ storage:
         inline: |
           workstation
 
-    - path: /etc/dconf/db/local.d/00-terminal
-      mode: 0644
-      contents:
-        inline: |
-          [org/gnome/settings-daemon/plugins/media-keys]
-          terminal=['<Control><Alt>t']
-          terminal-command='flatpak run app.devsuite.Ptyxis --new-window'
-
 systemd:
   units:
-    - name: dconf-update.service
-      enabled: true
-      contents: |
-        [Unit]
-        Description=Update dconf database
-        After=multi-user.target
-
-        [Service]
-        Type=oneshot
-        ExecStart=/usr/bin/dconf update
-
-        [Install]
-        WantedBy=multi-user.target
-
     - name: clevis-luks-askpass.service
       mask: true
     - name: clevis-luks-askpass.path

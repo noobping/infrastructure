@@ -5,4 +5,3 @@
 *.json
 *.qcow2
 out/
-gnome-shell/

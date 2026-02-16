@@ -9,7 +9,7 @@ RUN rpm-ostree install -y cachefilesd \
     edk2-ovmf swtpm swtpm-tools \
     dnsmasq bridge-utils libguestfs-tools \
     android-tools \
-    cups bluez dconf-editor \
+    cups bluez dconf \
     dbus-daemon \
     flatpak flatpak-spawn \
     fuse fuse-libs gvfs-fuse jq curl \
@@ -20,14 +20,14 @@ RUN rpm-ostree install -y cachefilesd \
     gnome-disk-utility \
     gnome-initial-setup \
     gnome-keyring \
+    gnome-menus \
     gnome-session \
     gnome-shell \
     libhid hidapi \
     mesa-dri-drivers switcheroo-control virglrenderer \
     nautilus nautilus-python python3-pygit2 nautilus-gsconnect sushi seahorse-nautilus tnef-nautilus papers-nautilus \
     tracker-miners ffmpegthumbnailer gstreamer1-libav gstreamer1-plugins-base gstreamer1-plugin-openh264 gstreamer1-plugins-good \
-    ptyxis \
-    browserpass pass pass-otp pass-audit python-pass-import \
+    ptyxis browserpass pass pass-otp pass-audit python-pass-import \
     openrgb-udev-rules \
     pipewire \
     plymouth plymouth-theme-spinner \
@@ -40,9 +40,9 @@ RUN rpm-ostree install -y cachefilesd \
   rm -rf /var/cache/* && \
   ostree container commit
 RUN mkdir -p /etc/sysconfig /var/lib/AccountsService /etc/polkit-1/rules.d /etc/NetworkManager/system-connections && \
-    printf "INITIAL_SETUP_ENABLE=YES\n" > /etc/sysconfig/initial-setup && \
-    printf "[User]\nLanguage=nl_NL.UTF-8\n" > /var/lib/AccountsService/default && \
-    ostree container commit
+  printf "INITIAL_SETUP_ENABLE=YES\n" > /etc/sysconfig/initial-setup && \
+  printf "[User]\nLanguage=nl_NL.UTF-8\n" > /var/lib/AccountsService/default && \
+  ostree container commit
 COPY cachefilesd.conf /etc/cachefilesd.conf
 COPY nftables.conf /etc/nftables.conf
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
