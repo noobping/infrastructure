@@ -7,7 +7,7 @@ RUN rpm-ostree install -y cachefilesd \
     aemu qemu-kvm qemu-img virt-install \
     libvirt libvirt-daemon-kvm libvirt-daemon libvirt-client libvirt-daemon-config-network \
     edk2-ovmf swtpm swtpm-tools \
-    dnsmasq bridge-utils libguestfs-tools \
+    dnsmasq bridge-utils \
     android-tools \
     cups bluez dconf \
     dbus-daemon \
