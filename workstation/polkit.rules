@@ -1,5 +1,35 @@
 polkit.addRule(function(action, subject) {
-    if (action.id == "org.libvirt.unix.manage" && subject.isInGroup("wheel")) {
-        return polkit.Result.YES;
-    }
+  if (!(subject.local && subject.active)) {
+    return polkit.Result.NOT_HANDLED;
+  }
+
+  var userAllowed = [
+    "org.projectatomic.rpmostree1.repo-refresh",
+    "org.projectatomic.rpmostree1.upgrade",
+    "org.freedesktop.Flatpak.app-update",
+    "org.freedesktop.Flatpak.runtime-update",
+    "org.freedesktop.Flatpak.metadata-update"
+  ];
+
+  if (userAllowed.indexOf(action.id) >= 0) {
+    return polkit.Result.YES;
+  }
+
+  if (!subject.isInGroup("wheel")) {
+    return polkit.Result.NOT_HANDLED;
+  }
+
+  var adminAllowed = [
+    "org.libvirt.unix.manage",
+    "org.freedesktop.udisks2.manage",
+    "org.freedesktop.Flatpak.app-install",
+    "org.freedesktop.Flatpak.app-uninstall",
+    "org.freedesktop.Flatpak.modify-repo"
+  ];
+
+  if (adminAllowed.indexOf(action.id) >= 0) {
+    return polkit.Result.YES;
+  }
+
+  return polkit.Result.NOT_HANDLED;
 });
