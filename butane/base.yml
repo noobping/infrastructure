@@ -43,6 +43,9 @@ systemd:
     - name: zincati.service
       enabled: true
 
+    - name: rpm-ostreed.service
+      enabled: true
+
     - name: podman.socket
       enabled: true
 
