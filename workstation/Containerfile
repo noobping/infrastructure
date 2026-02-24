@@ -1,82 +1,87 @@
 FROM quay.io/fedora/fedora-coreos:stable
+
 LABEL org.opencontainers.image.title="Workstation"
 LABEL org.opencontainers.image.description="Nick's bootable container"
-RUN rpm-ostree install -y cachefilesd \
+
+RUN set -euxo pipefail; \
+  rpm-ostree override remove nfs-utils-coreos; \
+  rpm-ostree install -y \
+    cachefilesd \
     NetworkManager-wifi NetworkManager-bluetooth NetworkManager-wwan NetworkManager-cloud-setup \
     accountsservice \
-    aemu qemu-kvm qemu-img virt-install \
-    libvirt libvirt-daemon-kvm libvirt-daemon libvirt-client libvirt-daemon-config-network \
-    edk2-ovmf swtpm swtpm-tools \
-    dnsmasq bridge-utils libguestfs-tools \
-    android-tools \
-    cups bluez dconf \
-    dbus-daemon \
-    flatpak flatpak-spawn \
-    fuse fuse-libs gvfs-fuse jq curl \
+    aemu libvirt qemu-kvm android-tools \
     gdm \
     glibc-all-langpacks \
-    gnome-backgrounds \
-    gnome-control-center \
-    gnome-disk-utility \
-    gnome-initial-setup \
-    gnome-keyring \
-    gnome-menus \
-    gnome-session \
-    gnome-shell \
-    libhid hidapi \
-    mesa-dri-drivers switcheroo-control virglrenderer \
-    nautilus nautilus-python python3-pygit2 nautilus-gsconnect sushi seahorse-nautilus tnef-nautilus papers-nautilus \
-    tracker-miners ffmpegthumbnailer gstreamer1-libav gstreamer1-plugins-base gstreamer1-plugin-openh264 gstreamer1-plugins-good \
-    ptyxis browserpass pass pass-otp pass-audit python-pass-import \
-    openrgb-udev-rules \
-    pipewire \
+    gnome-backgrounds gnome-control-center gnome-disk-utility gnome-initial-setup \
+    gnome-keyring gnome-menus gnome-session gnome-shell \
+    nautilus nautilus-python python3-pygit2 nautilus-gsconnect sushi \
+    seahorse-nautilus tnef-nautilus papers-nautilus \
+    xdg-desktop-portal xdg-desktop-portal-gtk \
+    pipewire wireplumber \
     plymouth plymouth-theme-spinner \
     power-profiles-daemon upower nut \
-    steam-devices \
+    cups bluez dconf dbus-daemon \
+    flatpak flatpak-spawn \
+    fuse fuse-libs \
+    jq curl \
     toolbox git \
-    wireplumber \
-    xdg-desktop-portal \
-    xdg-desktop-portal-gtk && \
-  rm -rf /var/cache/* && \
+    tracker-miners ffmpegthumbnailer gstreamer1-libav gstreamer1-plugin-openh264 \
+    mesa-dri-drivers switcheroo-control virglrenderer \
+    libhid hidapi openrgb-udev-rules \
+    steam-devices \
+    ptyxis browserpass pass pass-otp pass-audit python-pass-import; \
+
+  rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
   ostree container commit
-RUN mkdir -p /etc/sysconfig /var/lib/AccountsService /etc/polkit-1/rules.d /etc/NetworkManager/system-connections && \
-  printf "INITIAL_SETUP_ENABLE=YES\n" > /etc/sysconfig/initial-setup && \
-  printf "[User]\nLanguage=nl_NL.UTF-8\n" > /var/lib/AccountsService/default && \
-  ostree container commit
-COPY cachefilesd.conf /etc/cachefilesd.conf
-COPY nftables.conf /etc/nftables.conf
-COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
+
+RUN set -euxo pipefail; \
+  mkdir -p \
+    /etc/skel/.bashrc.d \
+    /etc/systemd/system/graphical.target.wants \
+    /etc/systemd/system/multi-user.target.wants \
+    /etc/sysconfig \
+    /var/lib/AccountsService \
+    /etc/polkit-1/rules.d \
+    /etc/NetworkManager/system-connections \
+    /etc/dconf/db/local.d \
+    /usr/share/gnome-background-properties
+
 COPY *.nmconnection /etc/NetworkManager/system-connections/
-RUN mkdir -p /etc/systemd/system/{graphical.target.wants,multi-user.target.wants} && \
-  ln -sf /usr/lib/systemd/system/graphical.target /etc/systemd/system/default.target && \
-  ln -sf /usr/lib/systemd/system/gdm.service /etc/systemd/system/graphical.target.wants/gdm.service && \
-  ln -sf /usr/lib/systemd/system/libvirtd.service /etc/systemd/system/multi-user.target.wants/libvirtd.service && \
-  ln -sf /usr/lib/systemd/system/virtlogd.service /etc/systemd/system/multi-user.target.wants/virtlogd.service && \
-  ln -sf /usr/lib/systemd/system/virtlockd.service /etc/systemd/system/multi-user.target.wants/virtlockd.service && \
-  printf 'unix_sock_group = "libvirt"\nunix_sock_rw_perms = "0770"\n' > /etc/libvirt/libvirtd.conf && \
-  chmod 0644 /etc/nftables.conf && \
-  chmod 0644 /etc/polkit-1/rules.d/50-libvirt-access.rules && \
-  chmod 0600 /etc/NetworkManager/system-connections/*.nmconnection && \
-  rm -f /etc/resolv.conf && \
-  ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf && \
-  ostree container commit
-COPY profile.png /usr/share/pixmaps/faces/nick.png
 COPY background.png /usr/share/backgrounds/nick-wallpaper.png
-RUN mkdir -p /etc/dconf/db/local.d /usr/share/gnome-background-properties && \
-  printf "<?xml version=\"1.0\"?>\n\
-<!DOCTYPE wallpapers SYSTEM \"gnome-wp-list.dtd\">\n\
-<wallpapers>\n\
-  <wallpaper deleted=\"false\">\n\
-    <name>Nick's wallpaper</name>\n\
-    <filename>/usr/share/backgrounds/nick-wallpaper.png</filename>\n\
-    <options>zoom</options>\n\
-  </wallpaper>\n\
-</wallpapers>\n" > /usr/share/gnome-background-properties/nick.xml && \
-  dconf update && \
-  mkdir -p /var/lib/AccountsService && \
-  printf "[User]\nIcon=/usr/share/pixmaps/faces/nick.png\n" > /var/lib/AccountsService/default && \
-  mkdir -p /etc/skel/.bashrc.d && \
-  ostree container commit
-COPY skel /etc/skel
+COPY background.xml /usr/share/gnome-background-properties/nick.xml
+COPY cachefilesd.conf /etc/cachefilesd.conf
+COPY libvirtd.conf /etc/libvirt/libvirtd.conf
+COPY nftables.conf /etc/nftables.conf
 COPY passwordstore.sh /passwordstore.sh
-RUN chmod +x /passwordstore.sh && /passwordstore.sh && rm /passwordstore.sh && ostree container commit
+COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
+COPY profile.conf /var/lib/AccountsService/default
+COPY profile.png /usr/share/pixmaps/faces/nick.png
+COPY skel /etc/skel
+
+RUN set -euxo pipefail; \
+  dconf update; \
+
+  chmod +x /passwordstore.sh; \
+  /passwordstore.sh; \
+  rm -f /passwordstore.sh; \
+
+  chmod 0600 /etc/NetworkManager/system-connections/*.nmconnection; \
+  chmod 0644 /etc/nftables.conf; \
+  chmod 0644 /etc/polkit-1/rules.d/50-libvirt-access.rules; \
+
+  rm -f /etc/resolv.conf; \
+  ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf; \
+
+  ln -sf /usr/lib/systemd/system/gdm.service \
+    /etc/systemd/system/graphical.target.wants/gdm.service; \
+  ln -sf /usr/lib/systemd/system/graphical.target \
+    /etc/systemd/system/default.target; \
+  ln -sf /usr/lib/systemd/system/libvirtd.service \
+    /etc/systemd/system/multi-user.target.wants/libvirtd.service; \
+  ln -sf /usr/lib/systemd/system/virtlockd.service \
+    /etc/systemd/system/multi-user.target.wants/virtlockd.service; \
+  ln -sf /usr/lib/systemd/system/virtlogd.service \
+    /etc/systemd/system/multi-user.target.wants/virtlogd.service; \
+
+  printf '%s\n' "INITIAL_SETUP_ENABLE=YES" > /etc/sysconfig/initial-setup; \
+  ostree container commit
