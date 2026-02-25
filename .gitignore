@@ -2,6 +2,5 @@
 *.bu
 *.ign
 *.iso
-*.json
 *.qcow2
 out/
