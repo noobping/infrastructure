@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<zone target="DROP">
+    <short>Public</short>
+    <description>Custom NAS firewall</description>
+
+    <!-- allow ssh -->
+    <service name="ssh"/>
+
+    <!-- allow cockpit -->
+    <port protocol="tcp" port="9090"/>
+
+    <!-- jellyfin -->
+    <port protocol="tcp" port="8096"/>
+    <port protocol="tcp" port="8920"/>
+    <port protocol="udp" port="7359"/>
+    <port protocol="udp" port="1900"/>
+
+    <!-- http/https -->
+    <service name="http"/>
+    <service name="https"/>
+</zone>

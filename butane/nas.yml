@@ -1,0 +1,85 @@
+variant: fcos
+version: 1.6.0
+
+boot_device:
+  luks:
+    tpm2: true
+
+storage:
+  files:
+    - path: /etc/hostname
+      mode: 0440
+      contents:
+        inline: |
+          nas
+
+systemd:
+  units:
+    - name: sshd.service
+      enabled: true
+    - name: power-profiles-daemon.service
+      enabled: true
+    - name: upower.service
+      enabled: true
+    - name: getty@tty1.service
+      enabled: true
+      dropins:
+        - name: override.conf
+          contents: |
+            [Service]
+            ExecStart=
+            ExecStart=-/sbin/agetty --autologin nick --noclear %I $TERM
+    - name: rebase-to-nas.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Rebase FCOS to boot container image
+        Wants=network-online.target NetworkManager-wait-online.service
+        After=network-online.target NetworkManager-wait-online.service
+        ConditionPathExists=!/var/lib/rebase.done
+
+        [Service]
+        Type=oneshot
+        Restart=on-failure
+        RestartSec=30s
+        StartLimitIntervalSec=0
+        StandardOutput=tty
+        StandardError=tty
+        TTYPath=/dev/tty1
+        Environment=LANG=C.UTF-8
+        Environment=LC_ALL=C.UTF-8
+        ExecStart=/usr/bin/rpm-ostree rebase --bypass-driver ostree-image-signed:docker://ghcr.io/noobping/nas:latest
+        ExecStart=/usr/bin/rpm-ostree kargs --append=loglevel=3
+        ExecStart=/usr/bin/touch /var/lib/rebase.done
+        ExecStart=/usr/bin/systemctl --no-block reboot
+
+        [Install]
+        WantedBy=multi-user.target
+    - name: nightly-shutdown.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Power off the system at 21:30
+        After=network.target
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/sbin/shutdown -h 21:30
+
+        [Install]
+        WantedBy=multi-user.target
+
+    - name: wake-on-lan.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Power on the system (just once after shutdown)
+        Wants=network-online.target
+        After=network-online.target
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/sbin/sh -c 'dev=$(ip -br link | awk '\''$2=="UP" && $1!="lo" {print $1; exit}'\''); if [ -n "$dev" ]; then ethtool -s "$dev" wol g && echo "WOL enabled on $dev"; fi'
+
+        [Install]
+        WantedBy=multi-user.target

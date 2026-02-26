@@ -1,0 +1,34 @@
+FROM quay.io/fedora/fedora-coreos:stable
+
+LABEL org.opencontainers.image.title="NAS"
+LABEL org.opencontainers.image.description="Nick's bootable container"
+
+RUN set -euxo pipefail; \
+  rpm-ostree override remove nfs-utils-coreos; \
+  rpm-ostree install -y \
+    libvirt qemu-kvm \
+    pcp-zeroconf smartmontools \
+    ModemManager NetworkManager-wwan fwupd-plugin-modem-manager NetworkManager-ppp NetworkManager-openvpn NetworkManager-cloud-setup \
+    cockpit-system cockpit-ostree cockpit-podman cockpit-machines cockpit-storaged cockpit-files cockpit-networkmanager cockpit-sosreport cockpit-kdump cockpit-selinux \
+    power-profiles-daemon upower nut \
+    toolbox git; \
+
+  rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
+  mkdir -p /etc/modules-load.d /etc/polkit-1/rules.d /etc/systemd/system/multi-user.target.wants /etc/firewalld/zones; \
+  ostree container commit
+
+COPY libvirtd.conf /etc/libvirt/libvirtd.conf
+COPY firewall.xml /etc/firewalld/zones/public.xml
+COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
+
+RUN set -euxo pipefail; \
+  echo DefaultZone=public > /etc/firewalld/firewalld.conf; \
+  ln -sf /usr/lib/systemd/system/libvirtd.service \
+    /etc/systemd/system/multi-user.target.wants/libvirtd.service; \
+  ln -sf /usr/lib/systemd/system/virtlockd.service \
+    /etc/systemd/system/multi-user.target.wants/virtlockd.service; \
+  ln -sf /usr/lib/systemd/system/virtlogd.service \
+    /etc/systemd/system/multi-user.target.wants/virtlogd.service; \
+  ln -sf /usr/lib/systemd/system/firewalld.service \
+    /etc/systemd/system/multi-user.target.wants/firewalld.service; \
+  ostree container commit
