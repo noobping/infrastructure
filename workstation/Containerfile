@@ -23,7 +23,7 @@ RUN set -euxo pipefail; \
     cups bluez dconf dbus-daemon \
     flatpak flatpak-spawn \
     fuse fuse-libs \
-    jq curl \
+    jq curl pipx python3-pip \
     toolbox git \
     tracker-miners ffmpegthumbnailer gstreamer1-libav gstreamer1-plugin-openh264 \
     mesa-dri-drivers switcheroo-control virglrenderer \
@@ -37,6 +37,7 @@ RUN set -euxo pipefail; \
 RUN set -euxo pipefail; \
   mkdir -p \
     /etc/skel/.bashrc.d \
+    /etc/recommended \
     /etc/systemd/system/graphical.target.wants \
     /etc/systemd/system/multi-user.target.wants \
     /etc/sysconfig \
@@ -50,6 +51,7 @@ COPY *.nmconnection /etc/NetworkManager/system-connections/
 COPY background.png /usr/share/backgrounds/nick-wallpaper.png
 COPY background.xml /usr/share/gnome-background-properties/nick.xml
 COPY cachefilesd.conf /etc/cachefilesd.conf
+COPY extensions.txt /etc/recommended/extensions
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
 COPY nftables.conf /etc/nftables.conf
 COPY passwordstore.sh /passwordstore.sh
