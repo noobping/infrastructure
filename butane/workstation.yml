@@ -6,6 +6,9 @@ boot_device:
     tpm2: true
 
 storage:
+  directories:
+    - path: /var/cache/fscache
+      mode: 0700
   files:
     - path: /etc/locale.conf
       mode: 0644
