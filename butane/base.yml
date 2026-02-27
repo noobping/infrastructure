@@ -37,7 +37,7 @@ systemd:
     - name: nftables.service
       enabled: true
 
-    - name: rpm-ostreed.socket
+    - name: rpm-ostreed.service
       enabled: true
 
     - name: podman.socket
