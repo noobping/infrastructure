@@ -5,8 +5,139 @@ boot_device:
   luks:
     tpm2: true
 
+kernel_arguments:
+  should_exist:
+    - crashkernel=512M
+    - libata.eh_timeout=240
+    # - libata.force=noncq
+    # - libata.noacpi=1
+    # - ahci.mobile_lpm_policy=1
+
+passwd:
+  groups:
+    - name: qemu
+      system: true
+  users:
+    - name: git
+      uid: 1007
+      home_dir: /var/srv/git
+      shell: /usr/bin/nologin
+    - name: videos
+      uid: 1006
+      home_dir: /var/srv/videos
+      shell: /usr/bin/nologin
+    - name: photos
+      uid: 1005
+      home_dir: /var/srv/photos
+      shell: /usr/bin/nologin
+    - name: docs
+      uid: 1004
+      home_dir: /var/srv/docs
+      shell: /usr/bin/nologin
+    - name: minecraft
+      uid: 1003
+      home_dir: /var/lib/containers/minecraft
+      shell: /usr/bin/nologin
+    - name: steam
+      uid: 1002
+      home_dir: /var/lib/containers/steam
+      shell: /usr/bin/nologin
+    - name: music
+      uid: 1001
+      home_dir: /var/srv/music
+      shell: /usr/bin/nologin
+    - name: nick
+      uid: 1000
+      groups:
+        - wheel
+        - qemu
+        - minecraft
+        - music
+        - steam
+        - docs
+        - photos
+        - videos
+        - git
+      ssh_authorized_keys:
+        - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEjRfPMkXzhO4unF0mEOHge+wGAE9VarXYo7RRXX2L3j
+        - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBgtZmKuTJY2z88tCrtexFTPmXGA6oR1m4XQVn8ZLzmj
+
 storage:
+  directories:
+    - path: /var/lib/containers/minecraft/java
+      mode: 0755
+      user:
+        name: minecraft
+      group:
+        name: minecraft
+    - path: /var/lib/containers/minecraft/bedrock
+      mode: 0755
+      user:
+        name: minecraft
+      group:
+        name: minecraft
+    - path: /var/lib/containers/steam/data
+      mode: 0755
+      user:
+        name: steam
+      group:
+        name: steam
+    - path: /var/lib/containers/steam/local
+      mode: 0755
+      user:
+        name: steam
+      group:
+        name: steam
+    - path: /var/srv/music/touhou
+      mode: 0755
+      user:
+        name: music
+      group:
+        name: music
+    - path: /var/lib/containers
+      mode: 0755
+    - path: /var/lib/containers/jellyfin
+      mode: 0755
+      user:
+        name: music
+      group:
+        name: music
+    - path: /var/lib/containers/jellyfin/cache
+      mode: 0755
+      user:
+        name: music
+      group:
+        name: music
+    - path: /var/srv/books
+      mode: 0755
+      user:
+        name: music
+      group:
+        name: music
+    - path: /var/srv/ssd
+    - path: /var/srv/hdd
+    - path: /var/home/nick/.bashrc.d
+      mode: 0755
+      user:
+        name: nick
+      group:
+        name: nick
   files:
+    - path: /etc/ssh/sshd_config.d/40-disable-passwords.conf
+      mode: 0644
+      overwrite: true
+      contents:
+        inline: |
+          # Disable password logins by default.
+          # https://github.com/coreos/fedora-coreos-tracker/issues/138
+          # This file must sort before 50-redhat.conf, which enables
+          # PasswordAuthentication.
+          PasswordAuthentication yes
+    - path: /etc/sudoers.d/nick
+      mode: 0440
+      contents:
+        inline: |
+          nick ALL=(ALL) NOPASSWD:ALL
     - path: /etc/hostname
       mode: 0440
       contents:
@@ -36,21 +167,20 @@ systemd:
         Description=Rebase FCOS to boot container image
         Wants=network-online.target NetworkManager-wait-online.service
         After=network-online.target NetworkManager-wait-online.service
-        ConditionPathExists=!/var/lib/rebase.done
+        ConditionPathExists=!/var/rebase.done
 
         [Service]
         Type=oneshot
         Restart=on-failure
         RestartSec=30s
         StartLimitIntervalSec=0
-        StandardOutput=tty
-        StandardError=tty
-        TTYPath=/dev/tty1
+        StandardOutput=journal+console
+        StandardError=journal+console
         Environment=LANG=C.UTF-8
         Environment=LC_ALL=C.UTF-8
         ExecStart=/usr/bin/rpm-ostree rebase --bypass-driver ostree-image-signed:docker://ghcr.io/noobping/nas:latest
         ExecStart=/usr/bin/rpm-ostree kargs --append=loglevel=3
-        ExecStart=/usr/bin/touch /var/lib/rebase.done
+        ExecStart=/usr/bin/touch /var/rebase.done
         ExecStart=/usr/bin/systemctl --no-block reboot
 
         [Install]

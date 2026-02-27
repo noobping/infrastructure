@@ -17,17 +17,17 @@ concurrency:
 
 jobs:
   build:
-    name: Build ${{ matrix.arch }}
+    name: Build ${{ matrix.arch.name }} ${{ matrix.profile }}
     strategy:
-      fail-fast: false
       matrix:
-        include:
-          - arch: amd64
+        arch:
+          - name: amd64
             runs_on: ubuntu-latest
-          - arch: arm64
+          - name: arm64
             runs_on: ubuntu-24.04-arm
+        profile: [nas, workstation]
 
-    runs-on: ${{ matrix.runs_on }}
+    runs-on: ${{ matrix.arch.runs_on }}
 
     permissions:
       contents: write
@@ -51,7 +51,7 @@ jobs:
         run: |
           set -euxo pipefail
           yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/setup.yml > butane/setup.bu
-          yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/workstation.yml > butane/workstation.bu
+          yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/${{ matrix.profile }}.yml > butane/${{ matrix.profile }}.bu
 
       - name: Build ignition files
         run: |
@@ -65,7 +65,7 @@ jobs:
           podman run --rm \
             -v "$PWD:/work:Z" -w /work \
             quay.io/coreos/butane:release \
-            --pretty --strict butane/workstation.bu > workstation.ign
+            --pretty --strict butane/${{ matrix.profile }}.bu > ${{ matrix.profile }}.ign
 
       - name: Download stable release
         run: |
@@ -83,7 +83,7 @@ jobs:
           set -euxo pipefail
           arch="$(uname -m)"
           base_iso="$(ls -1 fedora-coreos-*-live-iso."$arch".iso | tail -n1)"
-          out_iso="workstation-${arch}.iso"
+          out_iso="${{ matrix.profile }}-${arch}.iso"
 
           podman run --rm \
             --userns=keep-id \
@@ -92,7 +92,7 @@ jobs:
             quay.io/coreos/coreos-installer:release \
             iso customize \
               --live-ignition setup.ign \
-              --dest-ignition workstation.ign \
+              --dest-ignition ${{ matrix.profile }}.ign \
               --pre-install butane/detect-device.sh \
               -o "$out_iso" \
               "$base_iso"
@@ -102,10 +102,10 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: workstation-${{ matrix.runs_on }}
+          name: ${{ matrix.profile }}-${{ matrix.arch.runs_on }}
           path: |
-            workstation-*.iso
-            workstation-*.iso.sha256
+            ${{ matrix.profile }}-*.iso
+            ${{ matrix.profile }}-*.iso.sha256
 
       - name: Release artifacts
         uses: ncipollo/release-action@v1
@@ -116,7 +116,7 @@ jobs:
           replacesArtifacts: true
           prerelease: false
           makeLatest: true
-          artifacts: "workstation-*.iso,workstation-*.iso.sha256"
+          artifacts: "${{ matrix.profile }}-*.iso,${{ matrix.profile }}-*.iso.sha256"
           generateReleaseNotes: false
           body: |
             This release is automatically updated.

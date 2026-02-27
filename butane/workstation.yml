@@ -7,6 +7,28 @@ boot_device:
 
 storage:
   files:
+    - path: /etc/locale.conf
+      mode: 0644
+      contents:
+        inline: |
+          LANG=nl_NL.UTF-8
+    - path: /etc/vconsole.conf
+      mode: 0644
+      contents:
+        inline: |
+          KEYMAP=us
+          XKBLAYOUT=us
+          XKBVARIANT=intl
+    - path: /etc/X11/xorg.conf.d/00-keyboard.conf
+      mode: 0644
+      contents:
+        inline: |
+          Section "InputClass"
+            Identifier "keyboard-all"
+            MatchIsKeyboard "on"
+            Option "XkbLayout" "us"
+            Option "XkbVariant" "intl"
+          EndSection
     - path: /etc/hostname
       mode: 0440
       contents:
