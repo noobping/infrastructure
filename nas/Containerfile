@@ -28,5 +28,10 @@ COPY libvirtd.conf /etc/libvirt/libvirtd.conf
 COPY mdadm.conf /etc/mdadm.conf
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY nftables/ /etc/nftables.d/
+COPY bashrc.sh /etc/bashrc2
 
-RUN ostree container commit
+RUN set -euxo pipefail; \
+  mv /etc/bashrc /etc/bashrc1; \
+  cat /etc/bashrc{1,2} > /etc/bashrc; \
+  rm /etc/bashrc1 /etc/bashrc2; \
+  ostree container commit
