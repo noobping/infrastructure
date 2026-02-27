@@ -62,8 +62,10 @@ COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY profile.conf /var/lib/AccountsService/default
 COPY profile.png /usr/share/pixmaps/faces/nick.png
 COPY skel /etc/skel
+COPY certs/ /etc/pki/ca-trust/source/anchors/
 
 RUN set -euxo pipefail; \
+  update-ca-trust; \
   dconf update; \
 
   chmod +x /passwordstore.sh; \
