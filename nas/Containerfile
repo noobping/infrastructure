@@ -27,5 +27,6 @@ COPY fstab.txt /etc/fstab
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
 COPY mdadm.conf /etc/mdadm.conf
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
+COPY nftables/ /etc/nftables.d/
 
 RUN ostree container commit
