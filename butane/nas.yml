@@ -18,6 +18,10 @@ passwd:
     - name: qemu
       system: true
   users:
+    - name: data
+      uid: 1008
+      home_dir: /var/srv/data
+      shell: /usr/bin/nologin
     - name: git
       uid: 1007
       home_dir: /var/srv/git
@@ -58,6 +62,7 @@ passwd:
         - photos
         - videos
         - git
+        - data
       ssh_authorized_keys:
         - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEjRfPMkXzhO4unF0mEOHge+wGAE9VarXYo7RRXX2L3j
         - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBgtZmKuTJY2z88tCrtexFTPmXGA6oR1m4XQVn8ZLzmj
