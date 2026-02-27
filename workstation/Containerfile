@@ -29,8 +29,9 @@ RUN set -euxo pipefail; \
     mesa-dri-drivers switcheroo-control virglrenderer \
     libhid hidapi openrgb-udev-rules \
     steam-devices \
-    ptyxis browserpass pass pass-otp pass-audit python-pass-import; \
+    ptyxis; \
 
+  rpm-ostree override remove gnome-tour; \
   rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
   ostree container commit
 
@@ -46,7 +47,6 @@ RUN set -euxo pipefail; \
     /etc/NetworkManager/system-connections \
     /etc/nftables.d \
     /etc/firewalld/zones \
-    /etc/dconf/db/local.d \
     /usr/share/gnome-background-properties
 
 COPY *.nmconnection /etc/NetworkManager/system-connections/
@@ -67,7 +67,6 @@ COPY certs/ /etc/pki/ca-trust/source/anchors/
 
 RUN set -euxo pipefail; \
   update-ca-trust; \
-  dconf update; \
 
   chmod +x /passwordstore.sh; \
   /passwordstore.sh; \
