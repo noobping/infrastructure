@@ -14,6 +14,7 @@ Build ignition file:
 ```sh
 butane --pretty --strict --files-dir . butane/setup.bu > setup.ign
 butane --pretty --strict butane/workstation.bu > workstation.ign
+butane --pretty --strict butane/nas.bu > nas.ign
 ```
 
 Download live ISO
