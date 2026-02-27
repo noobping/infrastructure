@@ -12,11 +12,13 @@ storage:
   files:
     - path: /etc/locale.conf
       mode: 0644
+      overwrite: true
       contents:
         inline: |
           LANG=nl_NL.UTF-8
     - path: /etc/vconsole.conf
       mode: 0644
+      overwrite: true
       contents:
         inline: |
           KEYMAP=us
@@ -24,6 +26,7 @@ storage:
           XKBVARIANT=intl
     - path: /etc/X11/xorg.conf.d/00-keyboard.conf
       mode: 0644
+      overwrite: true
       contents:
         inline: |
           Section "InputClass"
@@ -34,6 +37,7 @@ storage:
           EndSection
     - path: /etc/hostname
       mode: 0440
+      overwrite: true
       contents:
         inline: |
           workstation

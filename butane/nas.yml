@@ -130,6 +130,7 @@ storage:
   files:
     - path: /etc/nftables.d/ssh.nft
       mode: 0644
+      overwrite: true
       contents:
         inline: |
           tcp dport 22 accept
@@ -145,11 +146,13 @@ storage:
           PasswordAuthentication yes
     - path: /etc/sudoers.d/nick
       mode: 0440
+      overwrite: true
       contents:
         inline: |
           nick ALL=(ALL) NOPASSWD:ALL
     - path: /etc/hostname
       mode: 0440
+      overwrite: true
       contents:
         inline: |
           nas
