@@ -1,0 +1,3 @@
+tcp dport 25565 accept
+udp dport {19132, 19133} accept
+udp dport 30000 accept

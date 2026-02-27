@@ -1,0 +1,14 @@
+[Unit]
+Description=Podman - cockpit web service
+
+[Container]
+Image=quay.io/cockpit/ws:latest
+AutoUpdate=registry
+PodmanArgs=--privileged --pid=host --network=host -v /:/host
+
+[Service]
+Restart=always
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target

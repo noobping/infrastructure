@@ -1,0 +1,2 @@
+tcp dport 9090 accept
+tcp dport {80, 443} accept

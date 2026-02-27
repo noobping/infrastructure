@@ -123,6 +123,11 @@ storage:
       group:
         name: nick
   files:
+    - path: /etc/nftables.d/ssh.nft
+      mode: 0644
+      contents:
+        inline: |
+          tcp dport 22 accept
     - path: /etc/ssh/sshd_config.d/40-disable-passwords.conf
       mode: 0644
       overwrite: true
@@ -151,6 +156,12 @@ systemd:
     - name: power-profiles-daemon.service
       enabled: true
     - name: upower.service
+      enabled: true
+    - name: libvirtd.service
+      enabled: true
+    - name: virtlockd.service
+      enabled: true
+    - name: virtlogd.service
       enabled: true
     - name: getty@tty1.service
       enabled: true
