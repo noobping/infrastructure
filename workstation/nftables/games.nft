@@ -1,0 +1,14 @@
+# Luanti (Minetest)
+udp dport 30000 accept
+
+# 0 A.D.
+udp dport 20595 accept
+
+# Xonotic
+udp dport 26000 accept
+
+# Sauerbraten (Cube 2)
+udp dport {28785, 28786} accept
+
+# Warzone
+tcp dport 2100 accept

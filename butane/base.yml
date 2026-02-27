@@ -15,6 +15,7 @@ storage:
   files:    
     - path: /etc/nftables.conf
       mode: 0644
+      overwrite: true
       contents:
         inline: |
           #!/usr/sbin/nft -f

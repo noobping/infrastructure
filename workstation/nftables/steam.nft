@@ -1,0 +1,2 @@
+tcp dport 27036-27037 accept
+udp dport 27031-27036 accept

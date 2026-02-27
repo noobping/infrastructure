@@ -1,0 +1,10 @@
+# Steam networking / P2P
+udp dport 27000-27100 accept
+
+# Steam game traffic
+tcp dport 27015-27030 accept
+udp dport 27015-27030 accept
+
+# Steam Remote Play
+tcp dport 27036-27037 accept
+udp dport 27031-27036 accept
