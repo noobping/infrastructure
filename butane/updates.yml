@@ -1,0 +1,72 @@
+variant: fcos
+version: 1.6.0
+
+systemd:
+  units:
+    - name: zincati.service
+      enabled: false
+
+    - name: rpm-ostree-upgrade.service
+      enabled: false
+      contents: |
+        [Unit]
+        Description=Check and stage rpm-ostree updates
+        Wants=network-online.target
+        After=network-online.target
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/bin/rpm-ostree upgrade
+
+        [Install]
+        WantedBy=multi-user.target
+
+    - name: rpm-ostree-upgrade.timer
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Daily rpm-ostree upgrade timer
+
+        [Timer]
+        OnCalendar=daily
+        Persistent=true
+        RandomizedDelaySec=1h
+
+        [Install]
+        WantedBy=timers.target
+
+    - name: fwupd-refresh.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Refresh firmware metadata and check for updates
+        Wants=network-online.target
+        After=network-online.target
+
+        [Service]
+        Type=oneshot
+        Restart=on-failure
+        RestartSec=30s
+        StartLimitIntervalSec=0
+        ExecStart=/usr/bin/fwupdmgr refresh --force
+        ExecStart=/usr/bin/fwupdmgr get-updates
+
+        [Install]
+        WantedBy=multi-user.target
+
+    - name: fwupd-update-shutdown.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Apply firmware updates at shutdown
+        DefaultDependencies=no
+        Before=shutdown.target reboot.target halt.target
+        ConditionACPower=true
+
+        [Service]
+        Type=oneshot
+        TimeoutStartSec=0
+        ExecStart=/usr/bin/fwupdmgr update -y || true
+
+        [Install]
+        WantedBy=halt.target reboot.target shutdown.target

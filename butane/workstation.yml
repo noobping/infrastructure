@@ -44,6 +44,8 @@ storage:
 
 systemd:
   units:
+    - name: firewalld.service
+      enabled: false
     - name: clevis-luks-askpass.service
       mask: true
     - name: clevis-luks-askpass.path
@@ -85,7 +87,7 @@ systemd:
         TTYPath=/dev/tty1
         Environment=LANG=C.UTF-8
         Environment=LC_ALL=C.UTF-8
-        ExecStart=/usr/bin/rpm-ostree rebase --bypass-driver ostree-image-signed:docker://ghcr.io/noobping/workstation:latest
+        ExecStart=/usr/bin/rpm-ostree rebase ostree-image-signed:docker://ghcr.io/noobping/workstation:latest
         ExecStart=/usr/bin/rpm-ostree kargs --append=quiet --append=splash --append=loglevel=3 --append=systemd.show_status=false --append=rd.systemd.show_status=false
         ExecStart=/usr/bin/touch /var/lib/rebase.done
         ExecStart=/usr/bin/systemctl --no-block reboot
