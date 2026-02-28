@@ -7,7 +7,7 @@ RUN set -euxo pipefail; \
   rpm-ostree override remove nfs-utils-coreos; \
   rpm-ostree install -y \
     cachefilesd \
-    NetworkManager-wifi NetworkManager-bluetooth NetworkManager-openvpn \
+    NetworkManager-wifi NetworkManager-bluetooth NetworkManager-openvpn firewalld \
     accountsservice \
     aemu libvirt qemu-kvm android-tools \
     gdm \
@@ -46,6 +46,7 @@ RUN set -euxo pipefail; \
     /etc/polkit-1/rules.d \
     /etc/NetworkManager/system-connections \
     /etc/nftables/rules \
+    /etc/firewalld/zones \
     /usr/share/gnome-background-properties
 
 COPY *.nmconnection /etc/NetworkManager/system-connections/
@@ -55,6 +56,7 @@ COPY cachefilesd.conf /etc/cachefilesd.conf
 COPY extensions.txt /etc/recommended/extensions
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
 COPY nftables /etc/nftables/rules
+COPY firewall.xml /etc/firewalld/zones/public.xml
 COPY passwordstore.sh /passwordstore.sh
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY profile.conf /var/lib/AccountsService/default
@@ -77,6 +79,7 @@ RUN set -euxo pipefail; \
   ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf; \
 
   sed -i 's/tcp dport @allowed_tcp_dports accept/# &/' /etc/nftables/main.nft; \
+  echo DefaultZone=public > /etc/firewalld/firewalld.conf; \
 
   ln -sf /usr/lib/systemd/system/gdm.service \
     /etc/systemd/system/graphical.target.wants/gdm.service; \
