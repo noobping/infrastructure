@@ -32,6 +32,9 @@ COPY bashrc.sh /etc/bashrc2
 
 RUN set -euxo pipefail; \
   chmod -R 0600 /etc/nftables/rules; \
+  grep -qE 'elements\s*=\s*\{[^}]*\bhttp\b' /etc/nftables/main.nft \
+  || sed -i 's/elements\s*=\s*{\([^}]*\)}/elements = {\1, http, https}/' /etc/nftables/main.nft; \
+
   mv /etc/bashrc /etc/bashrc1; \
   cat /etc/bashrc{1,2} > /etc/bashrc; \
   rm /etc/bashrc1 /etc/bashrc2; \
