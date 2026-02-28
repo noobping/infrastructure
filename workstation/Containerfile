@@ -45,7 +45,6 @@ RUN set -euxo pipefail; \
     /var/lib/AccountsService \
     /etc/polkit-1/rules.d \
     /etc/NetworkManager/system-connections \
-    /etc/nftables/rules \
     /etc/firewalld/zones \
     /usr/share/gnome-background-properties
 
@@ -55,7 +54,6 @@ COPY background.xml /usr/share/gnome-background-properties/nick.xml
 COPY cachefilesd.conf /etc/cachefilesd.conf
 COPY extensions.txt /etc/recommended/extensions
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
-COPY nftables /etc/nftables/rules
 COPY firewall.xml /etc/firewalld/zones/public.xml
 COPY passwordstore.sh /passwordstore.sh
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
@@ -73,7 +71,6 @@ RUN set -euxo pipefail; \
 
   chmod 0600 /etc/NetworkManager/system-connections/*.nmconnection; \
   chmod 0644 /etc/polkit-1/rules.d/50-libvirt-access.rules; \
-  chmod -R 0600 /etc/nftables/rules; \
 
   rm -f /etc/resolv.conf; \
   ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf; \
@@ -93,6 +90,9 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/multi-user.target.wants/virtlogd.service; \
   ln -sf /usr/lib/systemd/system/cachefilesd.service \
     /etc/systemd/system/multi-user.target.wants/cachefilesd.service; \
+  ln -sf /usr/lib/systemd/system/firewalld.service \
+    /etc/systemd/system/multi-user.target.wants/firewalld.service; \
+  ln -sf /dev/null /etc/systemd/system/nftables.service; \
 
   printf '%s\n' "INITIAL_SETUP_ENABLE=YES" > /etc/sysconfig/initial-setup; \
   ostree container commit

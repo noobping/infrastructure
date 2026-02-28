@@ -1,5 +1,0 @@
-# Luanti (Minetest)
-udp dport 30000 accept
-
-# 0 A.D.
-udp dport 20595 accept
