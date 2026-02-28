@@ -45,7 +45,7 @@ RUN set -euxo pipefail; \
     /var/lib/AccountsService \
     /etc/polkit-1/rules.d \
     /etc/NetworkManager/system-connections \
-    /etc/nftables.d \
+    /etc/nftables/rules \
     /usr/share/gnome-background-properties
 
 COPY *.nmconnection /etc/NetworkManager/system-connections/
@@ -54,8 +54,7 @@ COPY background.xml /usr/share/gnome-background-properties/nick.xml
 COPY cachefilesd.conf /etc/cachefilesd.conf
 COPY extensions.txt /etc/recommended/extensions
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
-COPY nftables/ /etc/nftables.d/
-COPY nftables.conf /etc/nftables.conf
+COPY nftables /etc/nftables/rules
 COPY passwordstore.sh /passwordstore.sh
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY profile.conf /var/lib/AccountsService/default
@@ -72,9 +71,12 @@ RUN set -euxo pipefail; \
 
   chmod 0600 /etc/NetworkManager/system-connections/*.nmconnection; \
   chmod 0644 /etc/polkit-1/rules.d/50-libvirt-access.rules; \
+  chmod -R 0600 /etc/nftables/rules; \
 
   rm -f /etc/resolv.conf; \
   ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf; \
+
+  sed -i 's/tcp dport @allowed_tcp_dports accept/# &/' /etc/nftables/main.nft; \
 
   ln -sf /usr/lib/systemd/system/gdm.service \
     /etc/systemd/system/graphical.target.wants/gdm.service; \

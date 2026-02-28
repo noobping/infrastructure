@@ -128,12 +128,6 @@ storage:
       group:
         name: nick
   files:
-    - path: /etc/nftables.d/ssh.nft
-      mode: 0644
-      overwrite: true
-      contents:
-        inline: |
-          tcp dport 22 accept
     - path: /etc/ssh/sshd_config.d/40-disable-passwords.conf
       mode: 0644
       overwrite: true

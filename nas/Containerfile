@@ -14,7 +14,7 @@ RUN set -euxo pipefail; \
   ln -s /var/srv/git /git; \
   rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
   mkdir -p \
-  /etc/nftables.d \
+  /etc/nftables/rules \
   /etc/modules-load.d \
   /etc/polkit-1/rules.d \
   /etc/systemd/system/multi-user.target.wants; \
@@ -27,10 +27,11 @@ COPY fstab.txt /etc/fstab
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
 COPY mdadm.conf /etc/mdadm.conf
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
-COPY nftables/ /etc/nftables.d/
+COPY nftables /etc/nftables/rules
 COPY bashrc.sh /etc/bashrc2
 
 RUN set -euxo pipefail; \
+  chmod -R 0600 /etc/nftables/rules; \
   mv /etc/bashrc /etc/bashrc1; \
   cat /etc/bashrc{1,2} > /etc/bashrc; \
   rm /etc/bashrc1 /etc/bashrc2; \

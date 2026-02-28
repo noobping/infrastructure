@@ -12,25 +12,13 @@ storage:
       target: /usr/share/zoneinfo/Europe/Amsterdam
       overwrite: true
 
-  files:    
-    - path: /etc/nftables.conf
-      mode: 0644
+  files:
+    - path: /etc/sysconfig/nftables.conf
+      mode: 0600
       overwrite: true
       contents:
         inline: |
-          #!/usr/sbin/nft -f
-          table inet filter {
-            chain input {
-              type filter hook input priority 0;
-              iif lo accept
-              ct state established,related accept
-              include "/etc/nftables.d/*.nft"
-              reject with icmpx type admin-prohibited
-            }
-          }
-
-  directories:
-    - path: /etc/nftables.d
+          include "/etc/nftables/main.nft"
 
 systemd:
   units:
