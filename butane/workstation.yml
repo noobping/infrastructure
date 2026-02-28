@@ -44,8 +44,6 @@ storage:
 
 systemd:
   units:
-    - name: firewalld.service
-      enabled: false
     - name: clevis-luks-askpass.service
       mask: true
     - name: clevis-luks-askpass.path
