@@ -37,7 +37,6 @@ RUN set -euxo pipefail; \
 
 RUN set -euxo pipefail; \
   mkdir -p \
-    /etc/skel/.bashrc.d \
     /etc/recommended \
     /etc/systemd/system/graphical.target.wants \
     /etc/systemd/system/multi-user.target.wants \
@@ -67,6 +66,8 @@ COPY skel /etc/skel
 
 RUN set -euxo pipefail; \
   update-ca-trust; \
+
+  mkdir -p /etc/skel/.config; \
 
   chmod +x /etc/profile.d/aliases.sh; \
   chmod +x /usr/bin/recommended; \
