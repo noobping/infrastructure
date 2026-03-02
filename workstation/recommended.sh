@@ -29,9 +29,7 @@ if [ ! -f "$DONE_FILE" ]; then
   systemctl --user restart gnome-shell-extension-prefs.service 2>/dev/null || true
   systemctl --user restart gnome-shell.service 2>/dev/null || true
 
-  busct`l --user call org.gnome.Shell /org/gnome/Shell org.gnome.Shell Eval s \
-    'Main.extensionManager._loadExtensions(); "ok";' \
-    >/dev/null 2>&1 || true
+  busctl --user call org.gnome.Shell /org/gnome/Shell org.gnome.Shell Eval s 'Main.extensionManager._loadExtensions(); "ok";' >/dev/null 2>&1 || true
 
   touch "$DONE_FILE"
 fi
