@@ -49,6 +49,7 @@ RUN set -euxo pipefail; \
     /usr/share/gnome-background-properties
 
 COPY *.nmconnection /etc/NetworkManager/system-connections/
+COPY aliases.sh /etc/profile.d/
 COPY background.png /usr/share/backgrounds/nick-wallpaper.png
 COPY background.xml /usr/share/gnome-background-properties/nick.xml
 COPY cachefilesd.conf /etc/cachefilesd.conf
@@ -67,6 +68,8 @@ COPY skel /etc/skel
 RUN set -euxo pipefail; \
   update-ca-trust; \
 
+  chmod +x /etc/profile.d/aliases.sh; \
+  chmod +x /usr/bin/recommended; \
   chmod +x /passwordstore.sh; \
   /passwordstore.sh; \
   rm -f /passwordstore.sh; \
