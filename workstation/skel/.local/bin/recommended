@@ -26,6 +26,13 @@ if [ ! -f "$DONE_FILE" ]; then
   awk '!/^\s*($|#)/' /etc/recommended/extensions | xargs -r -n1 "$GEXT" install
   awk '!/^\s*($|#)/' /etc/recommended/extensions | xargs -r -n1 "$GEXT" enable
 
+  systemctl --user restart gnome-shell-extension-prefs.service 2>/dev/null || true
+  systemctl --user restart gnome-shell.service 2>/dev/null || true
+
+  busct`l --user call org.gnome.Shell /org/gnome/Shell org.gnome.Shell Eval s \
+    'Main.extensionManager._loadExtensions(); "ok";' \
+    >/dev/null 2>&1 || true
+
   touch "$DONE_FILE"
 fi
 
