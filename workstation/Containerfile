@@ -53,7 +53,7 @@ RUN set -euxo pipefail; \
     /etc/firewalld/zones \
     /usr/share/gnome-background-properties
 
-COPY *.nmconnection /etc/NetworkManager/system-connections/
+# COPY *.nmconnection /etc/NetworkManager/system-connections/
 COPY aliases.sh /etc/profile.d/
 COPY background.png /usr/share/backgrounds/nick-wallpaper.png
 COPY background.xml /usr/share/gnome-background-properties/nick.xml
@@ -81,7 +81,7 @@ RUN set -euxo pipefail; \
   /passwordstore.sh; \
   rm -f /passwordstore.sh; \
 
-  chmod 0600 /etc/NetworkManager/system-connections/*.nmconnection; \
+  # chmod 0600 /etc/NetworkManager/system-connections/*.nmconnection; \
   chmod 0644 /etc/polkit-1/rules.d/50-libvirt-access.rules; \
 
   rm -f /etc/resolv.conf; \
