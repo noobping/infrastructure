@@ -4,6 +4,13 @@ RUN dnf -y install dnf-plugins-core \
     | sort -u > /tmp/firmware-packages.txt \
  && wc -l /tmp/firmware-packages.txt
 
+FROM registry.fedoraproject.org/fedora:latest AS pass
+RUN dnf -y install curl jq file && dnf clean all
+COPY passwordstore.sh /passwordstore.sh
+RUN set -euxo pipefail; \
+    chmod +x /passwordstore.sh; \
+    /passwordstore.sh /passwordstore.AppImage
+
 FROM quay.io/fedora/fedora-coreos:stable
 LABEL org.opencontainers.image.title="Workstation"
 LABEL org.opencontainers.image.description="Nick's bootable container"
@@ -62,13 +69,13 @@ COPY certs/ /etc/pki/ca-trust/source/anchors/
 COPY extensions.txt /etc/recommended/extensions
 COPY firewall.xml /etc/firewalld/zones/public.xml
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
-COPY passwordstore.sh /passwordstore.sh
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY profile.conf /var/lib/AccountsService/default
 COPY profile.png /usr/share/pixmaps/faces/nick.png
 COPY recommended.desktop /etc/xdg/autostart/
 COPY recommended.sh /usr/bin/recommended
 COPY skel /etc/skel
+COPY --from=pass /passwordstore.AppImage /etc/skel/passwordstore.AppImage
 
 RUN set -euxo pipefail; \
   update-ca-trust; \
@@ -77,9 +84,6 @@ RUN set -euxo pipefail; \
 
   chmod +x /etc/profile.d/aliases.sh; \
   chmod +x /usr/bin/recommended; \
-  chmod +x /passwordstore.sh; \
-  /passwordstore.sh; \
-  rm -f /passwordstore.sh; \
 
   # chmod 0600 /etc/NetworkManager/system-connections/*.nmconnection; \
   chmod 0644 /etc/polkit-1/rules.d/50-libvirt-access.rules; \
