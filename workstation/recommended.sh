@@ -2,7 +2,6 @@
 set -euo pipefail
 
 DONE_FILE="$HOME/.config/recommended.done"
-PIP="$VENV_DIR/bin/pip"
 
 if [ ! -f "$DONE_FILE" ]; then
   gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop', 'io.github.kolunmi.Bazaar.desktop', 'com.mattjakeman.ExtensionManager.desktop', 'org.gnome.Epiphany.desktop']"
@@ -14,10 +13,6 @@ if [ ! -f "$DONE_FILE" ]; then
     command 'ptyxis --new-window'
   gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ \
     binding '<Control><Alt>t'
-
-  python3 -m venv "$VENV_DIR"
-  "$PIP" install --no-cache-dir --upgrade pip
-  "$PIP" install --no-cache-dir gnome-extensions-cli
 
   awk '!/^\s*($|#)/' /etc/recommended/extensions | xargs -r -n1 gext install
   awk '!/^\s*($|#)/' /etc/recommended/extensions | xargs -r -n1 gext enable
