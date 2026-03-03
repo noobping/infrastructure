@@ -3,6 +3,18 @@ set -euo pipefail
 
 DONE_FILE="$HOME/.config/recommended.done"
 
+gext() {
+  podman run --rm \
+    --userns=keep-id \
+    --security-opt label=disable \
+    -e DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$UID/bus" \
+    -e XDG_RUNTIME_DIR="/run/user/$UID" \
+    -v /run/user/$UID/bus:/run/user/$UID/bus \
+    -v "$HOME:$HOME" \
+    -w "$PWD" \
+    ghcr.io/noobping/gext "$@"
+}
+
 if [ ! -f "$DONE_FILE" ]; then
   gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop', 'io.github.kolunmi.Bazaar.desktop', 'com.mattjakeman.ExtensionManager.desktop', 'org.gnome.Epiphany.desktop']"
 
