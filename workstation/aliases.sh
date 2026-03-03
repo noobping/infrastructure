@@ -22,3 +22,13 @@ alias yq='podman run --rm -i \
 
 alias flatpak-builder="flatpak run org.flatpak.Builder"
 alias zola="flatpak run org.getzola.zola"
+
+alias gext='podman run --rm \
+  --userns=keep-id \
+  --security-opt label=disable \
+  -e DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$UID/bus" \
+  -e XDG_RUNTIME_DIR="/run/user/$UID" \
+  -v /run/user/$UID/bus:/run/user/$UID/bus \
+  -v $HOME:$HOME \
+  -w $PWD \
+  ghcr.io/noobping/gext "$@"'

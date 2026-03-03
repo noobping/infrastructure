@@ -1,0 +1,5 @@
+FROM python:3.12-slim
+LABEL org.opencontainers.image.title="Gnome Extensions CLI"
+LABEL org.opencontainers.image.description="Command line tool to manage your Gnome Shell extensions"
+RUN pip install gnome-extensions-cli
+ENTRYPOINT ["gext"]

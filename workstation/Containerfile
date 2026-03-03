@@ -23,7 +23,6 @@ RUN set -euxo pipefail; \
     cups bluez dconf dbus-daemon \
     flatpak flatpak-spawn \
     fuse fuse-libs \
-    jq curl pipx python3-pip \
     toolbox git \
     tracker-miners ffmpegthumbnailer gstreamer1-libav gstreamer1-plugin-openh264 \
     mesa-dri-drivers switcheroo-control virglrenderer \

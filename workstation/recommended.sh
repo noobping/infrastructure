@@ -2,8 +2,6 @@
 set -euo pipefail
 
 DONE_FILE="$HOME/.config/recommended.done"
-VENV_DIR="$HOME/.local/gext"
-GEXT="$VENV_DIR/bin/gext"
 PIP="$VENV_DIR/bin/pip"
 
 if [ ! -f "$DONE_FILE" ]; then
@@ -21,10 +19,8 @@ if [ ! -f "$DONE_FILE" ]; then
   "$PIP" install --no-cache-dir --upgrade pip
   "$PIP" install --no-cache-dir gnome-extensions-cli
 
-  ln -s "$GEXT" "$HOME/.local/bin/gext"
-
-  awk '!/^\s*($|#)/' /etc/recommended/extensions | xargs -r -n1 "$GEXT" install
-  awk '!/^\s*($|#)/' /etc/recommended/extensions | xargs -r -n1 "$GEXT" enable
+  awk '!/^\s*($|#)/' /etc/recommended/extensions | xargs -r -n1 gext install
+  awk '!/^\s*($|#)/' /etc/recommended/extensions | xargs -r -n1 gext enable
 
   systemctl --user restart gnome-shell-extension-prefs.service 2>/dev/null || true
   systemctl --user restart gnome-shell.service 2>/dev/null || true
