@@ -26,8 +26,15 @@ if [ ! -f "$DONE_FILE" ]; then
   gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ \
     binding '<Control><Alt>t'
 
-  awk '!/^\s*($|#)/' /etc/recommended/extensions | xargs -r -n1 gext() install
-  awk '!/^\s*($|#)/' /etc/recommended/extensions | xargs -r -n1 gext() enable
+  while IFS= read -r ext; do
+    [[ -z "$ext" || "$ext" =~ ^# ]] && continue
+    gext install "$ext"
+  done < /etc/recommended/extensions
+
+  while IFS= read -r ext; do
+    [[ -z "$ext" || "$ext" =~ ^# ]] && continue
+    gext enable "$ext"
+  done < /etc/recommended/extensions
 
   systemctl --user restart gnome-shell-extension-prefs.service 2>/dev/null || true
   systemctl --user restart gnome-shell.service 2>/dev/null || true
