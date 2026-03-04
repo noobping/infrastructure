@@ -24,8 +24,8 @@ RUN set -euxo pipefail; \
     NetworkManager-wifi NetworkManager-bluetooth NetworkManager-openvpn firewalld \
     accountsservice \
     aemu libvirt qemu-kvm android-tools \
-    gdm \
-    glibc-all-langpacks \
+    gdm ibus ibus-mozc \
+    glibc-all-langpacks google-noto-color-emoji-fonts google-noto-sans-cjk-fonts fontconfig \
     gnome-backgrounds gnome-control-center gnome-disk-utility gnome-initial-setup \
     gnome-keyring gnome-menus gnome-session gnome-shell \
     nautilus nautilus-python python3-pygit2 nautilus-gsconnect sushi \
