@@ -7,7 +7,7 @@ systemd:
       enabled: false
 
     - name: rpm-ostree-upgrade.service
-      enabled: false
+      enabled: true
       contents: |
         [Unit]
         Description=Check and stage rpm-ostree updates
