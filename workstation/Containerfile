@@ -67,7 +67,6 @@ COPY profile.png /usr/share/pixmaps/faces/nick.png
 COPY recommended.desktop /etc/xdg/autostart/
 COPY recommended.sh /usr/bin/recommended
 COPY skel /etc/skel
-COPY --from=pass /passwordstore.AppImage /etc/skel/passwordstore.AppImage
 
 RUN set -euxo pipefail; \
   update-ca-trust; \
