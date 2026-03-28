@@ -27,6 +27,7 @@ RUN set -euxo pipefail; \
     plymouth plymouth-theme-spinner \
     power-profiles-daemon upower nut \
     cups bluez dconf dbus-daemon \
+    pcsc-lite pcsc-lite-ccid opensc gnupg2 scdaemon ykman \
     flatpak flatpak-spawn \
     fuse fuse-libs \
     toolbox git \

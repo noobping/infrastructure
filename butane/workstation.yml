@@ -66,6 +66,8 @@ systemd:
       enabled: true
     - name: plymouth-start.service
       enabled: true
+    - name: pcscd.socket
+      enabled: true
     - name: rebase-to-workstation.service
       enabled: true
       contents: |
