@@ -1,5 +1,6 @@
 [Desktop Entry]
 Type=Application
 Name=recommended
-Exec=recommended
+Exec=/usr/bin/recommended
+OnlyShowIn=GNOME;
 X-GNOME-Autostart-enabled=true
