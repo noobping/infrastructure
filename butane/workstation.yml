@@ -123,7 +123,9 @@ systemd:
           org.gnome.Loupe \
           org.gnome.Papers \
           io.github.noobping.keycord \
-          org.gnome.TextEditor
+          org.gnome.TextEditor \
+          org.getzola.zola \
+          org.flatpak.Builder
         ExecStart=/usr/bin/touch /var/lib/system-flatpaks.done
 
         [Install]
