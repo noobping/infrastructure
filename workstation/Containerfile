@@ -46,6 +46,8 @@ RUN set -euxo pipefail; \
     /etc/recommended \
     /etc/systemd/system/graphical.target.wants \
     /etc/systemd/system/multi-user.target.wants \
+    /etc/systemd/system/sockets.target.wants \
+    /etc/systemd/system/sysinit.target.wants \
     /etc/sysconfig \
     /var/lib/AccountsService \
     /etc/polkit-1/rules.d \
@@ -100,6 +102,16 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/multi-user.target.wants/cachefilesd.service; \
   ln -sf /usr/lib/systemd/system/firewalld.service \
     /etc/systemd/system/multi-user.target.wants/firewalld.service; \
+  ln -sf /usr/lib/systemd/system/switcheroo-control.service \
+    /etc/systemd/system/graphical.target.wants/switcheroo-control.service; \
+  ln -sf /usr/lib/systemd/system/power-profiles-daemon.service \
+    /etc/systemd/system/graphical.target.wants/power-profiles-daemon.service; \
+  ln -sf /usr/lib/systemd/system/upower.service \
+    /etc/systemd/system/graphical.target.wants/upower.service; \
+  ln -sf /usr/lib/systemd/system/pcscd.socket \
+    /etc/systemd/system/sockets.target.wants/pcscd.socket; \
+  ln -sf /usr/lib/systemd/system/plymouth-start.service \
+    /etc/systemd/system/sysinit.target.wants/plymouth-start.service; \
   ln -sf /dev/null /etc/systemd/system/nftables.service; \
 
   printf '%s\n' "INITIAL_SETUP_ENABLE=YES" > /etc/sysconfig/initial-setup; \

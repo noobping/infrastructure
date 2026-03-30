@@ -70,16 +70,6 @@ systemd:
       mask: true
     - name: rescue.service
       mask: true
-    - name: switcheroo-control.service
-      enabled: true
-    - name: power-profiles-daemon.service
-      enabled: true
-    - name: upower.service
-      enabled: true
-    - name: plymouth-start.service
-      enabled: true
-    - name: pcscd.socket
-      enabled: true
     - name: rebase-to-workstation.service
       enabled: true
       contents: |
