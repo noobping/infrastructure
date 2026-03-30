@@ -41,11 +41,6 @@ if [ ! -f "$DONE_FILE" ]; then
     gext enable "$ext"
   done < /etc/recommended/extensions
 
-  if [ -f /etc/recommended/settings.dconf ]; then
-    echo "Applying GNOME extension settings..."
-    dconf load /org/gnome/shell/extensions/ < /etc/recommended/settings.dconf
-  fi
-
   systemctl --user restart gnome-shell-extension-prefs.service 2>/dev/null || true
   systemctl --user restart gnome-shell.service 2>/dev/null || true
 
