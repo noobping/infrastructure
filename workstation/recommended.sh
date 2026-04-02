@@ -25,14 +25,13 @@ gext() {
 
 if [ ! -f "$DONE_FILE" ]; then
   echo "Installing GNOME extensions..."
-  command -v notify-send >/dev/null 2>&1 \
-    && notify-send "Installing GNOME extensions..." "Applying recommended extensions and desktop defaults" \
-    || true
+  notify-send "Installing GNOME extensions..." "Applying recommended extensions and desktop defaults" || true
 
   gsettings set org.gnome.desktop.background picture-uri "$WALLPAPER_URI"
   gsettings set org.gnome.desktop.background picture-uri-dark "$WALLPAPER_URI"
   gsettings set org.gnome.desktop.background picture-options 'zoom'
   gsettings set org.gnome.desktop.screensaver picture-uri "$WALLPAPER_URI"
+  gsettings set org.gnome.desktop.interface accent-color 'green'
   gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop', 'io.github.kolunmi.Bazaar.desktop', 'com.mattjakeman.ExtensionManager.desktop', 'org.gnome.Epiphany.desktop']"
 
   gsettings set org.gnome.settings-daemon.plugins.media-keys custom-keybindings "['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/']"
