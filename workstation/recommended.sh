@@ -32,7 +32,6 @@ if [ ! -f "$DONE_FILE" ]; then
   gsettings set org.gnome.desktop.background picture-options 'zoom'
   gsettings set org.gnome.desktop.screensaver picture-uri "$WALLPAPER_URI"
   gsettings set org.gnome.desktop.interface accent-color 'green'
-  gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop', 'io.github.kolunmi.Bazaar.desktop', 'com.mattjakeman.ExtensionManager.desktop', 'org.gnome.Epiphany.desktop']"
 
   gsettings set org.gnome.settings-daemon.plugins.media-keys custom-keybindings "['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/']"
   gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ \
@@ -72,6 +71,8 @@ if [ ! -f "$DONE_FILE" ]; then
     echo "[$(date --iso-8601=seconds)] recommended finished with extension errors"
     exit 1
   fi
+
+  gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop', 'io.github.kolunmi.Bazaar.desktop', 'com.mattjakeman.ExtensionManager.desktop', 'org.gnome.Epiphany.desktop']"
 
   touch "$DONE_FILE"
   echo "[$(date --iso-8601=seconds)] recommended finished successfully"
