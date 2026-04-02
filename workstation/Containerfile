@@ -64,8 +64,6 @@ COPY certs/ /etc/pki/ca-trust/source/anchors/
 COPY extensions.txt /etc/recommended/extensions
 COPY firewall.xml /etc/firewalld/zones/public.xml
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
-COPY nick-account.service /usr/lib/systemd/system/nick-account.service
-COPY nick-account.sh /usr/libexec/nick-account
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY profile.conf /var/lib/AccountsService/default
 COPY profile.png /usr/share/pixmaps/faces/nick.png
@@ -79,7 +77,6 @@ RUN set -euxo pipefail; \
   mkdir -p /etc/skel/.config; \
 
   chmod +x /etc/profile.d/aliases.sh; \
-  chmod +x /usr/libexec/nick-account; \
   chmod +x /usr/bin/recommended; \
 
   # chmod 0600 /etc/NetworkManager/system-connections/*.nmconnection; \
@@ -107,8 +104,6 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/multi-user.target.wants/cachefilesd.service; \
   ln -sf /usr/lib/systemd/system/firewalld.service \
     /etc/systemd/system/multi-user.target.wants/firewalld.service; \
-  ln -sf /usr/lib/systemd/system/nick-account.service \
-    /etc/systemd/system/multi-user.target.wants/nick-account.service; \
   ln -sf /usr/lib/systemd/system/switcheroo-control.service \
     /etc/systemd/system/graphical.target.wants/switcheroo-control.service; \
   ln -sf /usr/lib/systemd/system/power-profiles-daemon.service \
