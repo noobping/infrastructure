@@ -156,24 +156,6 @@ systemd:
   units:
     - name: sshd.service
       enabled: true
-    - name: power-profiles-daemon.service
-      enabled: true
-    - name: upower.service
-      enabled: true
-    - name: libvirtd.service
-      enabled: true
-    - name: virtlockd.service
-      enabled: true
-    - name: virtlogd.service
-      enabled: true
-    - name: getty@tty1.service
-      enabled: true
-      dropins:
-        - name: override.conf
-          contents: |
-            [Service]
-            ExecStart=
-            ExecStart=-/sbin/agetty --autologin nick --noclear %I $TERM
     - name: rebase-to-nas.service
       enabled: true
       contents: |
