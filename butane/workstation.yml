@@ -64,10 +64,6 @@ storage:
 
 systemd:
   units:
-    - name: clevis-luks-askpass.service
-      mask: true
-    - name: clevis-luks-askpass.path
-      mask: true
     - name: rebase-to-workstation.service
       enabled: true
       contents: |
