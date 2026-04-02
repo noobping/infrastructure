@@ -60,16 +60,6 @@ systemd:
       mask: true
     - name: clevis-luks-askpass.path
       mask: true
-    - name: sshd.service
-      mask: true
-    - name: getty@.service
-      mask: true
-    - name: serial-getty@.service
-      mask: true
-    - name: emergency.service
-      mask: true
-    - name: rescue.service
-      mask: true
     - name: rebase-to-workstation.service
       enabled: true
       contents: |
