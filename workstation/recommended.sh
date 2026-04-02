@@ -6,6 +6,7 @@ LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}"
 LOG_FILE="$LOG_DIR/recommended.log"
 WALLPAPER_URI="file:///usr/share/backgrounds/nick-wallpaper.png"
 PROFILE_ICON="/usr/share/pixmaps/faces/nick.png"
+PROFILE_LANGUAGE="nl_NL.UTF-8"
 
 mkdir -p "$HOME/.config" "$LOG_DIR"
 exec >>"$LOG_FILE" 2>&1
@@ -46,6 +47,27 @@ set_profile_icon() {
     "$PROFILE_ICON" >/dev/null 2>&1 || true
 }
 
+set_profile_language() {
+  local user_path
+
+  command -v gdbus >/dev/null 2>&1 || return 0
+
+  user_path="$(
+    gdbus call --system \
+      --dest org.freedesktop.Accounts \
+      --object-path /org/freedesktop/Accounts \
+      --method org.freedesktop.Accounts.FindUserByName "$USER" 2>/dev/null \
+      | sed -n "s/.*'\([^']*\)'.*/\1/p"
+  )"
+  [ -n "$user_path" ] || return 0
+
+  gdbus call --system \
+    --dest org.freedesktop.Accounts \
+    --object-path "$user_path" \
+    --method org.freedesktop.Accounts.User.SetLanguage \
+    "$PROFILE_LANGUAGE" >/dev/null 2>&1 || true
+}
+
 if [ ! -f "$DONE_FILE" ]; then
   echo "Applying recommendations..."
 
@@ -54,7 +76,9 @@ if [ ! -f "$DONE_FILE" ]; then
   gsettings set org.gnome.desktop.background picture-options 'zoom'
   gsettings set org.gnome.desktop.screensaver picture-uri "$WALLPAPER_URI"
   gsettings set org.gnome.desktop.interface accent-color 'green'
+  gsettings set org.gnome.system.locale region "$PROFILE_LANGUAGE"
   set_profile_icon || true
+  set_profile_language || true
 
   gsettings set org.gnome.settings-daemon.plugins.media-keys custom-keybindings "['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/']"
   gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ \
