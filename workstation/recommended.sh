@@ -47,8 +47,7 @@ set_profile_icon() {
 }
 
 if [ ! -f "$DONE_FILE" ]; then
-  echo "Installing GNOME extensions..."
-  notify-send "Installing GNOME extensions..." "Applying recommended extensions and desktop defaults" || true
+  echo "Applying recommendations..."
 
   gsettings set org.gnome.desktop.background picture-uri "$WALLPAPER_URI"
   gsettings set org.gnome.desktop.background picture-uri-dark "$WALLPAPER_URI"
@@ -68,6 +67,9 @@ if [ ! -f "$DONE_FILE" ]; then
   if [ -f /etc/recommended/settings.dconf ]; then
     dconf load /org/gnome/shell/extensions/ < /etc/recommended/settings.dconf
   fi
+
+  echo "Installing GNOME extensions..."
+  notify-send "Installing GNOME extensions..." "Applying recommended extensions and desktop defaults" || true
 
   extensions_failed=0
   while IFS= read -r ext; do
@@ -97,6 +99,7 @@ if [ ! -f "$DONE_FILE" ]; then
   fi
 
   gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop', 'io.github.kolunmi.Bazaar.desktop', 'com.mattjakeman.ExtensionManager.desktop', 'org.gnome.Epiphany.desktop']"
+  notify-send "Done" "Applied recommended extensions and desktop defaults" || true
 
   touch "$DONE_FILE"
   echo "[$(date --iso-8601=seconds)] recommended finished successfully"
