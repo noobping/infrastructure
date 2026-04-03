@@ -141,3 +141,16 @@ systemd:
 
         [Install]
         WantedBy=multi-user.target
+    - name: update-system-flatpaks.timer
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Daily system Flatpak update timer
+
+        [Timer]
+        OnCalendar=daily
+        Persistent=true
+        RandomizedDelaySec=1h
+
+        [Install]
+        WantedBy=timers.target
