@@ -64,6 +64,8 @@ storage:
 
 systemd:
   units:
+    - name: getty@tty1.service
+      mask: true
     - name: rebase-to-workstation.service
       enabled: true
       contents: |
