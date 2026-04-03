@@ -20,27 +20,40 @@ RUN set -euxo pipefail; \
     NetworkManager-wifi NetworkManager-bluetooth NetworkManager-openvpn firewalld \
     accountsservice \
     aemu libvirt qemu-kvm android-tools \
+    power-profiles-daemon upower nut \
+    cups bluez dconf dbus-daemon \
+    toolbox git \
+    mesa-dri-drivers switcheroo-control virglrenderer \
+    libhid hidapi openrgb-udev-rules \
+    steam-devices; \
+  rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
+  ostree container commit
+
+RUN set -euxo pipefail; \
+  rpm-ostree install -y \
     gdm ibus ibus-mozc \
     glibc-all-langpacks google-noto-color-emoji-fonts google-noto-sans-cjk-fonts fontconfig \
     gnome-backgrounds gnome-control-center gnome-disk-utility gnome-initial-setup \
     gnome-keyring gnome-menus gnome-session gnome-shell \
-    nautilus nautilus-python python3-pygit2 nautilus-gsconnect sushi \
-    seahorse-nautilus tnef-nautilus papers-nautilus \
     xdg-desktop-portal xdg-desktop-portal-gtk \
     pipewire wireplumber \
     plymouth plymouth-theme-spinner \
-    power-profiles-daemon upower nut \
-    cups bluez dconf dbus-daemon \
+    ptyxis; \
+  rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
+  ostree container commit
+
+RUN set -euxo pipefail; \
+  rpm-ostree install -y \
+    nautilus nautilus-python python3-pygit2 nautilus-gsconnect sushi \
+    seahorse-nautilus tnef-nautilus papers-nautilus \
     pcsc-lite pcsc-lite-ccid opensc gnupg2 gnupg2-scdaemon yubikey-manager \
     flatpak flatpak-spawn \
     fuse fuse-libs \
-    toolbox git \
-    tracker-miners ffmpegthumbnailer gstreamer1-libav gstreamer1-plugin-openh264 \
-    mesa-dri-drivers switcheroo-control virglrenderer \
-    libhid hidapi openrgb-udev-rules \
-    steam-devices \
-    ptyxis; \
+    tracker-miners ffmpegthumbnailer gstreamer1-libav gstreamer1-plugin-openh264; \
+  rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
+  ostree container commit
 
+RUN set -euxo pipefail; \
   rpm-ostree override remove gnome-tour; \
   rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
   ostree container commit
