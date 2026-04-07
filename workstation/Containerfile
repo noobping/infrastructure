@@ -20,6 +20,7 @@ RUN set -euxo pipefail; \
     NetworkManager-wifi NetworkManager-bluetooth NetworkManager-openvpn firewalld \
     accountsservice \
     aemu libvirt qemu-kvm android-tools \
+    gssproxy \
     power-profiles-daemon upower nut \
     cups bluez dconf dbus-daemon \
     toolbox git \

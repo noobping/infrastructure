@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+
+install -d -m 0755 /var/lib/gssproxy
+install -d -m 0700 /var/lib/gssproxy/clients /var/lib/gssproxy/rcache
+rm -f /var/lib/gssproxy/default.sock
+ln -s /run/gssproxy.default.sock /var/lib/gssproxy/default.sock
+
+if command -v restorecon >/dev/null 2>&1; then
+  restorecon -RF /var/lib/gssproxy || true
+fi

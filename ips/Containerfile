@@ -10,10 +10,14 @@ RUN set -euxo pipefail; \
   mkdir -p \
     /etc/systemd/system/multi-user.target.wants \
     /etc/systemd/system/timers.target.wants \
+    /etc/systemd/system/gssproxy.service.d \
     /etc/systemd/system/suricata.service.d \
     /usr/libexec/bootcontainer; \
   ostree container commit
 
+COPY gssproxy-prepare.service /etc/systemd/system/gssproxy-prepare.service
+COPY gssproxy-prepare /usr/libexec/bootcontainer/gssproxy-prepare
+COPY gssproxy.service.d/10-bootcontainer.conf /etc/systemd/system/gssproxy.service.d/10-bootcontainer.conf
 COPY ips.yaml /etc/suricata/ips.yaml
 COPY suricata-prepare.service /etc/systemd/system/suricata-prepare.service
 COPY suricata-sync-rules /usr/libexec/bootcontainer/suricata-sync-rules
@@ -22,6 +26,7 @@ COPY suricata-update.timer /etc/systemd/system/suricata-update.timer
 COPY suricata.service.d/10-inline.conf /etc/systemd/system/suricata.service.d/10-inline.conf
 
 RUN set -euxo pipefail; \
+  chmod 0755 /usr/libexec/bootcontainer/gssproxy-prepare; \
   chmod 0755 /usr/libexec/bootcontainer/suricata-sync-rules; \
   install -d -o suricata -g suricata -m 0750 /var/lib/suricata /var/log/suricata; \
   grep -q '^include: /etc/suricata/ips.yaml$' /etc/suricata/suricata.yaml \

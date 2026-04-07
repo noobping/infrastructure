@@ -8,6 +8,7 @@ RUN set -euxo pipefail; \
   rpm-ostree install -y \
     libvirt qemu-kvm pcp-zeroconf smartmontools \
     cockpit-system cockpit-ostree cockpit-podman cockpit-machines cockpit-storaged cockpit-files cockpit-networkmanager cockpit-sosreport cockpit-kdump cockpit-selinux \
+    gssproxy \
     power-profiles-daemon upower nut \
     toolbox git; \
 
