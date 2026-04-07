@@ -3,7 +3,7 @@ RUN dnf -y install dnf-plugins-core \
  && dnf repoquery --available --qf '%{name}\n' '*firmware*' | sort -u > /tmp/firmware-packages.txt \
  && wc -l /tmp/firmware-packages.txt
 
-FROM quay.io/fedora/fedora-coreos:stable
+FROM ghcr.io/noobping/ips:latest
 LABEL org.opencontainers.image.title="Workstation"
 LABEL org.opencontainers.image.description="Nick's bootable container"
 
@@ -80,6 +80,7 @@ COPY cachefilesd.conf /etc/cachefilesd.conf
 COPY certs/ /etc/pki/ca-trust/source/anchors/
 COPY extensions.txt /etc/recommended/extensions
 COPY firewall.xml /etc/firewalld/zones/public.xml
+COPY suricata-direct.xml /etc/firewalld/direct.xml
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY profile.conf /var/lib/AccountsService/default
@@ -97,6 +98,7 @@ RUN set -euxo pipefail; \
   chmod +x /usr/bin/recommended; \
 
   # chmod 0600 /etc/NetworkManager/system-connections/*.nmconnection; \
+  chmod 0644 /etc/firewalld/direct.xml; \
   chmod 0644 /etc/polkit-1/rules.d/50-libvirt-access.rules; \
 
   rm -f /etc/resolv.conf; \

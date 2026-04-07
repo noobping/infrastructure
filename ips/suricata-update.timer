@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Suricata rule updates
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=1h
+Unit=suricata-update.service
+
+[Install]
+WantedBy=timers.target

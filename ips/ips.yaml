@@ -1,0 +1,9 @@
+%YAML 1.1
+---
+default-rule-path: /var/lib/suricata/rules
+rule-files:
+  - suricata.rules
+nfq:
+  mode: repeat
+  repeat-mark: 1
+  repeat-mask: 1

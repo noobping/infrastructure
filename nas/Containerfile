@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora-coreos:stable
+FROM ghcr.io/noobping/ips:latest
 
 LABEL org.opencontainers.image.title="NAS"
 LABEL org.opencontainers.image.description="Nick's bootable container"
@@ -28,11 +28,15 @@ COPY libvirtd.conf /etc/libvirt/libvirtd.conf
 COPY mdadm.conf /etc/mdadm.conf
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY nftables /etc/nftables/rules
+COPY suricata.nft /etc/nftables/suricata.nft
 
 RUN set -euxo pipefail; \
   chmod -R 0600 /etc/nftables/rules; \
+  chmod 0600 /etc/nftables/suricata.nft; \
   grep -qE 'elements\s*=\s*\{[^}]*\bhttp\b' /etc/nftables/main.nft \
   || sed -i 's/elements\s*=\s*{\([^}]*\)}/elements = {\1, http, https}/' /etc/nftables/main.nft; \
+  grep -q 'include "/etc/nftables/suricata.nft"' /etc/nftables/main.nft \
+  || printf '\ninclude "/etc/nftables/suricata.nft"\n' >> /etc/nftables/main.nft; \
   ln -sf /usr/lib/systemd/system/libvirtd.service \
     /etc/systemd/system/multi-user.target.wants/libvirtd.service; \
   ln -sf /usr/lib/systemd/system/virtlockd.service \

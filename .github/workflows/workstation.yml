@@ -9,8 +9,17 @@ on:
       - "workstation/**"
       - ".github/workflows/workstation.yml"
 
+  workflow_run:
+    workflows:
+      - IPS
+    types:
+      - completed
+    branches:
+      - main
+      - master
+
   schedule:
-    - cron: "59 23 * * *"
+    - cron: "59 30 * * *"
 
   workflow_dispatch: {}
 
@@ -23,6 +32,7 @@ concurrency:
 
 jobs:
   build:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     name: Build ${{ matrix.arch }}
     strategy:
       fail-fast: false
@@ -42,6 +52,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
       - uses: sigstore/cosign-installer@v3
 
       - uses: jlumbroso/free-disk-space@v1.3.1
@@ -122,6 +134,7 @@ jobs:
           buildah prune -f || true
 
   manifest:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     name: Manifest
     needs: build
     runs-on: ubuntu-latest

@@ -1,0 +1,14 @@
+#!/bin/sh
+set -eu
+
+install -d -o suricata -g suricata -m 0750 \
+  /var/lib/suricata \
+  /var/lib/suricata/rules \
+  /var/log/suricata
+
+suricata-update update-sources
+suricata-update enable-source et/open >/dev/null 2>&1 || true
+suricata-update
+
+chown -R suricata:suricata /var/lib/suricata /var/log/suricata
+test -s /var/lib/suricata/rules/suricata.rules

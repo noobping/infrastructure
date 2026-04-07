@@ -1,4 +1,4 @@
-name: NAS
+name: IPS
 
 on:
   push:
@@ -6,33 +6,23 @@ on:
       - main
       - master
     paths:
-      - "nas/**"
-      - ".github/workflows/nas.yml"
-
-  workflow_run:
-    workflows:
-      - IPS
-    types:
-      - completed
-    branches:
-      - main
-      - master
+      - "ips/**"
+      - ".github/workflows/ips.yml"
 
   schedule:
-    - cron: "59 30 * * *"
+    - cron: "59 00 * * *"
 
   workflow_dispatch: {}
 
 env:
-  IMAGE_NAME: ghcr.io/noobping/nas
+  IMAGE_NAME: ghcr.io/noobping/ips
 
 concurrency:
-  group: nas
+  group: ips
   cancel-in-progress: true
 
 jobs:
   build:
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     name: Build ${{ matrix.arch }}
     strategy:
       fail-fast: false
@@ -52,8 +42,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
       - uses: sigstore/cosign-installer@v3
 
       - uses: jlumbroso/free-disk-space@v1.3.1
@@ -105,7 +93,7 @@ jobs:
           echo "${{ secrets.GITHUB_TOKEN }}" | buildah login -u "${{ github.actor }}" --password-stdin ghcr.io
 
       - name: Build
-        working-directory: nas
+        working-directory: ips
         env:
           BUILDAH_ISOLATION: chroot
           TMPDIR: /mnt/tmp
@@ -134,7 +122,6 @@ jobs:
           buildah prune -f || true
 
   manifest:
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     name: Manifest
     needs: build
     runs-on: ubuntu-latest
