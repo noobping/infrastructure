@@ -34,8 +34,9 @@ COPY suricata.nft /etc/nftables/suricata.nft
 RUN set -euxo pipefail; \
   chmod -R 0600 /etc/nftables/rules; \
   chmod 0600 /etc/nftables/suricata.nft; \
-  grep -qE 'elements\s*=\s*\{[^}]*\bhttp\b' /etc/nftables/main.nft \
-  || sed -i 's/elements\s*=\s*{\([^}]*\)}/elements = {\1, http, https}/' /etc/nftables/main.nft; \
+  awk '/set allowed_tcp_dports[[:space:]]*\{/{flag=1} flag{print} /^\t*\}/{if(flag){exit}}' /etc/nftables/main.nft \
+  | grep -q '\<http\>' \
+  || sed -i '/set allowed_tcp_dports[[:space:]]*{/,/}/{/elements = {/ s/}/, http, https}/;}' /etc/nftables/main.nft; \
   grep -q 'include "/etc/nftables/suricata.nft"' /etc/nftables/main.nft \
   || printf '\ninclude "/etc/nftables/suricata.nft"\n' >> /etc/nftables/main.nft; \
   ln -sf /usr/lib/systemd/system/libvirtd.service \
