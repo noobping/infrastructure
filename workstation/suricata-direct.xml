@@ -5,10 +5,10 @@
   <chain ipv="ipv6" table="filter" chain="SURICATA_HOST_INPUT"/>
   <chain ipv="ipv6" table="filter" chain="SURICATA_HOST_OUTPUT"/>
 
-  <rule ipv="ipv4" table="filter" chain="INPUT" priority="0">-i br0 -m mark ! --mark 0x1/0x1 -j SURICATA_HOST_INPUT</rule>
-  <rule ipv="ipv4" table="filter" chain="OUTPUT" priority="0">-o br0 -m mark ! --mark 0x1/0x1 -j SURICATA_HOST_OUTPUT</rule>
-  <rule ipv="ipv6" table="filter" chain="INPUT" priority="0">-i br0 -m mark ! --mark 0x1/0x1 -j SURICATA_HOST_INPUT</rule>
-  <rule ipv="ipv6" table="filter" chain="OUTPUT" priority="0">-o br0 -m mark ! --mark 0x1/0x1 -j SURICATA_HOST_OUTPUT</rule>
+  <rule ipv="ipv4" table="filter" chain="INPUT" priority="0">-m mark ! --mark 0x1/0x1 -j SURICATA_HOST_INPUT</rule>
+  <rule ipv="ipv4" table="filter" chain="OUTPUT" priority="0">-m mark ! --mark 0x1/0x1 -j SURICATA_HOST_OUTPUT</rule>
+  <rule ipv="ipv6" table="filter" chain="INPUT" priority="0">-m mark ! --mark 0x1/0x1 -j SURICATA_HOST_INPUT</rule>
+  <rule ipv="ipv6" table="filter" chain="OUTPUT" priority="0">-m mark ! --mark 0x1/0x1 -j SURICATA_HOST_OUTPUT</rule>
 
   <rule ipv="ipv4" table="filter" chain="SURICATA_HOST_INPUT" priority="0">-m conntrack --ctstate ESTABLISHED,RELATED -j RETURN</rule>
   <rule ipv="ipv4" table="filter" chain="SURICATA_HOST_INPUT" priority="1">-i lo -j RETURN</rule>

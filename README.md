@@ -29,7 +29,7 @@ Confirm the workstation firewall is queueing host traffic to NFQUEUE:
 
 ```sh
 sudo firewall-cmd --permanent --direct --get-all-rules | grep SURICATA
-sudo nft list ruleset | grep -E 'SURICATA_HOST|queue num 0|br0'
+sudo nft list ruleset | grep -E 'SURICATA_HOST|queue num 0'
 ```
 
 Test detection with a temporary rule:
