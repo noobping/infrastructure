@@ -1,1 +1,0 @@
-ostree-image-signed:docker://ghcr.io/noobping/desktop:latest

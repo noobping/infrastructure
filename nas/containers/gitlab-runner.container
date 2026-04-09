@@ -8,7 +8,7 @@ AutoUpdate=registry
 Volume=/var/lib/containers/gitlab-runner/config:/etc/gitlab-runner:Z
 Volume=/var/lib/containers/gitlab-runner/cache:/cache:Z
 Volume=/run/podman/podman.sock:/var/run/docker.sock
-PodmanArgs=--security-opt label=disable
+PodmanArgs=--network=host --security-opt label=disable
 
 [Service]
 Restart=always

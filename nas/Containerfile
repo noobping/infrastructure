@@ -1,4 +1,5 @@
 FROM quay.io/fedora/fedora-coreos:stable
+ARG IPS_IMAGE=ghcr.io/noobping/ips:latest
 
 LABEL org.opencontainers.image.title="NAS"
 LABEL org.opencontainers.image.description="Nick's bootable container"
@@ -16,12 +17,14 @@ RUN set -euxo pipefail; \
   rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
   mkdir -p \
   /etc/nftables/rules \
+  /etc/containers/registries.conf.d \
   /etc/systemd/system/gssproxy.service.d \
   /etc/modules-load.d \
   /etc/polkit-1/rules.d \
   /etc/systemd/system/multi-user.target.wants \
   /etc/systemd/system/timers.target.wants \
   /usr/libexec/infrastructure \
+  /usr/share/gitlab-runner \
   /usr/share/freeradius \
   /var/lib/suricata \
   /var/log/suricata; \
@@ -38,10 +41,14 @@ COPY freeipa-prepare.service /etc/systemd/system/freeipa-prepare.service
 COPY freeradius /usr/share/freeradius
 COPY freeradius-prepare /usr/libexec/infrastructure/freeradius-prepare
 COPY freeradius-prepare.service /etc/systemd/system/freeradius-prepare.service
+COPY gitlab-runner-config.template.toml /usr/share/gitlab-runner/register.template.toml
+COPY gitlab-runner-register /usr/libexec/infrastructure/gitlab-runner-register
+COPY gitlab-runner-register.service /etc/systemd/system/gitlab-runner-register.service
 COPY gssproxy-prepare.service /etc/systemd/system/gssproxy-prepare.service
 COPY gssproxy-prepare /usr/libexec/infrastructure/gssproxy-prepare
 COPY gssproxy.service.d/10-infrastructure.conf /etc/systemd/system/gssproxy.service.d/10-infrastructure.conf
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
+COPY localhost-registry.conf /etc/containers/registries.conf.d/10-localhost-registry.conf
 COPY mdadm.conf /etc/mdadm.conf
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY nftables /etc/nftables/rules
@@ -59,17 +66,23 @@ RUN set -euxo pipefail; \
   chmod 0755 /usr/libexec/infrastructure/freeipa-bootstrap-radius; \
   chmod 0755 /usr/libexec/infrastructure/freeipa-prepare; \
   chmod 0755 /usr/libexec/infrastructure/freeradius-prepare; \
+  chmod 0755 /usr/libexec/infrastructure/gitlab-runner-register; \
   chmod 0755 /usr/libexec/infrastructure/gssproxy-prepare; \
   chmod 0755 /usr/libexec/infrastructure/suricata-sync-rules; \
   chmod 0644 /etc/systemd/system/freeipa-bootstrap-radius.service; \
   chmod 0644 /etc/systemd/system/freeipa-prepare.service; \
   chmod 0644 /etc/systemd/system/freeradius-prepare.service; \
+  chmod 0644 /etc/containers/registries.conf.d/10-localhost-registry.conf; \
+  chmod 0644 /etc/systemd/system/gitlab-runner-register.service; \
+  chmod 0644 /usr/share/gitlab-runner/register.template.toml; \
   chmod 0644 /etc/systemd/system/gssproxy-prepare.service; \
   chmod 0644 /etc/systemd/system/gssproxy.service.d/10-infrastructure.conf; \
   chmod 0600 /etc/nftables/suricata.nft; \
   chmod 0644 /etc/systemd/system/suricata-prepare.service; \
   chmod 0644 /etc/systemd/system/suricata-update.service; \
   chmod 0644 /etc/systemd/system/suricata-update.timer; \
+  sed -i "s|^Image=.*|Image=${IPS_IMAGE}|" /etc/containers/systemd/suricata.container; \
+  sed -i "s|^IMAGE=.*|IMAGE=\"${IPS_IMAGE}\"|" /usr/libexec/infrastructure/suricata-sync-rules; \
   awk '/set allowed_tcp_dports[[:space:]]*\{/{flag=1} flag{print} /^\t*\}/{if(flag){exit}}' /etc/nftables/main.nft \
   | grep -q '\<http\>' \
   || sed -i '/set allowed_tcp_dports[[:space:]]*{/,/}/{/elements = {/ s/}/, http, https}/;}' /etc/nftables/main.nft; \
@@ -87,6 +100,8 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/multi-user.target.wants/power-profiles-daemon.service; \
   ln -sf /usr/lib/systemd/system/upower.service \
     /etc/systemd/system/multi-user.target.wants/upower.service; \
+  ln -sf /etc/systemd/system/gitlab-runner-register.service \
+    /etc/systemd/system/multi-user.target.wants/gitlab-runner-register.service; \
   ln -sf /etc/systemd/system/suricata-update.timer \
     /etc/systemd/system/timers.target.wants/suricata-update.timer; \
   ostree container commit

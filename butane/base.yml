@@ -20,6 +20,12 @@ storage:
         inline: |
           include "/etc/nftables/main.nft"
 
+  directories:
+    - path: /usr/libexec
+      mode: 0755
+    - path: /usr/libexec/infrastructure
+      mode: 0755
+
 systemd:
   units:
     - name: nftables.service

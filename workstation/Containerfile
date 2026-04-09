@@ -4,6 +4,8 @@ RUN dnf -y install dnf-plugins-core \
  && wc -l /tmp/firmware-packages.txt
 
 FROM quay.io/fedora/fedora-coreos:stable
+ARG IPS_IMAGE=ghcr.io/noobping/ips:latest
+ARG REBASE_IMAGE=ostree-image-signed:docker://ghcr.io/noobping/desktop:latest
 LABEL org.opencontainers.image.title="Workstation"
 LABEL org.opencontainers.image.description="Nick's bootable container"
 
@@ -87,7 +89,6 @@ COPY alternative.sh /usr/bin/alternative
 COPY alternative-root.sh /usr/libexec/infrastructure/alternative-root
 COPY background.png /usr/share/backgrounds/nick-wallpaper.png
 COPY background.xml /usr/share/gnome-background-properties/nick.xml
-COPY base.txt /etc/recommended/base
 COPY cachefilesd.conf /etc/cachefilesd.conf
 COPY certs/ /etc/pki/ca-trust/source/anchors/
 COPY containers /etc/containers/systemd
@@ -133,6 +134,9 @@ RUN set -euxo pipefail; \
   chmod 0644 /etc/systemd/system/suricata-prepare.service; \
   chmod 0644 /etc/systemd/system/suricata-update.service; \
   chmod 0644 /etc/systemd/system/suricata-update.timer; \
+  sed -i "s|^Image=.*|Image=${IPS_IMAGE}|" /etc/containers/systemd/suricata.container; \
+  sed -i "s|^IMAGE=.*|IMAGE=\"${IPS_IMAGE}\"|" /usr/libexec/infrastructure/suricata-sync-rules; \
+  echo "${REBASE_IMAGE}" > /etc/recommended/base; \
 
   rm -f /etc/resolv.conf; \
   ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf; \

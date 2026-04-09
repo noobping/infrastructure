@@ -1,0 +1,175 @@
+stages:
+  - build
+  - sign
+  - deploy
+
+default:
+  tags:
+    - nas-local
+
+variables:
+  BUILDAH_FORMAT: docker
+  BUILDAH_ISOLATION: chroot
+  STORAGE_DRIVER: vfs
+  LOCAL_REGISTRY: localhost:5000/noobping
+  REGISTRY_TLS_VERIFY: "false"
+
+.build_image:
+  stage: build
+  image: quay.io/buildah/stable:latest
+  script:
+    - export IMAGE="${LOCAL_REGISTRY}/${IMAGE_NAME}"
+    - export COMMIT_TAG="${IMAGE}:${CI_COMMIT_SHA}"
+    - export LATEST_TAG="${IMAGE}:latest"
+    - |
+      set -- buildah bud \
+        --pull-always \
+        --tls-verify="${REGISTRY_TLS_VERIFY}" \
+        --isolation="${BUILDAH_ISOLATION}" \
+        --format="${BUILDAH_FORMAT}" \
+        --layers=false \
+        -f "${CONTAINERFILE}" \
+        -t "${COMMIT_TAG}"
+      if [ -n "${IPS_IMAGE_NAME:-}" ]; then
+        set -- "$@" --build-arg "IPS_IMAGE=${LOCAL_REGISTRY}/${IPS_IMAGE_NAME}:${CI_COMMIT_SHA}"
+      fi
+      if [ -n "${WORKSTATION_IMAGE_NAME:-}" ]; then
+        set -- "$@" --build-arg "WORKSTATION_IMAGE=${LOCAL_REGISTRY}/${WORKSTATION_IMAGE_NAME}:${CI_COMMIT_SHA}"
+      fi
+      if [ -n "${REBASE_IMAGE_NAME:-}" ]; then
+        set -- "$@" --build-arg "REBASE_IMAGE=ostree-unverified-registry:${LOCAL_REGISTRY}/${REBASE_IMAGE_NAME}:latest"
+      fi
+      set -- "$@" "${BUILD_CONTEXT}"
+      "$@"
+    - buildah push --tls-verify="${REGISTRY_TLS_VERIFY}" "${COMMIT_TAG}" "docker://${COMMIT_TAG}"
+    - |
+      if [ "${CI_COMMIT_BRANCH:-}" = "${CI_DEFAULT_BRANCH:-}" ]; then
+        buildah tag "${COMMIT_TAG}" "${LATEST_TAG}"
+        buildah push --tls-verify="${REGISTRY_TLS_VERIFY}" "${LATEST_TAG}" "docker://${LATEST_TAG}"
+      fi
+    - buildah rmi "${COMMIT_TAG}" || true
+    - buildah prune -f || true
+
+.sign_image:
+  stage: sign
+  image: alpine:3.21
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - |
+      if [ ! -s /run/gitlab-runner-secrets/cosign.key ]; then
+        echo "Skipping image signing; /run/gitlab-runner-secrets/cosign.key is missing"
+        exit 0
+      fi
+    - apk add --no-cache cosign
+    - |
+      if [ -f /run/gitlab-runner-secrets/cosign.password ]; then
+        export COSIGN_PASSWORD="$(cat /run/gitlab-runner-secrets/cosign.password)"
+      fi
+    - export IMAGE="${LOCAL_REGISTRY}/${IMAGE_NAME}:${CI_COMMIT_SHA}"
+    - cosign sign --yes --allow-insecure-registry --tlog-upload=false --key /run/gitlab-runner-secrets/cosign.key "${IMAGE}"
+    - |
+      if [ "${CI_COMMIT_BRANCH:-}" = "${CI_DEFAULT_BRANCH:-}" ]; then
+        cosign sign --yes --allow-insecure-registry --tlog-upload=false --key /run/gitlab-runner-secrets/cosign.key "${LOCAL_REGISTRY}/${IMAGE_NAME}:latest"
+      fi
+
+build:ips:
+  extends: .build_image
+  variables:
+    IMAGE_NAME: ips
+    BUILD_CONTEXT: containers/ips
+    CONTAINERFILE: containers/ips/Containerfile
+
+build:workstation:
+  extends: .build_image
+  needs:
+    - build:ips
+  variables:
+    IMAGE_NAME: workstation
+    BUILD_CONTEXT: workstation
+    CONTAINERFILE: workstation/Containerfile
+    IPS_IMAGE_NAME: ips
+    REBASE_IMAGE_NAME: desktop
+
+build:nas:
+  extends: .build_image
+  needs:
+    - build:ips
+  variables:
+    IMAGE_NAME: nas
+    BUILD_CONTEXT: nas
+    CONTAINERFILE: nas/Containerfile
+    IPS_IMAGE_NAME: ips
+
+build:desktop:
+  extends: .build_image
+  needs:
+    - build:workstation
+  variables:
+    IMAGE_NAME: desktop
+    BUILD_CONTEXT: desktop
+    CONTAINERFILE: desktop/Containerfile
+    WORKSTATION_IMAGE_NAME: workstation
+    REBASE_IMAGE_NAME: workstation
+
+sign:ips:
+  extends: .sign_image
+  needs:
+    - build:ips
+  variables:
+    IMAGE_NAME: ips
+
+sign:workstation:
+  extends: .sign_image
+  needs:
+    - build:workstation
+  variables:
+    IMAGE_NAME: workstation
+
+sign:nas:
+  extends: .sign_image
+  needs:
+    - build:nas
+  variables:
+    IMAGE_NAME: nas
+
+sign:desktop:
+  extends: .sign_image
+  needs:
+    - build:desktop
+  variables:
+    IMAGE_NAME: desktop
+
+deploy:nas:
+  stage: deploy
+  image: alpine:3.21
+  needs:
+    - build:nas
+    - sign:nas
+  variables:
+    GIT_STRATEGY: none
+  before_script:
+    - apk add --no-cache openssh-client
+    - test -s /run/gitlab-runner-ssh/id_ed25519 || { echo "Missing /run/gitlab-runner-ssh/id_ed25519"; exit 1; }
+    - install -d -m 0700 ~/.ssh
+    - install -m 0600 /run/gitlab-runner-ssh/id_ed25519 ~/.ssh/id_ed25519
+    - |
+      if [ -s /run/gitlab-runner-ssh/known_hosts ]; then
+        install -m 0644 /run/gitlab-runner-ssh/known_hosts ~/.ssh/known_hosts
+      else
+        ssh-keyscan -H 127.0.0.1 > ~/.ssh/known_hosts
+        chmod 0644 ~/.ssh/known_hosts
+      fi
+  script:
+    - export DEPLOY_REF="ostree-unverified-registry:${LOCAL_REGISTRY}/nas:${CI_COMMIT_SHA}"
+    - |
+      ssh \
+        -i ~/.ssh/id_ed25519 \
+        -o BatchMode=yes \
+        -o StrictHostKeyChecking=yes \
+        nick@127.0.0.1 \
+        "sudo -n rpm-ostree rebase '${DEPLOY_REF}' && sudo -n systemd-run --on-active=15s --unit=gitlab-ci-reboot /usr/bin/systemctl reboot"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: manual
+    - when: never

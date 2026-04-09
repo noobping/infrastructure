@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-IMAGE="${SURICATA_IMAGE:-ghcr.io/noobping/ips:latest}"
+IMAGE="ghcr.io/noobping/ips:latest"
 
 install -d -m 0750 /var/lib/suricata /var/lib/suricata/rules /var/log/suricata
 
