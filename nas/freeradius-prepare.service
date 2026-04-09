@@ -6,4 +6,4 @@ ConditionPathIsDirectory=/var/lib/containers/freeradius
 
 [Service]
 Type=oneshot
-ExecStart=/usr/libexec/bootcontainer/freeradius-prepare
+ExecStart=/usr/libexec/freeradius-prepare

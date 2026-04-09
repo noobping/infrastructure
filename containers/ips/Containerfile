@@ -12,15 +12,15 @@ RUN set -euxo pipefail; \
   ostree container commit
 
 COPY ips.yaml /etc/suricata/ips.yaml
-COPY suricata-entrypoint /usr/libexec/bootcontainer/suricata-entrypoint
-COPY suricata-sync-rules /usr/libexec/bootcontainer/suricata-sync-rules
+COPY suricata-entrypoint /usr/libexec/suricata-entrypoint
+COPY suricata-sync-rules /usr/libexec/suricata-sync-rules
 
 RUN set -euxo pipefail; \
-  chmod 0755 /usr/libexec/bootcontainer/suricata-entrypoint; \
-  chmod 0755 /usr/libexec/bootcontainer/suricata-sync-rules; \
+  chmod 0755 /usr/libexec/suricata-entrypoint; \
+  chmod 0755 /usr/libexec/suricata-sync-rules; \
   install -d -o suricata -g suricata -m 0750 /var/lib/suricata /var/log/suricata; \
   grep -q '^include: /etc/suricata/ips.yaml$' /etc/suricata/suricata.yaml \
   || printf '\ninclude: /etc/suricata/ips.yaml\n' >> /etc/suricata/suricata.yaml; \
   ostree container commit
 
-ENTRYPOINT ["/usr/libexec/bootcontainer/suricata-entrypoint"]
+ENTRYPOINT ["/usr/libexec/suricata-entrypoint"]
