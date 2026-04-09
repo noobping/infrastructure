@@ -1,4 +1,4 @@
-FROM ghcr.io/noobping/ips:latest
+FROM quay.io/fedora/fedora-coreos:stable
 
 LABEL org.opencontainers.image.title="NAS"
 LABEL org.opencontainers.image.description="Nick's bootable container"
@@ -16,24 +16,44 @@ RUN set -euxo pipefail; \
   rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
   mkdir -p \
   /etc/nftables/rules \
+  /etc/systemd/system/gssproxy.service.d \
   /etc/modules-load.d \
   /etc/polkit-1/rules.d \
-  /etc/systemd/system/multi-user.target.wants; \
+  /etc/systemd/system/multi-user.target.wants \
+  /etc/systemd/system/timers.target.wants \
+  /usr/libexec/bootcontainer \
+  /var/lib/suricata \
+  /var/log/suricata; \
   ostree container commit
 
 COPY todo.sh /usr/bin/todo
 COPY caddy.conf /etc/caddy.conf
 COPY containers /etc/containers/systemd
 COPY fstab.txt /etc/fstab
+COPY gssproxy-prepare.service /etc/systemd/system/gssproxy-prepare.service
+COPY gssproxy-prepare /usr/libexec/bootcontainer/gssproxy-prepare
+COPY gssproxy.service.d/10-bootcontainer.conf /etc/systemd/system/gssproxy.service.d/10-bootcontainer.conf
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
 COPY mdadm.conf /etc/mdadm.conf
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY nftables /etc/nftables/rules
 COPY suricata.nft /etc/nftables/suricata.nft
+COPY suricata-prepare.service /etc/systemd/system/suricata-prepare.service
+COPY suricata-sync-rules /usr/libexec/bootcontainer/suricata-sync-rules
+COPY suricata-update.service /etc/systemd/system/suricata-update.service
+COPY suricata-update.timer /etc/systemd/system/suricata-update.timer
 
 RUN set -euxo pipefail; \
   chmod -R 0600 /etc/nftables/rules; \
+  chmod 0644 /etc/containers/systemd/suricata.container; \
+  chmod 0755 /usr/libexec/bootcontainer/gssproxy-prepare; \
+  chmod 0755 /usr/libexec/bootcontainer/suricata-sync-rules; \
+  chmod 0644 /etc/systemd/system/gssproxy-prepare.service; \
+  chmod 0644 /etc/systemd/system/gssproxy.service.d/10-bootcontainer.conf; \
   chmod 0600 /etc/nftables/suricata.nft; \
+  chmod 0644 /etc/systemd/system/suricata-prepare.service; \
+  chmod 0644 /etc/systemd/system/suricata-update.service; \
+  chmod 0644 /etc/systemd/system/suricata-update.timer; \
   awk '/set allowed_tcp_dports[[:space:]]*\{/{flag=1} flag{print} /^\t*\}/{if(flag){exit}}' /etc/nftables/main.nft \
   | grep -q '\<http\>' \
   || sed -i '/set allowed_tcp_dports[[:space:]]*{/,/}/{/elements = {/ s/}/, http, https}/;}' /etc/nftables/main.nft; \
@@ -49,4 +69,6 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/multi-user.target.wants/power-profiles-daemon.service; \
   ln -sf /usr/lib/systemd/system/upower.service \
     /etc/systemd/system/multi-user.target.wants/upower.service; \
+  ln -sf /etc/systemd/system/suricata-update.timer \
+    /etc/systemd/system/timers.target.wants/suricata-update.timer; \
   ostree container commit

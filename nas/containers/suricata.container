@@ -1,0 +1,17 @@
+[Unit]
+Description=Podman - Suricata IPS
+Wants=network-online.target suricata-prepare.service
+After=network-online.target suricata-prepare.service
+Requires=suricata-prepare.service
+
+[Container]
+Image=ghcr.io/noobping/ips:latest
+AutoUpdate=registry
+PodmanArgs=--network=host --cap-add=NET_ADMIN --cap-add=NET_RAW -v /var/lib/suricata:/var/lib/suricata:Z -v /var/log/suricata:/var/log/suricata:Z
+
+[Service]
+Restart=always
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target

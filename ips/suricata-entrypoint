@@ -1,0 +1,20 @@
+#!/bin/sh
+set -eu
+
+install -d -o suricata -g suricata -m 0750 \
+  /var/lib/suricata \
+  /var/lib/suricata/rules \
+  /var/log/suricata
+
+if [ "${SURICATA_SYNC_ONLY:-0}" = "1" ]; then
+  exec /usr/libexec/bootcontainer/suricata-sync-rules
+fi
+
+if [ ! -s /var/lib/suricata/rules/suricata.rules ]; then
+  /usr/libexec/bootcontainer/suricata-sync-rules
+fi
+
+exec /sbin/suricata \
+  -c /etc/suricata/suricata.yaml \
+  -q 0 \
+  --pidfile /tmp/suricata.pid
