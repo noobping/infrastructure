@@ -6,7 +6,7 @@ table inet suricata {
     iifname "lo" return
     iifname { "virbr*", "vnet*", "podman*", "cni*" } return
     meta mark & 0x1 == 0x1 return
-    queue num 0
+    queue num 0 bypass
   }
 
   chain output {
@@ -16,7 +16,7 @@ table inet suricata {
     oifname "lo" return
     oifname { "virbr*", "vnet*", "podman*", "cni*" } return
     meta mark & 0x1 == 0x1 return
-    queue num 0
+    queue num 0 bypass
   }
 
   chain forward {
@@ -26,6 +26,6 @@ table inet suricata {
     iifname { "lo", "virbr*", "vnet*", "podman*", "cni*" } return
     oifname { "lo", "virbr*", "vnet*", "podman*", "cni*" } return
     meta mark & 0x1 == 0x1 return
-    queue num 0
+    queue num 0 bypass
   }
 }

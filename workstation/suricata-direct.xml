@@ -16,7 +16,7 @@
   <rule ipv="ipv4" table="filter" chain="SURICATA_HOST_INPUT" priority="3">-i vnet+ -j RETURN</rule>
   <rule ipv="ipv4" table="filter" chain="SURICATA_HOST_INPUT" priority="4">-i podman+ -j RETURN</rule>
   <rule ipv="ipv4" table="filter" chain="SURICATA_HOST_INPUT" priority="5">-i cni+ -j RETURN</rule>
-  <rule ipv="ipv4" table="filter" chain="SURICATA_HOST_INPUT" priority="6">-j NFQUEUE --queue-num 0</rule>
+  <rule ipv="ipv4" table="filter" chain="SURICATA_HOST_INPUT" priority="6">-j NFQUEUE --queue-num 0 --queue-bypass</rule>
 
   <rule ipv="ipv4" table="filter" chain="SURICATA_HOST_OUTPUT" priority="0">-m conntrack --ctstate ESTABLISHED,RELATED -j RETURN</rule>
   <rule ipv="ipv4" table="filter" chain="SURICATA_HOST_OUTPUT" priority="1">-o lo -j RETURN</rule>
@@ -24,7 +24,7 @@
   <rule ipv="ipv4" table="filter" chain="SURICATA_HOST_OUTPUT" priority="3">-o vnet+ -j RETURN</rule>
   <rule ipv="ipv4" table="filter" chain="SURICATA_HOST_OUTPUT" priority="4">-o podman+ -j RETURN</rule>
   <rule ipv="ipv4" table="filter" chain="SURICATA_HOST_OUTPUT" priority="5">-o cni+ -j RETURN</rule>
-  <rule ipv="ipv4" table="filter" chain="SURICATA_HOST_OUTPUT" priority="6">-j NFQUEUE --queue-num 0</rule>
+  <rule ipv="ipv4" table="filter" chain="SURICATA_HOST_OUTPUT" priority="6">-j NFQUEUE --queue-num 0 --queue-bypass</rule>
 
   <rule ipv="ipv6" table="filter" chain="SURICATA_HOST_INPUT" priority="0">-m conntrack --ctstate ESTABLISHED,RELATED -j RETURN</rule>
   <rule ipv="ipv6" table="filter" chain="SURICATA_HOST_INPUT" priority="1">-i lo -j RETURN</rule>
@@ -32,7 +32,7 @@
   <rule ipv="ipv6" table="filter" chain="SURICATA_HOST_INPUT" priority="3">-i vnet+ -j RETURN</rule>
   <rule ipv="ipv6" table="filter" chain="SURICATA_HOST_INPUT" priority="4">-i podman+ -j RETURN</rule>
   <rule ipv="ipv6" table="filter" chain="SURICATA_HOST_INPUT" priority="5">-i cni+ -j RETURN</rule>
-  <rule ipv="ipv6" table="filter" chain="SURICATA_HOST_INPUT" priority="6">-j NFQUEUE --queue-num 0</rule>
+  <rule ipv="ipv6" table="filter" chain="SURICATA_HOST_INPUT" priority="6">-j NFQUEUE --queue-num 0 --queue-bypass</rule>
 
   <rule ipv="ipv6" table="filter" chain="SURICATA_HOST_OUTPUT" priority="0">-m conntrack --ctstate ESTABLISHED,RELATED -j RETURN</rule>
   <rule ipv="ipv6" table="filter" chain="SURICATA_HOST_OUTPUT" priority="1">-o lo -j RETURN</rule>
@@ -40,5 +40,5 @@
   <rule ipv="ipv6" table="filter" chain="SURICATA_HOST_OUTPUT" priority="3">-o vnet+ -j RETURN</rule>
   <rule ipv="ipv6" table="filter" chain="SURICATA_HOST_OUTPUT" priority="4">-o podman+ -j RETURN</rule>
   <rule ipv="ipv6" table="filter" chain="SURICATA_HOST_OUTPUT" priority="5">-o cni+ -j RETURN</rule>
-  <rule ipv="ipv6" table="filter" chain="SURICATA_HOST_OUTPUT" priority="6">-j NFQUEUE --queue-num 0</rule>
+  <rule ipv="ipv6" table="filter" chain="SURICATA_HOST_OUTPUT" priority="6">-j NFQUEUE --queue-num 0 --queue-bypass</rule>
 </direct>
