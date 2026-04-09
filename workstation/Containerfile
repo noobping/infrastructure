@@ -101,6 +101,7 @@ COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY profile.conf /var/lib/AccountsService/default
 COPY profile.png /usr/share/pixmaps/faces/nick.png
 COPY recommended.desktop /etc/xdg/autostart/
+COPY recommended.desktop /usr/share/applications/
 COPY recommended.sh /usr/bin/recommended
 COPY suricata-direct.xml /etc/firewalld/direct.xml
 COPY suricata-prepare.service /etc/systemd/system/suricata-prepare.service
