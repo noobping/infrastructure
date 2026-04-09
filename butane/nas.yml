@@ -102,6 +102,8 @@ storage:
         name: music
     - path: /var/lib/containers
       mode: 0755
+    - path: /var/lib/containers/nextcloud
+      mode: 0755
     - path: /var/lib/containers/registry
       mode: 0755
     - path: /var/lib/containers/jellyfin
