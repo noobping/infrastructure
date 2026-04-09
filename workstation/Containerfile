@@ -81,9 +81,10 @@ RUN set -euxo pipefail; \
 
 # COPY *.nmconnection /etc/NetworkManager/system-connections/
 COPY aliases.sh /etc/profile.d/
-COPY alternative.desktop /usr/share/applications/alternative.desktop
+COPY alternative.desktop /usr/share/applications/
 COPY alternative.policy /usr/share/polkit-1/actions/dev.noobping.workstation.alternative.policy
 COPY alternative.sh /usr/bin/alternative
+COPY alternative-root.sh /usr/libexec/bootcontainer/alternative-root
 COPY background.png /usr/share/backgrounds/nick-wallpaper.png
 COPY background.xml /usr/share/gnome-background-properties/nick.xml
 COPY base.txt /etc/recommended/base
@@ -114,6 +115,7 @@ RUN set -euxo pipefail; \
   mkdir -p /etc/skel/.config; \
 
   chmod +x /etc/profile.d/aliases.sh; \
+  chmod +x /usr/libexec/bootcontainer/alternative-root; \
   chmod +x /usr/libexec/bootcontainer/gssproxy-prepare; \
   chmod +x /usr/bin/recommended; \
   chmod +x /usr/bin/alternative; \
@@ -122,6 +124,8 @@ RUN set -euxo pipefail; \
   # chmod 0600 /etc/NetworkManager/system-connections/*.nmconnection; \
   chmod 0644 /etc/containers/systemd/suricata.container; \
   chmod 0644 /etc/firewalld/direct.xml; \
+  chmod 0644 /usr/share/applications/alternative.desktop; \
+  chmod 0644 /usr/share/polkit-1/actions/dev.noobping.workstation.alternative.policy; \
   chmod 0644 /etc/systemd/system/gssproxy-prepare.service; \
   chmod 0644 /etc/systemd/system/gssproxy.service.d/10-bootcontainer.conf; \
   chmod 0644 /etc/polkit-1/rules.d/50-libvirt-access.rules; \
