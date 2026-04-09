@@ -114,6 +114,10 @@ storage:
       mode: 0700
     - path: /var/lib/containers/gitlab-runner/cache
       mode: 0755
+    - path: /var/lib/containers/gitlab-runner/secrets
+      mode: 0700
+    - path: /var/lib/containers/gitlab-runner/ssh
+      mode: 0700
     - path: /var/lib/containers/registry
       mode: 0755
     - path: /var/lib/containers/freeipa/data
