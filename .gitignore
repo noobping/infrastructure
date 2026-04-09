@@ -3,4 +3,5 @@
 *.ign
 *.iso
 *.qcow2
+/*.png
 out/
