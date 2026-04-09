@@ -7,11 +7,11 @@ install -d -o suricata -g suricata -m 0750 \
   /var/log/suricata
 
 if [ "${SURICATA_SYNC_ONLY:-0}" = "1" ]; then
-  exec /usr/libexec/suricata-sync-rules
+  exec /usr/libexec/infrastructure/suricata-sync-rules
 fi
 
 if [ ! -s /var/lib/suricata/rules/suricata.rules ]; then
-  /usr/libexec/suricata-sync-rules
+  /usr/libexec/infrastructure/suricata-sync-rules
 fi
 
 exec /sbin/suricata \

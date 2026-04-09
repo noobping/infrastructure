@@ -8,19 +8,19 @@ RUN set -euxo pipefail; \
     suricata; \
   rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
   mkdir -p \
-    /usr/libexec/bootcontainer; \
+    /usr/libexec/infrastructure; \
   ostree container commit
 
 COPY ips.yaml /etc/suricata/ips.yaml
-COPY suricata-entrypoint /usr/libexec/suricata-entrypoint
-COPY suricata-sync-rules /usr/libexec/suricata-sync-rules
+COPY suricata-entrypoint /usr/libexec/infrastructure/suricata-entrypoint
+COPY suricata-sync-rules /usr/libexec/infrastructure/suricata-sync-rules
 
 RUN set -euxo pipefail; \
-  chmod 0755 /usr/libexec/suricata-entrypoint; \
-  chmod 0755 /usr/libexec/suricata-sync-rules; \
+  chmod 0755 /usr/libexec/infrastructure/suricata-entrypoint; \
+  chmod 0755 /usr/libexec/infrastructure/suricata-sync-rules; \
   install -d -o suricata -g suricata -m 0750 /var/lib/suricata /var/log/suricata; \
   grep -q '^include: /etc/suricata/ips.yaml$' /etc/suricata/suricata.yaml \
   || printf '\ninclude: /etc/suricata/ips.yaml\n' >> /etc/suricata/suricata.yaml; \
   ostree container commit
 
-ENTRYPOINT ["/usr/libexec/suricata-entrypoint"]
+ENTRYPOINT ["/usr/libexec/infrastructure/suricata-entrypoint"]

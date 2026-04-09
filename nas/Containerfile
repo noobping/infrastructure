@@ -21,7 +21,7 @@ RUN set -euxo pipefail; \
   /etc/polkit-1/rules.d \
   /etc/systemd/system/multi-user.target.wants \
   /etc/systemd/system/timers.target.wants \
-  /usr/libexec/bootcontainer \
+  /usr/libexec/infrastructure \
   /usr/share/freeradius \
   /var/lib/suricata \
   /var/log/suricata; \
@@ -31,23 +31,23 @@ COPY todo.sh /usr/bin/todo
 COPY caddy.conf /etc/caddy.conf
 COPY containers /etc/containers/systemd
 COPY fstab.txt /etc/fstab
-COPY freeipa-bootstrap-radius /usr/libexec/freeipa-bootstrap-radius
+COPY freeipa-bootstrap-radius /usr/libexec/infrastructure/freeipa-bootstrap-radius
 COPY freeipa-bootstrap-radius.service /etc/systemd/system/freeipa-bootstrap-radius.service
-COPY freeipa-prepare /usr/libexec/freeipa-prepare
+COPY freeipa-prepare /usr/libexec/infrastructure/freeipa-prepare
 COPY freeipa-prepare.service /etc/systemd/system/freeipa-prepare.service
 COPY freeradius /usr/share/freeradius
-COPY freeradius-prepare /usr/libexec/freeradius-prepare
+COPY freeradius-prepare /usr/libexec/infrastructure/freeradius-prepare
 COPY freeradius-prepare.service /etc/systemd/system/freeradius-prepare.service
 COPY gssproxy-prepare.service /etc/systemd/system/gssproxy-prepare.service
-COPY gssproxy-prepare /usr/libexec/gssproxy-prepare
-COPY gssproxy.service.d/10-bootcontainer.conf /etc/systemd/system/gssproxy.service.d/10-bootcontainer.conf
+COPY gssproxy-prepare /usr/libexec/infrastructure/gssproxy-prepare
+COPY gssproxy.service.d/10-infrastructure.conf /etc/systemd/system/gssproxy.service.d/10-infrastructure.conf
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
 COPY mdadm.conf /etc/mdadm.conf
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY nftables /etc/nftables/rules
 COPY suricata.nft /etc/nftables/suricata.nft
 COPY suricata-prepare.service /etc/systemd/system/suricata-prepare.service
-COPY suricata-sync-rules /usr/libexec/suricata-sync-rules
+COPY suricata-sync-rules /usr/libexec/infrastructure/suricata-sync-rules
 COPY suricata-update.service /etc/systemd/system/suricata-update.service
 COPY suricata-update.timer /etc/systemd/system/suricata-update.timer
 
@@ -56,16 +56,16 @@ RUN set -euxo pipefail; \
   find /etc/containers/systemd -type f -name '*.container' -exec chmod 0644 '{}' ';'; \
   find /usr/share/freeradius -type d -exec chmod 0755 '{}' ';'; \
   find /usr/share/freeradius -type f -exec chmod 0644 '{}' ';'; \
-  chmod 0755 /usr/libexec/freeipa-bootstrap-radius; \
-  chmod 0755 /usr/libexec/freeipa-prepare; \
-  chmod 0755 /usr/libexec/freeradius-prepare; \
-  chmod 0755 /usr/libexec/gssproxy-prepare; \
-  chmod 0755 /usr/libexec/suricata-sync-rules; \
+  chmod 0755 /usr/libexec/infrastructure/freeipa-bootstrap-radius; \
+  chmod 0755 /usr/libexec/infrastructure/freeipa-prepare; \
+  chmod 0755 /usr/libexec/infrastructure/freeradius-prepare; \
+  chmod 0755 /usr/libexec/infrastructure/gssproxy-prepare; \
+  chmod 0755 /usr/libexec/infrastructure/suricata-sync-rules; \
   chmod 0644 /etc/systemd/system/freeipa-bootstrap-radius.service; \
   chmod 0644 /etc/systemd/system/freeipa-prepare.service; \
   chmod 0644 /etc/systemd/system/freeradius-prepare.service; \
   chmod 0644 /etc/systemd/system/gssproxy-prepare.service; \
-  chmod 0644 /etc/systemd/system/gssproxy.service.d/10-bootcontainer.conf; \
+  chmod 0644 /etc/systemd/system/gssproxy.service.d/10-infrastructure.conf; \
   chmod 0600 /etc/nftables/suricata.nft; \
   chmod 0644 /etc/systemd/system/suricata-prepare.service; \
   chmod 0644 /etc/systemd/system/suricata-update.service; \

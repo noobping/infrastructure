@@ -8,4 +8,4 @@ ConditionPathIsDirectory=/var/lib/containers
 
 [Service]
 Type=oneshot
-ExecStart=/usr/libexec/freeipa-prepare
+ExecStart=/usr/libexec/infrastructure/freeipa-prepare

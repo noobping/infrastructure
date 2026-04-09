@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_HELPER="/usr/libexec/alternative-root"
+ROOT_HELPER="/usr/libexec/infrastructure/alternative-root"
 LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}"
 LOG_FILE="$LOG_DIR/alternative.log"
 

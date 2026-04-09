@@ -10,4 +10,4 @@ ConditionPathExists=/var/lib/containers/freeradius/secrets/ldap-bind-password
 
 [Service]
 Type=oneshot
-ExecStart=/usr/libexec/freeipa-bootstrap-radius
+ExecStart=/usr/libexec/infrastructure/freeipa-bootstrap-radius

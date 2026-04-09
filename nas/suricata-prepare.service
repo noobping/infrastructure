@@ -7,4 +7,4 @@ ConditionPathExists=!/var/lib/suricata/rules/suricata.rules
 
 [Service]
 Type=oneshot
-ExecStart=/usr/libexec/suricata-sync-rules
+ExecStart=/usr/libexec/infrastructure/suricata-sync-rules
