@@ -21,6 +21,7 @@ RUN set -euxo pipefail; \
   /etc/polkit-1/rules.d \
   /etc/systemd/system/multi-user.target.wants \
   /etc/systemd/system/timers.target.wants \
+  /etc/zincati/config.d \
   /usr/libexec/bootcontainer \
   /usr/share/freeradius \
   /var/lib/suricata \
@@ -46,6 +47,7 @@ COPY mdadm.conf /etc/mdadm.conf
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY nftables /etc/nftables/rules
 COPY suricata.nft /etc/nftables/suricata.nft
+COPY zincati-updates-strategy.toml /etc/zincati/config.d/55-updates-strategy.toml
 COPY suricata-prepare.service /etc/systemd/system/suricata-prepare.service
 COPY suricata-sync-rules /usr/libexec/suricata-sync-rules
 COPY suricata-update.service /etc/systemd/system/suricata-update.service
@@ -67,6 +69,7 @@ RUN set -euxo pipefail; \
   chmod 0644 /etc/systemd/system/gssproxy-prepare.service; \
   chmod 0644 /etc/systemd/system/gssproxy.service.d/10-bootcontainer.conf; \
   chmod 0600 /etc/nftables/suricata.nft; \
+  chmod 0644 /etc/zincati/config.d/55-updates-strategy.toml; \
   chmod 0644 /etc/systemd/system/suricata-prepare.service; \
   chmod 0644 /etc/systemd/system/suricata-update.service; \
   chmod 0644 /etc/systemd/system/suricata-update.timer; \

@@ -89,3 +89,25 @@ SRV    _kpasswd._udp.nick.nas       -> 0 0 464 ipa.nick.nas.
 ```
 
 FreeRADIUS only accepts users who are members of the FreeIPA group `radius-users`. The NAS bootstrap creates that group and a dedicated `radius-bind` LDAP bind account automatically after FreeIPA comes up for the first time.
+
+## GitLab Pipelines
+
+This repo now ships a GitLab CI pipeline in `.gitlab-ci.yml` with manual deploy jobs for `nas`, `workstation`, and `desktop`.
+
+Required GitLab CI variables:
+
+```text
+DEPLOY_SSH_PRIVATE_KEY
+NAS_DEPLOY_HOST
+WORKSTATION_DEPLOY_HOST
+DESKTOP_DEPLOY_HOST
+```
+
+Optional GitLab CI variables:
+
+```text
+DEPLOY_SSH_KNOWN_HOSTS
+DEPLOY_SSH_PORT
+DEPLOY_SSH_USER
+DEPLOY_REGISTRY_PREFIX
+```
