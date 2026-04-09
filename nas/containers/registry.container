@@ -1,0 +1,17 @@
+[Unit]
+Description=Container image registry
+ConditionPathExists=/var/lib/containers/registry
+
+[Container]
+Image=docker.io/library/registry:2
+Environment=REGISTRY_STORAGE_DELETE_ENABLED=true
+PublishPort=5000:5000/tcp
+Volume=/var/lib/containers/registry:/var/lib/registry:Z
+AutoUpdate=registry
+
+[Service]
+Restart=always
+TimeoutStartSec=180
+
+[Install]
+WantedBy=multi-user.target
