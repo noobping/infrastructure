@@ -112,6 +112,16 @@ storage:
       mode: 0755
     - path: /var/lib/containers/registry
       mode: 0755
+    - path: /var/lib/containers/freeipa/data
+      mode: 0750
+    - path: /var/lib/containers/freeipa/secrets
+      mode: 0700
+    - path: /var/lib/containers/freeradius
+      mode: 0755
+    - path: /var/lib/containers/freeradius/config
+      mode: 0755
+    - path: /var/lib/containers/freeradius/secrets
+      mode: 0700
     - path: /var/lib/containers/jellyfin
       mode: 0755
       user:

@@ -1,0 +1,13 @@
+[Unit]
+Description=Bootstrap FreeIPA group and bind user for FreeRADIUS
+Wants=freeipa.service
+After=freeipa.service network-online.target
+Requires=freeipa.service
+Before=freeradius.service
+ConditionPathExists=/var/lib/containers/freeipa/secrets/admin-password
+ConditionPathExists=/var/lib/containers/freeipa/secrets/ds-password
+ConditionPathExists=/var/lib/containers/freeradius/secrets/ldap-bind-password
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/bootcontainer/freeipa-bootstrap-radius

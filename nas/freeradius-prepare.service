@@ -1,0 +1,9 @@
+[Unit]
+Description=Render FreeRADIUS LDAP configuration
+After=local-fs.target
+Before=freeradius.service
+ConditionPathIsDirectory=/var/lib/containers/freeradius
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/bootcontainer/freeradius-prepare

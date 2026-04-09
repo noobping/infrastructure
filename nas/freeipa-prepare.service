@@ -1,0 +1,11 @@
+[Unit]
+Description=Prepare FreeIPA install options and data directories
+After=local-fs.target
+Wants=network-online.target
+After=network-online.target
+Before=freeipa.service
+ConditionPathIsDirectory=/var/lib/containers
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/bootcontainer/freeipa-prepare
