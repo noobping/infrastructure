@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Alternative DE
+Comment=Rebase this system to the alternative rpm-ostree base
+Exec=pkexec /usr/bin/alternative
+Icon=org.gnome.Software
+Terminal=true
+Categories=System;Settings;
+StartupNotify=true

@@ -81,27 +81,31 @@ RUN set -euxo pipefail; \
 
 # COPY *.nmconnection /etc/NetworkManager/system-connections/
 COPY aliases.sh /etc/profile.d/
+COPY alternative.desktop /usr/share/applications/alternative.desktop
+COPY alternative.policy /usr/share/polkit-1/actions/dev.noobping.workstation.alternative.policy
+COPY alternative.sh /usr/bin/alternative
 COPY background.png /usr/share/backgrounds/nick-wallpaper.png
 COPY background.xml /usr/share/gnome-background-properties/nick.xml
+COPY base.txt /etc/recommended/base
 COPY cachefilesd.conf /etc/cachefilesd.conf
 COPY certs/ /etc/pki/ca-trust/source/anchors/
 COPY containers /etc/containers/systemd
 COPY extensions.txt /etc/recommended/extensions
 COPY firewall.xml /etc/firewalld/zones/public.xml
-COPY gssproxy-prepare.service /etc/systemd/system/gssproxy-prepare.service
 COPY gssproxy-prepare /usr/libexec/bootcontainer/gssproxy-prepare
+COPY gssproxy-prepare.service /etc/systemd/system/gssproxy-prepare.service
 COPY gssproxy.service.d/10-bootcontainer.conf /etc/systemd/system/gssproxy.service.d/10-bootcontainer.conf
-COPY suricata-direct.xml /etc/firewalld/direct.xml
-COPY suricata-prepare.service /etc/systemd/system/suricata-prepare.service
-COPY suricata-sync-rules /usr/libexec/bootcontainer/suricata-sync-rules
-COPY suricata-update.service /etc/systemd/system/suricata-update.service
-COPY suricata-update.timer /etc/systemd/system/suricata-update.timer
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY profile.conf /var/lib/AccountsService/default
 COPY profile.png /usr/share/pixmaps/faces/nick.png
 COPY recommended.desktop /etc/xdg/autostart/
 COPY recommended.sh /usr/bin/recommended
+COPY suricata-direct.xml /etc/firewalld/direct.xml
+COPY suricata-prepare.service /etc/systemd/system/suricata-prepare.service
+COPY suricata-sync-rules /usr/libexec/bootcontainer/suricata-sync-rules
+COPY suricata-update.service /etc/systemd/system/suricata-update.service
+COPY suricata-update.timer /etc/systemd/system/suricata-update.timer
 COPY skel /etc/skel
 
 RUN set -euxo pipefail; \
@@ -112,6 +116,7 @@ RUN set -euxo pipefail; \
   chmod +x /etc/profile.d/aliases.sh; \
   chmod +x /usr/libexec/bootcontainer/gssproxy-prepare; \
   chmod +x /usr/bin/recommended; \
+  chmod +x /usr/bin/alternative; \
   chmod +x /usr/libexec/bootcontainer/suricata-sync-rules; \
 
   # chmod 0600 /etc/NetworkManager/system-connections/*.nmconnection; \

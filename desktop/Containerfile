@@ -2,5 +2,6 @@ FROM ghcr.io/noobping/workstation
 LABEL org.opencontainers.image.title="Desktop"
 LABEL org.opencontainers.image.description="Nick's bootable container"
 COPY extensions.txt /etc/recommended/extensions
+COPY base.txt /etc/recommended/base
 COPY extensions.dconf /etc/recommended/settings.dconf
 RUN ostree container commit
