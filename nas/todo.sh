@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "Set password for $USER"
-sudo passwd $USER
-sudo passwd -l root
-sudo systemctl disable getty@tty1.service
+status="$(passwd -S "$USER" 2>/dev/null | awk '{print $2}')"
+if [ "$status" = "NP" ] || [ "$status" = "L" ]; then
+    echo "Set password for $USER"
+    sudo passwd $USER
+    sudo passwd -l root
+    sudo systemctl disable getty@tty1.service
+fi
 
 if [ -e /dev/md/raid0 ]; then
     echo "Adding TPM to raid 0"
