@@ -3,7 +3,7 @@ RUN dnf -y install dnf-plugins-core \
  && dnf repoquery --available --qf '%{name}\n' '*firmware*' | sort -u > /tmp/firmware-packages.txt \
  && wc -l /tmp/firmware-packages.txt
 
-FROM ghcr.io/noobping/ips:latest
+FROM quay.io/fedora/fedora-coreos:stable
 LABEL org.opencontainers.image.title="Workstation"
 LABEL org.opencontainers.image.description="Nick's bootable container"
 
@@ -61,13 +61,19 @@ RUN set -euxo pipefail; \
 
 RUN set -euxo pipefail; \
   mkdir -p \
+    /etc/containers/systemd \
     /etc/recommended \
+    /etc/systemd/system/gssproxy.service.d \
     /etc/systemd/system/graphical.target.wants \
     /etc/systemd/system/multi-user.target.wants \
     /etc/systemd/system/sockets.target.wants \
     /etc/systemd/system/sysinit.target.wants \
+    /etc/systemd/system/timers.target.wants \
     /etc/sysconfig \
+    /usr/libexec/bootcontainer \
     /var/lib/AccountsService \
+    /var/lib/suricata \
+    /var/log/suricata \
     /etc/polkit-1/rules.d \
     /etc/NetworkManager/system-connections \
     /etc/firewalld/zones \
@@ -79,9 +85,17 @@ COPY background.png /usr/share/backgrounds/nick-wallpaper.png
 COPY background.xml /usr/share/gnome-background-properties/nick.xml
 COPY cachefilesd.conf /etc/cachefilesd.conf
 COPY certs/ /etc/pki/ca-trust/source/anchors/
+COPY containers /etc/containers/systemd
 COPY extensions.txt /etc/recommended/extensions
 COPY firewall.xml /etc/firewalld/zones/public.xml
+COPY gssproxy-prepare.service /etc/systemd/system/gssproxy-prepare.service
+COPY gssproxy-prepare /usr/libexec/bootcontainer/gssproxy-prepare
+COPY gssproxy.service.d/10-bootcontainer.conf /etc/systemd/system/gssproxy.service.d/10-bootcontainer.conf
 COPY suricata-direct.xml /etc/firewalld/direct.xml
+COPY suricata-prepare.service /etc/systemd/system/suricata-prepare.service
+COPY suricata-sync-rules /usr/libexec/bootcontainer/suricata-sync-rules
+COPY suricata-update.service /etc/systemd/system/suricata-update.service
+COPY suricata-update.timer /etc/systemd/system/suricata-update.timer
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY profile.conf /var/lib/AccountsService/default
@@ -96,11 +110,19 @@ RUN set -euxo pipefail; \
   mkdir -p /etc/skel/.config; \
 
   chmod +x /etc/profile.d/aliases.sh; \
+  chmod +x /usr/libexec/bootcontainer/gssproxy-prepare; \
   chmod +x /usr/bin/recommended; \
+  chmod +x /usr/libexec/bootcontainer/suricata-sync-rules; \
 
   # chmod 0600 /etc/NetworkManager/system-connections/*.nmconnection; \
+  chmod 0644 /etc/containers/systemd/suricata.container; \
   chmod 0644 /etc/firewalld/direct.xml; \
+  chmod 0644 /etc/systemd/system/gssproxy-prepare.service; \
+  chmod 0644 /etc/systemd/system/gssproxy.service.d/10-bootcontainer.conf; \
   chmod 0644 /etc/polkit-1/rules.d/50-libvirt-access.rules; \
+  chmod 0644 /etc/systemd/system/suricata-prepare.service; \
+  chmod 0644 /etc/systemd/system/suricata-update.service; \
+  chmod 0644 /etc/systemd/system/suricata-update.timer; \
 
   rm -f /etc/resolv.conf; \
   ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf; \
@@ -134,6 +156,8 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/sockets.target.wants/pcscd.socket; \
   ln -sf /usr/lib/systemd/system/plymouth-start.service \
     /etc/systemd/system/sysinit.target.wants/plymouth-start.service; \
+  ln -sf /etc/systemd/system/suricata-update.timer \
+    /etc/systemd/system/timers.target.wants/suricata-update.timer; \
   ln -sf /dev/null /etc/systemd/system/nftables.service; \
 
   printf '%s\n' "INITIAL_SETUP_ENABLE=YES" > /etc/sysconfig/initial-setup; \

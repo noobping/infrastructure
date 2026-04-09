@@ -8,6 +8,3 @@ ConditionPathExists=!/var/lib/suricata/rules/suricata.rules
 [Service]
 Type=oneshot
 ExecStart=/usr/libexec/bootcontainer/suricata-sync-rules
-
-[Install]
-WantedBy=multi-user.target

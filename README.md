@@ -14,6 +14,8 @@ From GNOME-based workstations to headless servers and storage nodes, the entire 
 
 Nodes automatically configure themselves at first boot and continuously maintain their desired state.
 
+Suricata runs on `workstation` and `nas` as a Quadlet-managed container using `ghcr.io/noobping/ips:latest`, while firewall/NFQUEUE rules stay on the host.
+
 ## Test Suricata
 
 Confirm Suricata is running and its rules are present:

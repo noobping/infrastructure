@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+
+IMAGE="${SURICATA_IMAGE:-ghcr.io/noobping/ips:latest}"
+
+install -d -m 0750 /var/lib/suricata /var/lib/suricata/rules /var/log/suricata
+
+exec /usr/bin/podman run --rm --pull=missing --network=host \
+  -e SURICATA_SYNC_ONLY=1 \
+  -v /var/lib/suricata:/var/lib/suricata:Z \
+  -v /var/log/suricata:/var/log/suricata:Z \
+  "$IMAGE"

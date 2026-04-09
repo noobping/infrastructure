@@ -6,7 +6,7 @@ on:
       - main
       - master
     paths:
-      - "ips/**"
+      - "containers/ips/**"
       - ".github/workflows/ips.yml"
 
   schedule:

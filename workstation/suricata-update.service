@@ -1,0 +1,9 @@
+[Unit]
+Description=Update Suricata rules
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/bootcontainer/suricata-sync-rules
+ExecStartPost=/usr/bin/systemctl try-reload-or-restart suricata.service
