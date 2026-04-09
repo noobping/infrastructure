@@ -1,0 +1,1 @@
+tcp dport { 2222, 8929 } accept

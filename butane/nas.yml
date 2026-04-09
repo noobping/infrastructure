@@ -102,6 +102,12 @@ storage:
         name: music
     - path: /var/lib/containers
       mode: 0755
+    - path: /var/lib/containers/gitlab/config
+      mode: 0755
+    - path: /var/lib/containers/gitlab/logs
+      mode: 0755
+    - path: /var/lib/containers/gitlab/data
+      mode: 0755
     - path: /var/lib/containers/registry
       mode: 0755
     - path: /var/lib/containers/jellyfin
