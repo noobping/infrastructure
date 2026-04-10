@@ -5,5 +5,5 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/libexec/bootcontainer/suricata-sync-rules
+ExecStart=/usr/libexec/infrastructure/suricata-sync-rules
 ExecStartPost=/usr/bin/systemctl try-reload-or-restart suricata.service
