@@ -1,0 +1,13 @@
+[Unit]
+Description=Prepare bundled Suricata rules before enabling inline filtering
+Wants=network-online.target
+After=network-online.target
+Before=suricata.service
+ConditionPathExists=!/var/lib/suricata/rules/suricata.rules
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/infrastructure/suricata-prepare
+
+[Install]
+WantedBy=multi-user.target
