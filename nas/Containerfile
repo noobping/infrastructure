@@ -18,13 +18,28 @@ RUN set -euxo pipefail; \
   /etc/nftables/rules \
   /etc/modules-load.d \
   /etc/polkit-1/rules.d \
-  /etc/systemd/system/multi-user.target.wants; \
+  /etc/systemd/system/multi-user.target.wants \
+  /etc/systemd/system/timers.target.wants \
+  /usr/libexec/infrastructure \
+  /usr/share/infrastructure/freeradius \
+  /var/lib/suricata \
+  /var/log/suricata; \
   ostree container commit
 
 COPY todo.sh /usr/bin/todo
 COPY caddy.conf /etc/caddy.conf
 COPY containers /etc/containers/systemd
 COPY fstab.txt /etc/fstab
+COPY freeipa-bootstrap-radius /usr/libexec/infrastructure/freeipa-bootstrap-radius
+COPY freeipa-bootstrap-radius.service /etc/systemd/system/freeipa-bootstrap-radius.service
+COPY freeipa-prepare /usr/libexec/infrastructure/freeipa-prepare
+COPY freeipa-prepare.service /etc/systemd/system/freeipa-prepare.service
+COPY freeradius /usr/share/infrastructure/freeradius
+COPY freeradius-prepare /usr/libexec/infrastructure/freeradius-prepare
+COPY freeradius-prepare.service /etc/systemd/system/freeradius-prepare.service
+COPY gssproxy-prepare.service /etc/systemd/system/gssproxy-prepare.service
+COPY gssproxy-prepare /usr/libexec/infrastructure/gssproxy-prepare
+COPY gssproxy.service.d/10-infrastructure.conf /etc/systemd/system/gssproxy.service.d/10-infrastructure.conf
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
 COPY mdadm.conf /etc/mdadm.conf
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
@@ -33,10 +48,25 @@ COPY suricata.nft /etc/nftables/suricata.nft
 
 RUN set -euxo pipefail; \
   chmod -R 0600 /etc/nftables/rules; \
+  find /etc/containers/systemd -type f -name '*.container' -exec chmod 0644 '{}' ';'; \
+  find /usr/share/infrastructure/freeradius -type d -exec chmod 0755 '{}' ';'; \
+  find /usr/share/infrastructure/freeradius -type f -exec chmod 0644 '{}' ';'; \
+  chmod 0755 /usr/libexec/infrastructure/freeipa-bootstrap-radius; \
+  chmod 0755 /usr/libexec/infrastructure/freeipa-prepare; \
+  chmod 0755 /usr/libexec/infrastructure/freeradius-prepare; \
+  chmod 0755 /usr/libexec/infrastructure/gssproxy-prepare; \
+  chmod 0755 /usr/libexec/infrastructure/suricata-sync-rules; \
+  chmod 0644 /etc/systemd/system/freeipa-bootstrap-radius.service; \
+  chmod 0644 /etc/systemd/system/freeipa-prepare.service; \
+  chmod 0644 /etc/systemd/system/freeradius-prepare.service; \
+  chmod 0644 /etc/systemd/system/gssproxy-prepare.service; \
+  chmod 0644 /etc/systemd/system/gssproxy.service.d/10-infrastructure.conf; \
   chmod 0600 /etc/nftables/suricata.nft; \
   awk '/set allowed_tcp_dports[[:space:]]*\{/{flag=1} flag{print} /^\t*\}/{if(flag){exit}}' /etc/nftables/main.nft \
   | grep -q '\<http\>' \
   || sed -i '/set allowed_tcp_dports[[:space:]]*{/,/}/{/elements = {/ s/}/, http, https}/;}' /etc/nftables/main.nft; \
+  grep -q 'include "/etc/nftables/rules/\\*.nft"' /etc/nftables/main.nft \
+  || sed -i '/tcp dport @allowed_tcp_dports accept/i\        include "/etc/nftables/rules/*.nft"' /etc/nftables/main.nft; \
   grep -q 'include "/etc/nftables/suricata.nft"' /etc/nftables/main.nft \
   || printf '\ninclude "/etc/nftables/suricata.nft"\n' >> /etc/nftables/main.nft; \
   ln -sf /usr/lib/systemd/system/libvirtd.service \

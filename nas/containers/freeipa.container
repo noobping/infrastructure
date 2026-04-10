@@ -1,0 +1,32 @@
+[Unit]
+Description=FreeIPA identity domain
+Wants=network-online.target freeipa-prepare.service
+After=network-online.target freeipa-prepare.service
+Requires=freeipa-prepare.service
+ConditionPathExists=/var/lib/containers/freeipa/data
+ConditionPathExists=/var/lib/containers/freeipa/secrets/admin-password
+ConditionPathExists=/var/lib/containers/freeipa/secrets/ds-password
+
+[Container]
+Image=docker.io/freeipa/freeipa-server:almalinux-10
+ContainerName=freeipa
+AutoUpdate=registry
+Environment=IPA_SERVER_IP=no-update
+PodmanArgs=--read-only --hostname ipa.nick.nas
+Volume=/var/lib/containers/freeipa/data:/data:Z
+PublishPort=389:389/tcp
+PublishPort=636:636/tcp
+PublishPort=88:88/tcp
+PublishPort=88:88/udp
+PublishPort=464:464/tcp
+PublishPort=464:464/udp
+PublishPort=127.0.0.1:8080:80/tcp
+PublishPort=127.0.0.1:8443:443/tcp
+
+[Service]
+Restart=always
+TimeoutStartSec=3600
+TimeoutStopSec=300
+
+[Install]
+WantedBy=multi-user.target

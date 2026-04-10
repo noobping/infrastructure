@@ -1,0 +1,57 @@
+#!/bin/sh
+set -eu
+
+freeipa_name=freeipa
+freeipa_secrets=/var/lib/containers/freeipa/secrets
+freeradius_secrets=/var/lib/containers/freeradius/secrets
+admin_password=$(tr -d '\r\n' < "$freeipa_secrets/admin-password")
+ds_password=$(tr -d '\r\n' < "$freeipa_secrets/ds-password")
+bind_password=$(tr -d '\r\n' < "$freeradius_secrets/ldap-bind-password")
+bind_dn='uid=radius-bind,cn=users,cn=accounts,dc=nick,dc=nas'
+
+[ -n "$admin_password" ] || {
+  echo "FreeIPA admin password is empty" >&2
+  exit 1
+}
+[ -n "$bind_password" ] || {
+  echo "FreeRADIUS bind password is empty" >&2
+  exit 1
+}
+[ -n "$ds_password" ] || {
+  echo "FreeIPA directory manager password is empty" >&2
+  exit 1
+}
+
+attempt=0
+until podman exec "$freeipa_name" ipa -p admin -w "$admin_password" ping >/dev/null 2>&1; do
+  attempt=$((attempt + 1))
+  if [ "$attempt" -ge 90 ]; then
+    echo "FreeIPA did not become ready in time" >&2
+    exit 1
+  fi
+  sleep 10
+done
+
+if ! podman exec "$freeipa_name" ipa -p admin -w "$admin_password" group-show radius-users >/dev/null 2>&1; then
+  podman exec "$freeipa_name" ipa -p admin -w "$admin_password" group-add radius-users \
+    --desc='Users allowed to authenticate via RADIUS'
+fi
+
+if ! podman exec "$freeipa_name" ipa -p admin -w "$admin_password" user-show radius-bind >/dev/null 2>&1; then
+  printf '%s\n%s\n' "$bind_password" "$bind_password" | \
+    podman exec -i "$freeipa_name" ipa -p admin -w "$admin_password" user-add radius-bind \
+      --first=Radius \
+      --last=Bind \
+      --password
+fi
+
+podman exec "$freeipa_name" ipa -p admin -w "$admin_password" user-enable radius-bind >/dev/null 2>&1 || true
+podman exec \
+  -e LDAP_BIND_PASSWORD="$bind_password" \
+  -e LDAP_DIRECTORY_MANAGER_PASSWORD="$ds_password" \
+  "$freeipa_name" \
+  sh -lc "ldappasswd -x -H ldap://localhost -D 'cn=Directory Manager' -w \"\$LDAP_DIRECTORY_MANAGER_PASSWORD\" -s \"\$LDAP_BIND_PASSWORD\" '$bind_dn'" \
+  >/dev/null
+
+podman exec "$freeipa_name" ipa -p admin -w "$admin_password" group-show radius-users >/dev/null
+podman exec "$freeipa_name" ipa -p admin -w "$admin_password" user-show radius-bind >/dev/null

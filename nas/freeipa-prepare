@@ -1,0 +1,40 @@
+#!/bin/sh
+set -eu
+
+data_dir=/var/lib/containers/freeipa/data
+secrets_dir=/var/lib/containers/freeipa/secrets
+options_file="$data_dir/ipa-server-install-options"
+admin_password_file="$secrets_dir/admin-password"
+ds_password_file="$secrets_dir/ds-password"
+
+install -d -m 0750 "$data_dir"
+install -d -m 0700 "$secrets_dir"
+
+[ -s "$admin_password_file" ] || {
+  echo "Missing FreeIPA admin password: $admin_password_file" >&2
+  exit 1
+}
+[ -s "$ds_password_file" ] || {
+  echo "Missing FreeIPA directory manager password: $ds_password_file" >&2
+  exit 1
+}
+
+admin_password=$(tr -d '\r' < "$admin_password_file")
+ds_password=$(tr -d '\r' < "$ds_password_file")
+
+tmp_file=$(mktemp "$data_dir/.ipa-server-install-options.XXXXXX")
+chmod 0600 "$tmp_file"
+cat >"$tmp_file" <<EOF
+-U
+--realm=NICK.NAS
+--domain=nick.nas
+--ds-password=$ds_password
+--admin-password=$admin_password
+--no-ntp
+--skip-mem-check
+EOF
+mv "$tmp_file" "$options_file"
+
+if command -v restorecon >/dev/null 2>&1; then
+  restorecon -RF "$data_dir" "$secrets_dir" || true
+fi

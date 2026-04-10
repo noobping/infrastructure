@@ -1,0 +1,24 @@
+ldap {
+    server = "ipa.nick.nas"
+    port = 389
+    identity = "uid=radius-bind,cn=users,cn=accounts,dc=nick,dc=nas"
+    password = "__LDAP_BIND_PASSWORD__"
+    base_dn = "dc=nick,dc=nas"
+
+    user {
+        base_dn = "cn=users,cn=accounts,${..base_dn}"
+        filter = "(uid=%{%{Stripped-User-Name}:-%{User-Name}})"
+    }
+
+    group {
+        base_dn = "cn=groups,cn=accounts,${..base_dn}"
+        filter = "(objectClass=groupOfNames)"
+        membership_attribute = "memberOf"
+        name_attribute = "cn"
+        cacheable_dn = yes
+    }
+
+    update {
+        control:Password-With-Header += "userPassword"
+    }
+}
