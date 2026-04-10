@@ -1,7 +1,9 @@
 name: NAS
 
 on:
-  push:
+  pull_request:
+    types:
+      - closed
     branches:
       - main
       - master
@@ -29,7 +31,10 @@ concurrency:
 
 jobs:
   build:
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    if: >
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+      || github.event_name == 'workflow_dispatch'
+      || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     name: Build ${{ matrix.arch }}
     strategy:
       fail-fast: false
@@ -131,7 +136,10 @@ jobs:
           buildah prune -f || true
 
   manifest:
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    if: >
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+      || github.event_name == 'workflow_dispatch'
+      || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     name: Manifest
     needs: build
     runs-on: ubuntu-latest
