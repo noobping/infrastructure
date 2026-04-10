@@ -1,6 +1,9 @@
 [Desktop Entry]
 Type=Application
-Name=recommended
+Name=Recommended Setup
+Comment=Apply the recommended GNOME extensions and desktop defaults
 Exec=/usr/bin/recommended
+Icon=emblem-default
+Categories=System;
 OnlyShowIn=GNOME;
 X-GNOME-Autostart-enabled=true

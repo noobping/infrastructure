@@ -1,6 +1,9 @@
 FROM ghcr.io/noobping/workstation
 LABEL org.opencontainers.image.title="Desktop"
 LABEL org.opencontainers.image.description="Nick's bootable container"
+ARG REBASE_IMAGE_BASE=ostree-image-signed:docker://ghcr.io/noobping/
+
 COPY extensions.txt /etc/recommended/extensions
 COPY extensions.dconf /etc/recommended/settings.dconf
-RUN ostree container commit
+RUN echo "${REBASE_IMAGE_BASE}workstation:latest" > /etc/recommended/base; \
+    ostree container commit
