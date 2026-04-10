@@ -1,0 +1,381 @@
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - when: never
+
+default:
+  image: quay.io/buildah/stable:latest
+  tags:
+    - nas-local
+  interruptible: true
+
+stages:
+  - preflight
+  - base
+  - images
+  - desktop
+  - artifacts
+
+variables:
+  LOCAL_REGISTRY_HOST: localhost:5000
+  LOCAL_IMAGE_NAMESPACE: localhost:5000/noobping
+  BUILDAH_FORMAT: docker
+  BUILDAH_ISOLATION: chroot
+  STORAGE_DRIVER: vfs
+
+.registry-context:
+  before_script:
+    - |
+      set -eu
+
+      ensure_package() {
+        if command -v "$1" >/dev/null 2>&1; then
+          return 0
+        fi
+
+        if command -v dnf >/dev/null 2>&1; then
+          dnf install -y "$1"
+          return 0
+        fi
+
+        if command -v microdnf >/dev/null 2>&1; then
+          microdnf install -y "$1"
+          return 0
+        fi
+
+        echo "Unable to install $1: no supported package manager found" >&2
+        exit 1
+      }
+
+      buildah_push_ref() {
+        buildah push --tls-verify=false "$@"
+      }
+
+      cosign_sign_ref() {
+        image_digest_ref="$1"
+
+        cosign sign \
+          --yes \
+          --allow-insecure-registry \
+          --key /run/gitlab-runner-secrets/cosign.key \
+          "${image_digest_ref}"
+      }
+
+      verify_local_registry() {
+        ensure_package curl
+        echo "Using local registry ${LOCAL_IMAGE_NAMESPACE}"
+        if ! curl -fsS "http://${LOCAL_REGISTRY_HOST}/v2/" >/dev/null; then
+          echo "Local registry ${LOCAL_REGISTRY_HOST} is not reachable" >&2
+          echo "Ensure registry.service is running on the NAS before running the pipeline" >&2
+          exit 1
+        fi
+        curl -fsS "http://${LOCAL_REGISTRY_HOST}/v2/_catalog" || true
+      }
+
+.rules_ips:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - .gitlab-ci.yml
+        - ips/*
+        - ips/**/*
+    - when: never
+
+.rules_workstation:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - .gitlab-ci.yml
+        - ips/*
+        - ips/**/*
+        - workstation/*
+        - workstation/**/*
+    - when: never
+
+.rules_nas:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - .gitlab-ci.yml
+        - ips/*
+        - ips/**/*
+        - nas/*
+        - nas/**/*
+    - when: never
+
+.rules_desktop:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - .gitlab-ci.yml
+        - ips/*
+        - ips/**/*
+        - workstation/*
+        - workstation/**/*
+        - desktop/*
+        - desktop/**/*
+    - when: never
+
+.rules_gext:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - .gitlab-ci.yml
+        - containers/gext/*
+        - containers/gext/**/*
+    - when: never
+
+.rules_butane:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - .gitlab-ci.yml
+        - butane/*
+        - butane/**/*
+    - when: never
+
+.rules_registry:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - .gitlab-ci.yml
+        - ips/*
+        - ips/**/*
+        - workstation/*
+        - workstation/**/*
+        - nas/*
+        - nas/**/*
+        - desktop/*
+        - desktop/**/*
+        - containers/gext/*
+        - containers/gext/**/*
+    - when: never
+
+.image-build:
+  script:
+    - |
+      set -eu
+      verify_local_registry
+
+      IMAGE_REF="${LOCAL_IMAGE_NAMESPACE}/${IMAGE_NAME}"
+
+      buildah bud \
+        --pull-always \
+        --isolation="${BUILDAH_ISOLATION}" \
+        --layers=false \
+        --rm \
+        -f "${COMPONENT_DIR}/Containerfile" \
+        -t "${IMAGE_REF}:${CI_COMMIT_SHA}" \
+        --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
+        --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
+        --build-arg UID=1000 \
+        --build-arg GID=1000 \
+        "${COMPONENT_DIR}"
+
+      buildah_push_ref \
+        --digestfile digest.txt \
+        "${IMAGE_REF}:${CI_COMMIT_SHA}" \
+        "docker://${IMAGE_REF}:${CI_COMMIT_SHA}"
+
+      if [ "${CI_COMMIT_BRANCH:-}" = "${CI_DEFAULT_BRANCH}" ]; then
+        buildah_push_ref \
+          "${IMAGE_REF}:${CI_COMMIT_SHA}" \
+          "docker://${IMAGE_REF}:latest"
+      fi
+
+      if [ -f /run/gitlab-runner-secrets/cosign.key ]; then
+        ensure_package cosign
+
+        if [ -f /run/gitlab-runner-secrets/cosign.password ]; then
+          COSIGN_PASSWORD="$(tr -d '\r\n' < /run/gitlab-runner-secrets/cosign.password)"
+          export COSIGN_PASSWORD
+        fi
+
+        DIGEST="$(cat digest.txt)"
+        cosign_sign_ref "${IMAGE_REF}@${DIGEST}"
+      fi
+
+      buildah rmi "${IMAGE_REF}:${CI_COMMIT_SHA}" || true
+      buildah prune -f || true
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths:
+      - digest.txt
+
+.butane-build:
+  stage: artifacts
+  script:
+    - |
+      set -eu
+
+      ensure_package() {
+        if command -v "$1" >/dev/null 2>&1; then
+          return 0
+        fi
+
+        if command -v dnf >/dev/null 2>&1; then
+          dnf install -y "$1"
+          return 0
+        fi
+
+        if command -v microdnf >/dev/null 2>&1; then
+          microdnf install -y "$1"
+          return 0
+        fi
+
+        echo "Unable to install $1: no supported package manager found" >&2
+        exit 1
+      }
+
+      ensure_package podman
+
+      ARCH="$(uname -m)"
+      PROFILE_FILE="butane/${PROFILE}.yml"
+
+      podman run --rm \
+        -v "${CI_PROJECT_DIR}:/work" \
+        -w /work \
+        docker.io/mikefarah/yq:4.45.1 \
+        ea '. as $item ireduce ({}; . *+ $item)' \
+        butane/base.yml \
+        butane/setup.yml > butane/setup.bu
+
+      podman run --rm \
+        -v "${CI_PROJECT_DIR}:/work" \
+        -w /work \
+        docker.io/mikefarah/yq:4.45.1 \
+        ea '. as $item ireduce ({}; . *+ $item)' \
+        butane/base.yml \
+        butane/updates.yml \
+        "${PROFILE_FILE}" > "butane/${PROFILE}.bu"
+
+      podman run --rm \
+        -v "${CI_PROJECT_DIR}:/work" \
+        -w /work \
+        quay.io/coreos/butane:release \
+        --pretty --strict --files-dir . butane/setup.bu > setup.ign
+
+      podman run --rm \
+        -v "${CI_PROJECT_DIR}:/work" \
+        -w /work \
+        quay.io/coreos/butane:release \
+        --pretty --strict "butane/${PROFILE}.bu" > "${PROFILE}.ign"
+
+      podman run --rm \
+        -v "${CI_PROJECT_DIR}:/work" \
+        -w /work \
+        quay.io/coreos/coreos-installer:release \
+        download -s stable -a "${ARCH}" -p metal -f iso -C /work --decompress
+
+      BASE_ISO="$(ls -1 fedora-coreos-*-live-iso."${ARCH}".iso | tail -n1)"
+      OUT_ISO="${PROFILE}-${ARCH}.iso"
+
+      podman run --rm \
+        -v "${CI_PROJECT_DIR}:/work" \
+        -w /work \
+        quay.io/coreos/coreos-installer:release \
+        iso customize \
+          --live-ignition setup.ign \
+          --dest-ignition "${PROFILE}.ign" \
+          --pre-install butane/detect-device.sh \
+          -o "${OUT_ISO}" \
+          "${BASE_ISO}"
+
+      sha256sum "${OUT_ISO}" > "${OUT_ISO}.sha256"
+  artifacts:
+    expire_in: 7 days
+    paths:
+      - butane/*.bu
+      - "*.ign"
+      - "*.iso"
+      - "*.iso.sha256"
+
+verify:registry:
+  extends:
+    - .registry-context
+    - .rules_registry
+  stage: preflight
+  script:
+    - |
+      set -eu
+      verify_local_registry
+
+build:ips:
+  extends:
+    - .registry-context
+    - .image-build
+    - .rules_ips
+  stage: base
+  variables:
+    IMAGE_NAME: ips
+    COMPONENT_DIR: ips
+
+build:workstation:
+  extends:
+    - .registry-context
+    - .image-build
+    - .rules_workstation
+  stage: images
+  variables:
+    IMAGE_NAME: workstation
+    COMPONENT_DIR: workstation
+
+build:nas:
+  extends:
+    - .registry-context
+    - .image-build
+    - .rules_nas
+  stage: images
+  variables:
+    IMAGE_NAME: nas
+    COMPONENT_DIR: nas
+
+build:gext:
+  extends:
+    - .registry-context
+    - .image-build
+    - .rules_gext
+  stage: images
+  variables:
+    IMAGE_NAME: gext
+    COMPONENT_DIR: containers/gext
+
+build:desktop:
+  extends:
+    - .registry-context
+    - .image-build
+    - .rules_desktop
+  stage: desktop
+  variables:
+    IMAGE_NAME: desktop
+    COMPONENT_DIR: desktop
+
+build:butane:nas:
+  extends:
+    - .butane-build
+    - .rules_butane
+  variables:
+    PROFILE: nas
+
+build:butane:workstation:
+  extends:
+    - .butane-build
+    - .rules_butane
+  variables:
+    PROFILE: workstation

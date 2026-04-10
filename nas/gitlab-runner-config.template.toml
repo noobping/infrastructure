@@ -1,0 +1,19 @@
+[[runners]]
+  environment = [
+    "BUILDAH_FORMAT=docker",
+    "BUILDAH_ISOLATION=chroot",
+    "STORAGE_DRIVER=vfs",
+  ]
+
+  [runners.docker]
+    image = "quay.io/buildah/stable:latest"
+    network_mode = "host"
+    privileged = true
+    pull_policy = "if-not-present"
+    security_opt = ["label=disable"]
+    volumes = [
+      "/cache",
+      "/etc/containers/registries.conf:/etc/containers/registries.conf:ro",
+      "/etc/containers/registries.conf.d:/etc/containers/registries.conf.d:ro",
+      "/var/lib/containers/gitlab-runner/secrets:/run/gitlab-runner-secrets:ro",
+    ]

@@ -104,6 +104,18 @@ storage:
       mode: 0755
     - path: /var/lib/containers/nextcloud
       mode: 0755
+    - path: /var/lib/containers/gitlab/config
+      mode: 0755
+    - path: /var/lib/containers/gitlab/logs
+      mode: 0755
+    - path: /var/lib/containers/gitlab/data
+      mode: 0755
+    - path: /var/lib/containers/gitlab-runner/config
+      mode: 0700
+    - path: /var/lib/containers/gitlab-runner/cache
+      mode: 0755
+    - path: /var/lib/containers/gitlab-runner/secrets
+      mode: 0700
     - path: /var/lib/containers/registry
       mode: 0755
     - path: /var/lib/containers/freeipa/data

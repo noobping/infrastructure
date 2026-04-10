@@ -21,6 +21,7 @@ RUN set -euxo pipefail; \
   /etc/systemd/system/multi-user.target.wants \
   /etc/systemd/system/timers.target.wants \
   /usr/libexec/infrastructure \
+  /usr/share/gitlab-runner \
   /usr/share/infrastructure/freeradius \
   /var/lib/suricata \
   /var/log/suricata; \
@@ -37,10 +38,11 @@ COPY freeipa-prepare.service /etc/systemd/system/freeipa-prepare.service
 COPY freeradius /usr/share/infrastructure/freeradius
 COPY freeradius-prepare /usr/libexec/infrastructure/freeradius-prepare
 COPY freeradius-prepare.service /etc/systemd/system/freeradius-prepare.service
-COPY gssproxy-prepare.service /etc/systemd/system/gssproxy-prepare.service
-COPY gssproxy-prepare /usr/libexec/infrastructure/gssproxy-prepare
-COPY gssproxy.service.d/10-infrastructure.conf /etc/systemd/system/gssproxy.service.d/10-infrastructure.conf
+COPY gitlab-runner-config.template.toml /usr/share/gitlab-runner/register.template.toml
+COPY gitlab-runner-register /usr/libexec/infrastructure/gitlab-runner-register
+COPY gitlab-runner-register.service /etc/systemd/system/gitlab-runner-register.service
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
+COPY localhost-registry.conf /etc/containers/registries.conf.d/10-localhost-registry.conf
 COPY mdadm.conf /etc/mdadm.conf
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY nftables /etc/nftables/rules
@@ -54,13 +56,16 @@ RUN set -euxo pipefail; \
   chmod 0755 /usr/libexec/infrastructure/freeipa-bootstrap-radius; \
   chmod 0755 /usr/libexec/infrastructure/freeipa-prepare; \
   chmod 0755 /usr/libexec/infrastructure/freeradius-prepare; \
+  chmod 0755 /usr/libexec/infrastructure/gitlab-runner-register; \
   chmod 0755 /usr/libexec/infrastructure/gssproxy-prepare; \
   chmod 0755 /usr/libexec/infrastructure/suricata-sync-rules; \
   chmod 0644 /etc/systemd/system/freeipa-bootstrap-radius.service; \
   chmod 0644 /etc/systemd/system/freeipa-prepare.service; \
   chmod 0644 /etc/systemd/system/freeradius-prepare.service; \
+  chmod 0644 /etc/systemd/system/gitlab-runner-register.service; \
   chmod 0644 /etc/systemd/system/gssproxy-prepare.service; \
   chmod 0644 /etc/systemd/system/gssproxy.service.d/10-infrastructure.conf; \
+  chmod 0644 /usr/share/gitlab-runner/register.template.toml; \
   chmod 0600 /etc/nftables/suricata.nft; \
   awk '/set allowed_tcp_dports[[:space:]]*\{/{flag=1} flag{print} /^\t*\}/{if(flag){exit}}' /etc/nftables/main.nft \
   | grep -q '\<http\>' \
@@ -79,4 +84,6 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/multi-user.target.wants/power-profiles-daemon.service; \
   ln -sf /usr/lib/systemd/system/upower.service \
     /etc/systemd/system/multi-user.target.wants/upower.service; \
+  ln -sf /etc/systemd/system/gitlab-runner-register.service \
+    /etc/systemd/system/multi-user.target.wants/gitlab-runner-register.service; \
   ostree container commit

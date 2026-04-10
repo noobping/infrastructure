@@ -1,0 +1,91 @@
+#!/bin/sh
+set -eu
+
+config_dir=/var/lib/containers/gitlab-runner/config
+cache_dir=/var/lib/containers/gitlab-runner/cache
+secrets_dir=/var/lib/containers/gitlab-runner/secrets
+token_file="${secrets_dir}/runner-token"
+description_file="${secrets_dir}/runner-description"
+tags_file="${secrets_dir}/runner-tags"
+config_file="${config_dir}/config.toml"
+template_file=/usr/share/gitlab-runner/register.template.toml
+runner_image=docker.io/gitlab/gitlab-runner:alpine
+gitlab_url=http://127.0.0.1:8929/
+
+if [ ! -s "${token_file}" ]; then
+  echo "Missing ${token_file}" >&2
+  exit 1
+fi
+
+if [ -s "${config_file}" ]; then
+  echo "GitLab Runner is already registered"
+  exit 0
+fi
+
+if [ ! -s "${template_file}" ]; then
+  echo "Missing ${template_file}" >&2
+  exit 1
+fi
+
+install -d -m 0700 "${config_dir}"
+install -d -m 0755 "${cache_dir}"
+
+description=nas-local-runner
+if [ -s "${description_file}" ]; then
+  description="$(head -n 1 "${description_file}" | sed 's/[[:space:]]*$//')"
+fi
+
+tags=nas-local
+if [ -s "${tags_file}" ]; then
+  tags="$(tr '\n' ',' < "${tags_file}" | sed 's/,$//')"
+  case ",${tags}," in
+    *,nas-local,*)
+      ;;
+    *)
+      tags="nas-local,${tags}"
+      ;;
+  esac
+fi
+
+token="$(tr -d '\r\n' < "${token_file}")"
+register_flag=--registration-token
+case "${token}" in
+  glrt-*)
+    register_flag=--token
+    ;;
+esac
+
+attempt=0
+while :; do
+  attempt=$((attempt + 1))
+
+  podman pull --quiet "${runner_image}" >/dev/null 2>&1 || true
+
+  if podman run --rm --network=host \
+    -v "${config_dir}:/etc/gitlab-runner:Z" \
+    -v "${cache_dir}:/cache:Z" \
+    -v "${secrets_dir}:/run/gitlab-runner-secrets:ro,Z" \
+    -v "${template_file}:/template.toml:ro" \
+    "${runner_image}" register \
+      --non-interactive \
+      --template-config /template.toml \
+      --executor docker \
+      --docker-image quay.io/buildah/stable:latest \
+      --locked=false \
+      --run-untagged=false \
+      --url "${gitlab_url}" \
+      "${register_flag}" "${token}" \
+      --description "${description}" \
+      --tag-list "${tags}"; then
+    chmod 0600 "${config_file}"
+    systemctl start gitlab-runner.service
+    exit 0
+  fi
+
+  if [ "${attempt}" -ge 60 ]; then
+    echo "GitLab Runner registration failed after ${attempt} attempts" >&2
+    exit 1
+  fi
+
+  sleep 10
+done
