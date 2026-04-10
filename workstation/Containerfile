@@ -62,17 +62,18 @@ RUN set -euxo pipefail; \
 
 RUN set -euxo pipefail; \
   mkdir -p \
+    /etc/NetworkManager/system-connections \
+    /etc/firewalld/zones \
+    /etc/polkit-1/rules.d \
     /etc/recommended \
+    /etc/sysconfig \
     /etc/systemd/system/graphical.target.wants \
     /etc/systemd/system/multi-user.target.wants \
     /etc/systemd/system/sockets.target.wants \
     /etc/systemd/system/sysinit.target.wants \
-    /etc/sysconfig \
-    /var/lib/AccountsService \
-    /etc/polkit-1/rules.d \
-    /etc/NetworkManager/system-connections \
-    /etc/firewalld/zones \
-    /usr/share/gnome-background-properties
+    /usr/libexec/infrastructure \
+    /usr/share/gnome-background-properties \
+    /var/lib/AccountsService
 
 # COPY *.nmconnection /etc/NetworkManager/system-connections/
 COPY aliases.sh /etc/profile.d/
