@@ -19,7 +19,6 @@ COPY gssproxy-prepare.service /etc/systemd/system/gssproxy-prepare.service
 COPY gssproxy-prepare /usr/libexec/infrastructure/gssproxy-prepare
 COPY gssproxy.service.d/10-infrastructure.conf /etc/systemd/system/gssproxy.service.d/10-infrastructure.conf
 COPY ips.yaml /etc/suricata/ips.yaml
-COPY suricata-prepare.service /etc/systemd/system/suricata-prepare.service
 COPY suricata-sync-rules /usr/libexec/infrastructure/suricata-sync-rules
 COPY suricata-update.service /etc/systemd/system/suricata-update.service
 COPY suricata-update.timer /etc/systemd/system/suricata-update.timer
@@ -29,6 +28,7 @@ RUN set -euxo pipefail; \
   chmod 0755 /usr/libexec/infrastructure/gssproxy-prepare; \
   chmod 0755 /usr/libexec/infrastructure/suricata-sync-rules; \
   install -d -o suricata -g suricata -m 0750 /var/lib/suricata /var/log/suricata; \
+  /usr/libexec/infrastructure/suricata-sync-rules; \
   grep -q '^include: /etc/suricata/ips.yaml$' /etc/suricata/suricata.yaml \
   || printf '\ninclude: /etc/suricata/ips.yaml\n' >> /etc/suricata/suricata.yaml; \
   if grep -q '^OPTIONS=' /etc/sysconfig/suricata; then \
@@ -38,8 +38,6 @@ RUN set -euxo pipefail; \
   fi; \
   ln -sf /usr/lib/systemd/system/suricata.service \
     /etc/systemd/system/multi-user.target.wants/suricata.service; \
-  ln -sf /etc/systemd/system/suricata-prepare.service \
-    /etc/systemd/system/multi-user.target.wants/suricata-prepare.service; \
   ln -sf /etc/systemd/system/suricata-update.timer \
     /etc/systemd/system/timers.target.wants/suricata-update.timer; \
   ostree container commit

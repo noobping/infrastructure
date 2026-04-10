@@ -20,7 +20,7 @@ podman run --rm -it \
 Confirm Suricata is running and its rules are present:
 
 ```sh
-sudo systemctl status suricata.service suricata-prepare.service
+sudo systemctl status suricata.service
 sudo journalctl -u suricata.service -b --no-pager | tail -n 50
 sudo systemctl status suricata-update.timer
 sudo test -s /var/lib/suricata/rules/suricata.rules && echo rules-ok
