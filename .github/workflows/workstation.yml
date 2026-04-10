@@ -18,9 +18,6 @@ on:
       - main
       - master
 
-  schedule:
-    - cron: "59 23 * * *"
-
   workflow_dispatch: {}
 
 env:

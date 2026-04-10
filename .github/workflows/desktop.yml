@@ -9,9 +9,6 @@ on:
       - "desktop/**"
       - ".github/workflows/desktop.yml"
 
-  schedule:
-    - cron: "59 23 * * *"
-
   workflow_dispatch: {}
 
   workflow_run:
