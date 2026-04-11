@@ -12,7 +12,8 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/timers.target.wants \
     /etc/systemd/system/gssproxy.service.d \
     /etc/systemd/system/suricata.service.d \
-    /usr/libexec/bootcontainer; \
+    /usr/libexec/bootcontainer \
+    /usr/share/suricata; \
   ostree container commit
 
 COPY gssproxy-prepare.service /etc/systemd/system/gssproxy-prepare.service
@@ -23,7 +24,6 @@ COPY suricata-prepare.service /etc/systemd/system/suricata-prepare.service
 COPY suricata-sync-rules /usr/libexec/bootcontainer/suricata-sync-rules
 COPY suricata-update.service /etc/systemd/system/suricata-update.service
 COPY suricata-update.timer /etc/systemd/system/suricata-update.timer
-COPY suricata.service.d/10-inline.conf /etc/systemd/system/suricata.service.d/10-inline.conf
 
 RUN set -euxo pipefail; \
   chmod 0755 /usr/libexec/bootcontainer/gssproxy-prepare; \
@@ -36,6 +36,8 @@ RUN set -euxo pipefail; \
   else \
     printf '%s\n' 'OPTIONS="-q 0"' >> /etc/sysconfig/suricata; \
   fi; \
+  /usr/libexec/infrastructure/suricata-sync-rules; \
+  mv /var/lib/suricata/rules /usr/share/suricata/rules; \
   ln -sf /usr/lib/systemd/system/suricata.service \
     /etc/systemd/system/multi-user.target.wants/suricata.service; \
   ln -sf /etc/systemd/system/suricata-prepare.service \
