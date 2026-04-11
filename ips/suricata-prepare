@@ -2,17 +2,17 @@
 set -eu
 
 runtime_dir=/var/lib/suricata
-runtime_rules_dir="${runtime_dir}/rules"
+runtime_rules_dir="$runtime_dir/rules"
 staged_rules_dir=/usr/share/suricata/rules
 
 install -d -o suricata -g suricata -m 0750 \
-  "${runtime_dir}" \
-  "${runtime_rules_dir}" \
+  "$runtime_dir" \
+  "$runtime_rules_dir" \
   /var/log/suricata
 
-if [ ! -s "${runtime_rules_dir}/suricata.rules" ]; then
-  cp -a "${staged_rules_dir}/." "${runtime_rules_dir}/"
-  chown -R suricata:suricata "${runtime_dir}" /var/log/suricata
+if [ -z "$(ls -A "$runtime_rules_dir")" ]; then
+  cp -a "$staged_rules_dir/." "$runtime_rules_dir/"
+  chown -R suricata:suricata "$runtime_dir" /var/log/suricata
 else
   /usr/libexec/infrastructure/suricata-sync-rules
 fi
