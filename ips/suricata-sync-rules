@@ -11,3 +11,4 @@ suricata-update enable-source et/open >/dev/null 2>&1 || true
 suricata-update
 
 chown -R suricata:suricata /var/lib/suricata /var/log/suricata
+test -s /var/lib/suricata/rules/suricata.rules
