@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+
+install -d -o suricata -g suricata -m 0750 \
+  /var/lib/suricata \
+  /var/log/suricata
+
+cp -a /usr/share/suricata/rules /var/lib/suricata/rules
+
+chown -R suricata:suricata /var/lib/suricata /var/log/suricata
+chmod -R 0750 /var/lib/suricata

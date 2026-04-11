@@ -22,6 +22,7 @@ COPY gssproxy.service.d/10-bootcontainer.conf /etc/systemd/system/gssproxy.servi
 COPY ips.yaml /etc/suricata/ips.yaml
 COPY suricata-prepare.service /etc/systemd/system/suricata-prepare.service
 COPY suricata-sync-rules /usr/libexec/bootcontainer/suricata-sync-rules
+COPY suricata-prepare-rules /usr/libexec/bootcontainer/suricata-prepare-rules
 COPY suricata-update.service /etc/systemd/system/suricata-update.service
 COPY suricata-update.timer /etc/systemd/system/suricata-update.timer
 
