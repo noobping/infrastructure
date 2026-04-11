@@ -11,12 +11,8 @@ install -d -o suricata -g suricata -m 0750 \
   /var/log/suricata
 
 if [ ! -s "${runtime_rules_dir}/suricata.rules" ]; then
-  if [ -s "${staged_rules_dir}/suricata.rules" ]; then
-    cp -a "${staged_rules_dir}/." "${runtime_rules_dir}/"
-  else
-    /usr/libexec/infrastructure/suricata-sync-rules
-  fi
+  cp -a "${staged_rules_dir}/." "${runtime_rules_dir}/"
+  chown -R suricata:suricata "${runtime_dir}" /var/log/suricata
+else
+  /usr/libexec/infrastructure/suricata-sync-rules
 fi
-
-chown -R suricata:suricata "${runtime_dir}" /var/log/suricata
-test -s "${runtime_rules_dir}/suricata.rules"
