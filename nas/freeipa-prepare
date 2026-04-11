@@ -2,7 +2,7 @@
 set -eu
 
 data_dir=/var/lib/containers/freeipa/data
-secrets_dir=/var/lib/containers/freeipa/secrets
+secrets_dir=/var/lib/containers/secrets
 options_file="$data_dir/ipa-server-install-options"
 admin_password_file="$secrets_dir/admin-password"
 ds_password_file="$secrets_dir/ds-password"

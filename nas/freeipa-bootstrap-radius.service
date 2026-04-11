@@ -4,9 +4,9 @@ Wants=freeipa.service
 After=freeipa.service network-online.target
 Requires=freeipa.service
 Before=freeradius.service
-ConditionPathExists=/var/lib/containers/freeipa/secrets/admin-password
-ConditionPathExists=/var/lib/containers/freeipa/secrets/ds-password
-ConditionPathExists=/var/lib/containers/freeradius/secrets/ldap-bind-password
+ConditionPathExists=/var/lib/containers/secrets/admin-password
+ConditionPathExists=/var/lib/containers/secrets/ds-password
+ConditionPathExists=/var/lib/containers/secrets/ldap-bind-password
 
 [Service]
 Type=oneshot

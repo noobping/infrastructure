@@ -1,0 +1,19 @@
+[Unit]
+Description=Bootstrap Uptime Kuma monitors and status page
+Wants=network-online.target uptime-kuma.service
+After=network-online.target uptime-kuma.service
+Requires=uptime-kuma.service
+StartLimitIntervalSec=0
+ConditionPathExists=/var/lib/containers/secrets/admin-password
+ConditionPathExists=/usr/libexec/infrastructure/uptime-kuma-bootstrap
+ConditionPathExists=/usr/libexec/infrastructure/uptime-kuma-bootstrap.js
+ConditionPathExists=/usr/share/infrastructure/uptime-kuma/config.json
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/infrastructure/uptime-kuma-bootstrap
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

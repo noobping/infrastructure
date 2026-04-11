@@ -2,7 +2,7 @@
 Description=Register the local GitLab Runner
 Wants=network-online.target gitlab.service
 After=network-online.target gitlab.service
-ConditionPathExists=/var/lib/containers/gitlab-runner/secrets/runner-token
+ConditionPathExists=/var/lib/containers/secrets/runner-token
 ConditionPathExists=!/var/lib/containers/gitlab-runner/config/config.toml
 ConditionPathExists=/usr/share/gitlab-runner/register.template.toml
 

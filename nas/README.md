@@ -6,10 +6,10 @@
 Create these host secret files before expecting the identity services to start:
 
 ```sh
-/var/lib/containers/freeipa/secrets/admin-password
-/var/lib/containers/freeipa/secrets/ds-password
-/var/lib/containers/freeradius/secrets/ldap-bind-password
-/var/lib/containers/freeradius/secrets/clients.conf
+/var/lib/containers/secrets/admin-password
+/var/lib/containers/secrets/ds-password
+/var/lib/containers/secrets/ldap-bind-password
+/var/lib/containers/secrets/clients.conf
 ```
 
 `clients.conf` should contain normal FreeRADIUS client definitions, for example:

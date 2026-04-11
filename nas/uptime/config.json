@@ -1,0 +1,77 @@
+{
+  "statusPage": {
+    "slug": "default",
+    "title": "Nick's NAS",
+    "description": "Current status of the NAS and its containerized services.",
+    "groupName": "Services",
+    "theme": "auto",
+    "autoRefreshInterval": 60,
+    "showPoweredBy": false,
+    "showCertificateExpiry": true,
+    "showOnlyLastHeartbeat": true
+  },
+  "monitors": [
+    {
+      "name": "NAS",
+      "monitor": {
+        "type": "http",
+        "url": "https://127.0.0.1:9090",
+        "ignoreTls": true,
+        "accepted_statuscodes": [
+          "200-399"
+        ]
+      }
+    },
+    {
+      "name": "FreeIPA",
+      "monitor": {
+        "type": "http",
+        "url": "https://127.0.0.1:8443",
+        "ignoreTls": true,
+        "accepted_statuscodes": [
+          "200-399"
+        ]
+      }
+    },
+    {
+      "name": "Nextcloud",
+      "monitor": {
+        "type": "http",
+        "url": "http://127.0.0.1:8081",
+        "accepted_statuscodes": [
+          "200-399"
+        ]
+      }
+    },
+    {
+      "name": "GitLab",
+      "monitor": {
+        "type": "http",
+        "url": "http://127.0.0.1:8929",
+        "accepted_statuscodes": [
+          "200-399"
+        ]
+      }
+    },
+    {
+      "name": "Jellyfin",
+      "monitor": {
+        "type": "http",
+        "url": "http://127.0.0.1:8096",
+        "accepted_statuscodes": [
+          "200-399"
+        ]
+      }
+    },
+    {
+      "name": "Registry",
+      "monitor": {
+        "type": "http",
+        "url": "http://127.0.0.1:5000/v2/",
+        "accepted_statuscodes": [
+          "200-399"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+[Unit]
+Description=Uptime Kuma
+ConditionPathExists=/var/lib/containers/uptime-kuma
+
+[Container]
+Image=docker.io/louislam/uptime-kuma:2
+ContainerName=uptime-kuma
+AutoUpdate=registry
+PodmanArgs=--network=host
+Volume=/var/lib/containers/uptime-kuma:/app/data:Z
+Volume=/var/lib/containers/secrets:/run/uptime-kuma-secrets:ro,Z
+Volume=/usr/libexec/infrastructure/uptime-kuma-bootstrap.js:/bootstrap.js:ro,Z
+Volume=/usr/share/infrastructure/uptime-kuma/config.json:/bootstrap-config.json:ro,Z
+
+[Service]
+Restart=always
+TimeoutStartSec=900
+TimeoutStopSec=180
+
+[Install]
+WantedBy=multi-user.target

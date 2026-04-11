@@ -4,8 +4,8 @@ Wants=network-online.target freeipa-prepare.service
 After=network-online.target freeipa-prepare.service
 Requires=freeipa-prepare.service
 ConditionPathExists=/var/lib/containers/freeipa/data
-ConditionPathExists=/var/lib/containers/freeipa/secrets/admin-password
-ConditionPathExists=/var/lib/containers/freeipa/secrets/ds-password
+ConditionPathExists=/var/lib/containers/secrets/admin-password
+ConditionPathExists=/var/lib/containers/secrets/ds-password
 
 [Container]
 Image=docker.io/freeipa/freeipa-server:almalinux-10

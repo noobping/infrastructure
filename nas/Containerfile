@@ -22,6 +22,7 @@ RUN set -euxo pipefail; \
   /etc/systemd/system/timers.target.wants \
   /usr/libexec/infrastructure \
   /usr/share/gitlab-runner \
+  /usr/share/infrastructure/uptime-kuma \
   /usr/share/infrastructure/freeradius \
   /var/lib/suricata \
   /var/log/suricata; \
@@ -47,22 +48,31 @@ COPY mdadm.conf /etc/mdadm.conf
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY nftables /etc/nftables/rules
 COPY suricata.nft /etc/nftables/suricata.nft
+COPY uptime/config.json /usr/share/infrastructure/uptime-kuma/
+COPY uptime/bootstrap /usr/libexec/infrastructure/uptime-kuma-bootstrap
+COPY uptime/bootstrap.js /usr/libexec/infrastructure/uptime-kuma-bootstrap.js
+COPY uptime/bootstrap.service /etc/systemd/system/uptime-kuma-bootstrap.service
 
 RUN set -euxo pipefail; \
   chmod -R 0600 /etc/nftables/rules; \
   find /etc/containers/systemd -type f -name '*.container' -exec chmod 0644 '{}' ';'; \
+  find /usr/share/infrastructure/uptime-kuma -type d -exec chmod 0755 '{}' ';'; \
+  find /usr/share/infrastructure/uptime-kuma -type f -exec chmod 0644 '{}' ';'; \
   find /usr/share/infrastructure/freeradius -type d -exec chmod 0755 '{}' ';'; \
   find /usr/share/infrastructure/freeradius -type f -exec chmod 0644 '{}' ';'; \
   chmod 0755 /usr/libexec/infrastructure/freeipa-bootstrap-radius; \
   chmod 0755 /usr/libexec/infrastructure/freeipa-prepare; \
   chmod 0755 /usr/libexec/infrastructure/freeradius-prepare; \
   chmod 0755 /usr/libexec/infrastructure/gitlab-runner-register; \
+  chmod 0755 /usr/libexec/infrastructure/uptime-kuma-bootstrap; \
+  chmod 0644 /usr/libexec/infrastructure/uptime-kuma-bootstrap.js; \
   chmod 0755 /usr/libexec/infrastructure/gssproxy-prepare; \
   chmod 0755 /usr/libexec/infrastructure/suricata-sync-rules; \
   chmod 0644 /etc/systemd/system/freeipa-bootstrap-radius.service; \
   chmod 0644 /etc/systemd/system/freeipa-prepare.service; \
   chmod 0644 /etc/systemd/system/freeradius-prepare.service; \
   chmod 0644 /etc/systemd/system/gitlab-runner-register.service; \
+  chmod 0644 /etc/systemd/system/uptime-kuma-bootstrap.service; \
   chmod 0644 /etc/systemd/system/gssproxy-prepare.service; \
   chmod 0644 /etc/systemd/system/gssproxy.service.d/10-infrastructure.conf; \
   chmod 0644 /usr/share/gitlab-runner/register.template.toml; \
@@ -86,4 +96,6 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/multi-user.target.wants/upower.service; \
   ln -sf /etc/systemd/system/gitlab-runner-register.service \
     /etc/systemd/system/multi-user.target.wants/gitlab-runner-register.service; \
+  ln -sf /etc/systemd/system/uptime-kuma-bootstrap.service \
+    /etc/systemd/system/multi-user.target.wants/uptime-kuma-bootstrap.service; \
   ostree container commit

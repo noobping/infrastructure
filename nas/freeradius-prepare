@@ -2,7 +2,7 @@
 set -eu
 
 config_dir=/var/lib/containers/freeradius/config
-secrets_dir=/var/lib/containers/freeradius/secrets
+secrets_dir=/var/lib/containers/secrets
 template_dir=/usr/share/freeradius
 ldap_template="$template_dir/mods-enabled/ldap.template"
 ldap_output="$config_dir/mods-enabled/ldap"

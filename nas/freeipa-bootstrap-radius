@@ -2,8 +2,8 @@
 set -eu
 
 freeipa_name=freeipa
-freeipa_secrets=/var/lib/containers/freeipa/secrets
-freeradius_secrets=/var/lib/containers/freeradius/secrets
+freeipa_secrets=/var/lib/containers/secrets
+freeradius_secrets=/var/lib/containers/secrets
 admin_password=$(tr -d '\r\n' < "$freeipa_secrets/admin-password")
 ds_password=$(tr -d '\r\n' < "$freeipa_secrets/ds-password")
 bind_password=$(tr -d '\r\n' < "$freeradius_secrets/ldap-bind-password")

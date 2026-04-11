@@ -15,5 +15,5 @@
       "/cache",
       "/etc/containers/registries.conf:/etc/containers/registries.conf:ro",
       "/etc/containers/registries.conf.d:/etc/containers/registries.conf.d:ro",
-      "/var/lib/containers/gitlab-runner/secrets:/run/gitlab-runner-secrets:ro",
+      "/var/lib/containers/secrets:/run/gitlab-runner-secrets:ro",
     ]

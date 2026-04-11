@@ -3,7 +3,7 @@ set -eu
 
 config_dir=/var/lib/containers/gitlab-runner/config
 cache_dir=/var/lib/containers/gitlab-runner/cache
-secrets_dir=/var/lib/containers/gitlab-runner/secrets
+secrets_dir=/var/lib/containers/secrets
 token_file="${secrets_dir}/runner-token"
 description_file="${secrets_dir}/runner-description"
 tags_file="${secrets_dir}/runner-tags"
