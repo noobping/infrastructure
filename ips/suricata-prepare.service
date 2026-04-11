@@ -1,7 +1,6 @@
 [Unit]
 Description=Prepare Suricata rules before enabling inline filtering
-Wants=network-online.target
-After=network-online.target
+After=local-fs.target
 Before=suricata.service
 ConditionPathExists=!/var/lib/suricata/rules/suricata.rules
 
