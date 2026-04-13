@@ -7,4 +7,4 @@ ConditionPathIsDirectory=/var/lib
 
 [Service]
 Type=oneshot
-ExecStart=/usr/libexec/bootcontainer/gssproxy-prepare
+ExecStart=/usr/libexec/infrastructure/gssproxy-prepare

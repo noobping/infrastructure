@@ -6,7 +6,7 @@ ConditionPathExists=!/var/lib/suricata/rules/suricata.rules
 
 [Service]
 Type=oneshot
-ExecStart=/usr/libexec/bootcontainer/suricata-prepare-rules
+ExecStart=/usr/libexec/infrastructure/suricata-prepare-rules
 
 [Install]
 WantedBy=multi-user.target
