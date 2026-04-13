@@ -30,6 +30,7 @@ COPY suricata.service.d/10-inline.conf /etc/systemd/system/suricata.service.d/10
 RUN set -euxo pipefail; \
   chmod 0755 /usr/libexec/infrastructure/gssproxy-prepare; \
   chmod 0755 /usr/libexec/infrastructure/suricata-sync-rules; \
+  chmod 0755 /usr/libexec/infrastructure/suricata-prepare-rules; \
   install -d -o suricata -g suricata -m 0750 /var/lib/suricata /var/log/suricata; \
   grep -q '^include: /etc/suricata/ips.yaml$' /etc/suricata/suricata.yaml \
   || printf '\ninclude: /etc/suricata/ips.yaml\n' >> /etc/suricata/suricata.yaml; \
