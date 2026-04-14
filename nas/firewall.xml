@@ -3,19 +3,44 @@
     <short>Public</short>
     <description>Custom NAS firewall</description>
 
-    <!-- allow ssh -->
+    <!-- SSH -->
     <service name="ssh"/>
 
-    <!-- allow cockpit -->
+    <!-- Cockpit -->
     <port protocol="tcp" port="9090"/>
 
-    <!-- jellyfin -->
+    <!-- Jellyfin -->
     <port protocol="tcp" port="8096"/>
     <port protocol="tcp" port="8920"/>
     <port protocol="udp" port="7359"/>
+
+    <!-- Jellyfin & Minecraft -->
     <port protocol="udp" port="1900"/>
 
-    <!-- http/https -->
+    <!-- Minecraft -->
+    <port protocol="tcp" port="25565"/>
+    <port protocol="udp" port="30000"/>
+    <port protocol="udp" port="19132"/>
+    <port protocol="udp" port="19133"/>
+
+    <!-- Gitlab -->
+    <port protocol="tcp" port="2222"/>
+    <port protocol="tcp" port="8929"/>
+
+    <!-- Domain -->
+    <port protocol="udp" port="1812"/>
+    <port protocol="udp" port="1813"/>
+    <port protocol="udp" port="88"/>
+    <port protocol="udp" port="464"/>
+    <port protocol="tcp" port="88"/>
+    <port protocol="tcp" port="389"/>
+    <port protocol="tcp" port="464"/>
+    <port protocol="tcp" port="636"/>
+
+    <!-- Web -->
     <service name="http"/>
     <service name="https"/>
+    <port protocol="tcp" port="3001"/>
+    <port protocol="tcp" port="5000"/>
+    <port protocol="tcp" port="8081"/>
 </zone>
