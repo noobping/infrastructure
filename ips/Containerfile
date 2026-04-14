@@ -42,8 +42,6 @@ RUN set -euxo pipefail; \
   else \
     printf '%s\n' 'OPTIONS="-q 0"' >> /etc/sysconfig/suricata; \
   fi; \
-  /usr/libexec/infrastructure/suricata-sync-rules; \
-  mv /var/lib/suricata/rules /usr/share/suricata/rules; \
   ln -sf /usr/lib/systemd/system/suricata.service \
     /etc/systemd/system/multi-user.target.wants/suricata.service; \
   ln -sf /etc/systemd/system/suricata-update.timer \
