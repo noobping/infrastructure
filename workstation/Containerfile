@@ -1,7 +1,11 @@
 FROM registry.fedoraproject.org/fedora:latest AS pkgs
 RUN dnf -y install dnf-plugins-core \
- && dnf repoquery --available --qf '%{name}\n' '*firmware*' | sort -u > /tmp/firmware-packages.txt \
- && wc -l /tmp/firmware-packages.txt
+  && dnf repoquery --available --qf '%{name}\n' \
+  | sort -u \
+  | grep -E '(^linux-firmware$|^[[:alnum:]_.+-]+-firmware$)' \
+  | grep -vE '^(gnome-firmware)$' \
+  > /tmp/firmware-packages.txt \
+  && wc -l /tmp/firmware-packages.txt
 
 FROM ghcr.io/noobping/ips:latest
 LABEL org.opencontainers.image.title="Workstation"
