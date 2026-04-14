@@ -77,7 +77,7 @@ RUN set -euxo pipefail; \
 
 # COPY *.nmconnection /etc/NetworkManager/system-connections/
 COPY aliases.sh /etc/profile.d/
-COPY alternative.desktop /usr/share/applications/
+# COPY alternative.desktop /usr/share/applications/
 COPY alternative.policy /usr/share/polkit-1/actions/dev.noobping.workstation.alternative.policy
 COPY alternative.sh /usr/bin/alternative
 COPY alternative-root.sh /usr/libexec/infrastructure/alternative-root
@@ -93,7 +93,7 @@ COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY profile.conf /var/lib/AccountsService/default
 COPY profile.png /usr/share/pixmaps/faces/nick.png
 COPY recommended.desktop /etc/xdg/autostart/
-COPY recommended.desktop /usr/share/applications/
+# COPY recommended.desktop /usr/share/applications/
 COPY recommended.sh /usr/bin/recommended
 COPY skel /etc/skel
 
@@ -104,6 +104,7 @@ RUN set -euxo pipefail; \
 
   chmod +x /etc/profile.d/aliases.sh; \
   chmod +x /usr/bin/recommended; \
+  chmod +x /usr/bin/alternative; \
 
   # chmod 0600 /etc/NetworkManager/system-connections/*.nmconnection; \
   chmod 0644 /etc/firewalld/direct.xml; \
