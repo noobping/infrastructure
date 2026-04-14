@@ -1,8 +1,11 @@
 UUID=581ce2c0-479a-400f-9d5d-747c95585c44 /var/srv/ssd auto nofail,subvol=/,x-parent=658cdaaa-98af-419b-af14-ec75eb84aed9,x-parent=057119bc:1872c5fd:db036438:b8ec439b 0 0
 UUID=581ce2c0-479a-400f-9d5d-747c95585c44 /var/lib/containers auto nofail,subvol=containers,x-parent=658cdaaa-98af-419b-af14-ec75eb84aed9,x-parent=057119bc:1872c5fd:db036438:b8ec439b 0 0
 UUID=581ce2c0-479a-400f-9d5d-747c95585c44 /var/srv/books auto nofail,subvol=books,x-parent=658cdaaa-98af-419b-af14-ec75eb84aed9,x-parent=057119bc:1872c5fd:db036438:b8ec439b 0 0
+UUID=581ce2c0-479a-400f-9d5d-747c95585c44 /var/srv/data auto nofail,subvol=data,x-parent=658cdaaa-98af-419b-af14-ec75eb84aed9,x-parent=057119bc:1872c5fd:db036438:b8ec439b 0 0
 UUID=581ce2c0-479a-400f-9d5d-747c95585c44 /var/srv/docs auto nofail,subvol=docs,x-parent=658cdaaa-98af-419b-af14-ec75eb84aed9,x-parent=057119bc:1872c5fd:db036438:b8ec439b 0 0
 UUID=581ce2c0-479a-400f-9d5d-747c95585c44 /var/srv/git auto nofail,subvol=git,x-parent=658cdaaa-98af-419b-af14-ec75eb84aed9,x-parent=057119bc:1872c5fd:db036438:b8ec439b 0 0
+# Replace <raid1-filesystem-uuid> with the filesystem UUID on /dev/md/raid1 before enabling /var/srv/hdd.
+# UUID=<raid1-filesystem-uuid> /var/srv/hdd auto nofail,x-parent=bf8aa038:d380ca85:97013f4d:7ea42d49 0 0
 UUID=581ce2c0-479a-400f-9d5d-747c95585c44 /var/srv/music auto nofail,subvol=music,x-parent=658cdaaa-98af-419b-af14-ec75eb84aed9,x-parent=057119bc:1872c5fd:db036438:b8ec439b 0 0
 UUID=581ce2c0-479a-400f-9d5d-747c95585c44 /var/srv/photos auto nofail,subvol=photos,x-parent=658cdaaa-98af-419b-af14-ec75eb84aed9,x-parent=057119bc:1872c5fd:db036438:b8ec439b 0 0
 UUID=581ce2c0-479a-400f-9d5d-747c95585c44 /var/srv/music/touhou auto nofail,subvol=touhou,x-parent=658cdaaa-98af-419b-af14-ec75eb84aed9,x-parent=057119bc:1872c5fd:db036438:b8ec439b 0 0
