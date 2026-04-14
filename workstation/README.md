@@ -23,7 +23,6 @@ Confirm Suricata is running and its rules are present:
 sudo systemctl status suricata.service
 sudo journalctl -u suricata.service -b --no-pager | tail -n 50
 sudo systemctl status suricata-update.timer
-sudo test -s /var/lib/suricata/rules/suricata.rules && echo rules-ok
 ```
 
 Confirm the workstation firewall is queueing host traffic to NFQUEUE:
