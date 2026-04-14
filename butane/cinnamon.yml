@@ -1,0 +1,121 @@
+variant: fcos
+version: 1.6.0
+
+boot_device:
+  luks:
+    tpm2: true
+
+kernel_arguments:
+  should_exist:
+    - quiet
+    - splash
+    - loglevel=3
+    - systemd.show_status=false
+    - rd.systemd.show_status=false
+
+passwd:
+  users:
+    - name: opa
+      uid: 1000
+
+storage:
+  files:
+    - path: /etc/hostname
+      mode: 0440
+      overwrite: true
+      contents:
+        inline: |
+          cinnamon
+
+systemd:
+  units:
+    - name: sshd.service
+      mask: true
+    - name: getty@.service
+      mask: true
+    - name: serial-getty@.service
+      mask: true
+    - name: emergency.service
+      mask: true
+    - name: rescue.service
+      mask: true
+    - name: debug-shell.service
+      mask: true
+    - name: rebase-to-cinnamon.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Rebase FCOS to locked-down Cinnamon image
+        Wants=network-online.target NetworkManager-wait-online.service
+        After=network-online.target NetworkManager-wait-online.service
+        ConditionPathExists=!/var/lib/rebase.done
+
+        [Service]
+        Type=oneshot
+        Restart=on-failure
+        RestartSec=30s
+        StartLimitIntervalSec=0
+        StandardOutput=journal
+        StandardError=journal
+        Environment=LANG=C.UTF-8
+        Environment=LC_ALL=C.UTF-8
+        ExecStart=/usr/bin/rpm-ostree rebase ostree-image-signed:docker://ghcr.io/noobping/cinnamon:latest
+        ExecStart=/usr/bin/touch /var/lib/rebase.done
+        ExecStart=/usr/bin/systemctl --no-block reboot
+
+        [Install]
+        WantedBy=multi-user.target
+    - name: system-flatpaks.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Install managed system Flatpaks
+        Wants=network-online.target
+        After=network-online.target
+        ConditionPathExists=/var/lib/rebase.done
+        ConditionPathExists=!/var/lib/system-flatpaks.done
+
+        [Service]
+        Type=oneshot
+        Restart=on-failure
+        RestartSec=30s
+        StartLimitIntervalSec=0
+        ExecStart=/usr/bin/flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+        ExecStart=/usr/bin/flatpak remote-add --system --if-not-exists fedora oci+https://registry.fedoraproject.org
+        ExecStart=/usr/bin/flatpak install --system --noninteractive flathub \
+          org.mozilla.firefox
+        ExecStart=/usr/bin/touch /var/lib/system-flatpaks.done
+
+        [Install]
+        WantedBy=multi-user.target
+    - name: update-system-flatpaks.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Update managed system Flatpaks
+        Wants=network-online.target
+        After=network-online.target
+        ConditionPathExists=/var/lib/system-flatpaks.done
+
+        [Service]
+        Type=oneshot
+        Restart=on-failure
+        RestartSec=30s
+        StartLimitIntervalSec=0
+        ExecStart=/usr/bin/flatpak update --system --noninteractive
+
+        [Install]
+        WantedBy=multi-user.target
+    - name: update-system-flatpaks.timer
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Daily managed system Flatpak update timer
+
+        [Timer]
+        OnCalendar=daily
+        Persistent=true
+        RandomizedDelaySec=1h
+
+        [Install]
+        WantedBy=timers.target

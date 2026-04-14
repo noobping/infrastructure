@@ -25,7 +25,7 @@ jobs:
             runs_on: ubuntu-latest
           - name: arm64
             runs_on: ubuntu-24.04-arm
-        profile: [nas, workstation]
+        profile: [nas, workstation, cinnamon]
 
     runs-on: ${{ matrix.arch.runs_on }}
 

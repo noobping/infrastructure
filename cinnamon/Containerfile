@@ -1,0 +1,77 @@
+FROM registry.fedoraproject.org/fedora:latest AS pkgs
+RUN dnf -y install dnf-plugins-core \
+ && dnf repoquery --available --qf '%{name}\n' '*firmware*' | sort -u > /tmp/firmware-packages.txt \
+ && wc -l /tmp/firmware-packages.txt
+
+FROM ghcr.io/noobping/ips:latest
+LABEL org.opencontainers.image.title="Cinnamon"
+LABEL org.opencontainers.image.description="Nick's locked-down Cinnamon bootable container"
+
+COPY --from=pkgs /tmp/firmware-packages.txt /tmp/firmware-packages.txt
+RUN xargs -r rpm-ostree install -y < /tmp/firmware-packages.txt
+RUN set -euxo pipefail; \
+  rpm-ostree override remove nfs-utils-coreos; \
+  rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
+  ostree container commit
+
+RUN set -euxo pipefail; \
+  rpm-ostree install -y \
+    NetworkManager-wifi NetworkManager-bluetooth NetworkManager-openvpn firewalld \
+    accountsservice \
+    bluez cups dconf dbus-daemon flatpak \
+    power-profiles-daemon upower \
+    mesa-dri-drivers switcheroo-control \
+    cinnamon cinnamon-control-center cinnamon-session \
+    lightdm slick-greeter \
+    nemo xed xreader \
+    xdg-desktop-portal xdg-desktop-portal-gtk \
+    pipewire wireplumber \
+    plymouth plymouth-theme-spinner \
+    glibc-all-langpacks google-noto-color-emoji-fonts google-noto-sans-cjk-fonts fontconfig; \
+  rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
+  ostree container commit
+
+RUN set -euxo pipefail; \
+  mkdir -p \
+    /etc/firewalld/zones \
+    /etc/lightdm/lightdm.conf.d \
+    /etc/systemd/system/graphical.target.wants \
+    /etc/systemd/system/multi-user.target.wants \
+    /etc/systemd/system/sysinit.target.wants
+
+COPY firewall.xml /etc/firewalld/zones/public.xml
+COPY lightdm-autologin.conf /etc/lightdm/lightdm.conf.d/50-autologin.conf
+COPY suricata-direct.xml /etc/firewalld/direct.xml
+
+RUN set -euxo pipefail; \
+  chmod 0644 /etc/firewalld/direct.xml; \
+  chmod 0644 /etc/firewalld/zones/public.xml; \
+  chmod 0644 /etc/lightdm/lightdm.conf.d/50-autologin.conf; \
+  rm -f /etc/resolv.conf; \
+  ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf; \
+  sed -i 's/tcp dport @allowed_tcp_dports accept/# &/' /etc/nftables/main.nft; \
+  printf '%s\n' 'DefaultZone=public' > /etc/firewalld/firewalld.conf; \
+  ln -sf /usr/lib/systemd/system/lightdm.service \
+    /etc/systemd/system/graphical.target.wants/lightdm.service; \
+  ln -sf /usr/lib/systemd/system/lightdm.service \
+    /etc/systemd/system/display-manager.service; \
+  ln -sf /usr/lib/systemd/system/graphical.target \
+    /etc/systemd/system/default.target; \
+  ln -sf /usr/lib/systemd/system/firewalld.service \
+    /etc/systemd/system/multi-user.target.wants/firewalld.service; \
+  ln -sf /usr/lib/systemd/system/switcheroo-control.service \
+    /etc/systemd/system/graphical.target.wants/switcheroo-control.service; \
+  ln -sf /usr/lib/systemd/system/power-profiles-daemon.service \
+    /etc/systemd/system/graphical.target.wants/power-profiles-daemon.service; \
+  ln -sf /usr/lib/systemd/system/upower.service \
+    /etc/systemd/system/graphical.target.wants/upower.service; \
+  ln -sf /usr/lib/systemd/system/plymouth-start.service \
+    /etc/systemd/system/sysinit.target.wants/plymouth-start.service; \
+  ln -sf /dev/null /etc/systemd/system/sshd.service; \
+  ln -sf /dev/null /etc/systemd/system/getty@.service; \
+  ln -sf /dev/null /etc/systemd/system/serial-getty@.service; \
+  ln -sf /dev/null /etc/systemd/system/emergency.service; \
+  ln -sf /dev/null /etc/systemd/system/rescue.service; \
+  ln -sf /dev/null /etc/systemd/system/debug-shell.service; \
+  ln -sf /dev/null /etc/systemd/system/nftables.service; \
+  ostree container commit
