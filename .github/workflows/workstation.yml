@@ -128,7 +128,7 @@ jobs:
             -f Containerfile \
             -t "$IMAGE" \
             --label org.opencontainers.image.source="${{ github.repositoryUrl }}" \
-            --build-arg IPS_IMAGE="ghcr.io/noobping/ips:${{ matrix.stream.ips_tag }}" \
+            --build-arg FCOS_STREAM="${{ matrix.stream.ips_tag }}" \
             --build-arg UID=1000 \
             --build-arg GID=1000 \
             .
