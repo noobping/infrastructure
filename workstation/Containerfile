@@ -52,6 +52,13 @@ RUN set -euxo pipefail; \
   ostree container commit
 
 RUN set -euxo pipefail; \
+  if rpm -q flatpak-session-helper >/dev/null 2>&1; then \
+    rpm-ostree override remove flatpak-session-helper; \
+  fi; \
+  rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
+  ostree container commit
+
+RUN set -euxo pipefail; \
   rpm-ostree install -y \
     nautilus nautilus-python python3-pygit2 nautilus-gsconnect sushi \
     seahorse-nautilus tnef-nautilus papers-nautilus \
