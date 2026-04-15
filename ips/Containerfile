@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora-coreos:next
+FROM quay.io/fedora/fedora-coreos:stable
 
 LABEL org.opencontainers.image.title="IPS"
 LABEL org.opencontainers.image.description="Nick's inline IPS base image"
