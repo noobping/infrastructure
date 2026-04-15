@@ -1,3 +1,4 @@
+ARG TAG=latest
 FROM registry.fedoraproject.org/fedora:latest AS pkgs
 RUN dnf -y install dnf-plugins-core \
   && dnf repoquery --available --qf '%{name}\n' \
@@ -7,7 +8,6 @@ RUN dnf -y install dnf-plugins-core \
   > /tmp/firmware-packages.txt \
   && wc -l /tmp/firmware-packages.txt
 
-ARG TAG=latest
 FROM ghcr.io/noobping/ips:${TAG}
 LABEL org.opencontainers.image.title="Workstation"
 LABEL org.opencontainers.image.description="Nick's bootable container"
