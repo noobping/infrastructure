@@ -31,7 +31,7 @@ RUN set -euxo pipefail; \
     power-profiles-daemon upower \
     mesa-dri-drivers switcheroo-control \
     cinnamon cinnamon-control-center cinnamon-session \
-    nemo \
+    nemo git \
     system-config-printer system-config-printer-applet system-config-printer-udev \
     xorg-x11-server-Xwayland \
     xdg-desktop-portal xdg-desktop-portal-gtk \
