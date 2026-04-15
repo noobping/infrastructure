@@ -33,6 +33,7 @@ jobs:
       github.event_name != 'workflow_run'
       || github.event.workflow_run.conclusion == 'success'
     name: Build ${{ matrix.stream.name }} ${{ matrix.arch.name }}
+    continue-on-error: ${{ matrix.stream.name == 'next' }}
     strategy:
       fail-fast: false
       matrix:
