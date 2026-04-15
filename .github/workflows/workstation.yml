@@ -29,17 +29,29 @@ concurrency:
 
 jobs:
   build:
-    name: Build ${{ matrix.arch }}
+    if: >
+      github.event_name != 'workflow_run'
+      || github.event.workflow_run.conclusion == 'success'
+    name: Build ${{ matrix.stream.name }} ${{ matrix.arch.name }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - arch: amd64
+        arch:
+          - name: amd64
             runs_on: ubuntu-latest
-          - arch: arm64
+          - name: arm64
             runs_on: ubuntu-24.04-arm
+        stream:
+          - name: stable
+            ips_tag: latest
+            image_tag: latest
+            arch_tag_suffix: ""
+          - name: next
+            ips_tag: next
+            image_tag: next
+            arch_tag_suffix: "-next"
 
-    runs-on: ${{ matrix.runs_on }}
+    runs-on: ${{ matrix.arch.runs_on }}
 
     permissions:
       contents: read
@@ -106,7 +118,7 @@ jobs:
           BUILDAH_ISOLATION: chroot
           TMPDIR: /mnt/tmp
         run: |
-          IMAGE="${IMAGE_NAME}:${{ matrix.arch }}"
+          IMAGE="${IMAGE_NAME}:${{ matrix.arch.name }}${{ matrix.stream.arch_tag_suffix }}"
 
           buildah bud \
             --pull-always \
@@ -116,6 +128,7 @@ jobs:
             -f Containerfile \
             -t "$IMAGE" \
             --label org.opencontainers.image.source="${{ github.repositoryUrl }}" \
+            --build-arg IPS_IMAGE="ghcr.io/noobping/ips:${{ matrix.stream.ips_tag }}" \
             --build-arg UID=1000 \
             --build-arg GID=1000 \
             .
@@ -130,9 +143,22 @@ jobs:
           buildah prune -f || true
 
   manifest:
-    name: Manifest
+    if: >
+      github.event_name != 'workflow_run'
+      || github.event.workflow_run.conclusion == 'success'
+    name: Manifest ${{ matrix.stream.name }}
     needs: build
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        stream:
+          - name: stable
+            image_tag: latest
+            arch_tag_suffix: ""
+          - name: next
+            image_tag: next
+            arch_tag_suffix: "-next"
 
     permissions:
       packages: write
@@ -150,6 +176,6 @@ jobs:
       - name: Push
         run: |
           docker buildx imagetools create \
-            -t "${IMAGE_NAME}:latest" \
-            "${IMAGE_NAME}:amd64" \
-            "${IMAGE_NAME}:arm64"
+            -t "${IMAGE_NAME}:${{ matrix.stream.image_tag }}" \
+            "${IMAGE_NAME}:amd64${{ matrix.stream.arch_tag_suffix }}" \
+            "${IMAGE_NAME}:arm64${{ matrix.stream.arch_tag_suffix }}"
