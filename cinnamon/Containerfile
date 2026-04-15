@@ -27,13 +27,13 @@ RUN set -euxo pipefail; \
     avahi bluez cups cups-browsed cups-filters cups-filters-driverless cups-pk-helper \
     dconf dbus-daemon flatpak gutenprint-cups ipp-usb nss-mdns samba-client \
     fapolicyd fapolicyd-selinux \
-    gdm \
     power-profiles-daemon upower \
     mesa-dri-drivers switcheroo-control \
     cinnamon cinnamon-control-center cinnamon-session \
     nemo git \
     system-config-printer system-config-printer-applet system-config-printer-udev \
     xorg-x11-server-Xwayland \
+    lightdm slick-greeter \
     xdg-desktop-portal xdg-desktop-portal-gtk \
     pipewire wireplumber \
     plymouth plymouth-theme-spinner \
@@ -47,8 +47,8 @@ RUN set -euxo pipefail; \
     /etc/dconf/profile \
     /etc/environment.d \
     /etc/firewalld/zones \
-    /etc/gdm \
     /etc/polkit-1/rules.d \
+    /etc/lightdm/lightdm.conf.d \
     /etc/systemd/system/graphical.target.wants \
     /etc/systemd/system/multi-user.target.wants \
     /etc/systemd/system/sockets.target.wants \
@@ -61,8 +61,8 @@ COPY dconf-lockdown.ini /etc/dconf/db/local.d/00-cinnamon-lockdown
 COPY dconf-locks /etc/dconf/db/local.d/locks/cinnamon-lockdown
 COPY dconf-profile /etc/dconf/profile/user
 COPY flatpak-exports.conf /etc/environment.d/60-flatpak-exports.conf
-COPY gdm-custom.conf /etc/gdm/custom.conf
 COPY polkit-printers.rules /etc/polkit-1/rules.d/50-printer-access.rules
+COPY lightdm-autologin.conf /etc/lightdm/lightdm.conf.d/50-autologin.conf
 COPY suricata-direct.xml /etc/firewalld/direct.xml
 
 RUN set -euxo pipefail; \
@@ -73,7 +73,6 @@ RUN set -euxo pipefail; \
   chmod 0644 /etc/environment.d/60-flatpak-exports.conf; \
   chmod 0644 /etc/firewalld/direct.xml; \
   chmod 0644 /etc/firewalld/zones/public.xml; \
-  chmod 0644 /etc/gdm/custom.conf; \
   chmod 0644 /etc/polkit-1/rules.d/50-printer-access.rules; \
   dconf update; \
   if [ -e /etc/environment ]; then \
@@ -90,10 +89,11 @@ RUN set -euxo pipefail; \
   sed -i '/^\[Desktop Entry\]/a Hidden=true' /usr/share/applications/cinnamon-settings-users.desktop; \
   sed -i '/^\[Desktop Entry\]/a Hidden=true' /usr/share/xsessions/cinnamon.desktop; \
   sed -i '/^\[Desktop Entry\]/a Hidden=true' /usr/share/xsessions/cinnamon2d.desktop; \
+  chmod 0644 /etc/lightdm/lightdm.conf.d/50-autologin.conf; \
   printf '%s\n' 'DefaultZone=public' > /etc/firewalld/firewalld.conf; \
-  ln -sf /usr/lib/systemd/system/gdm.service \
-    /etc/systemd/system/graphical.target.wants/gdm.service; \
-  ln -sf /usr/lib/systemd/system/gdm.service \
+  ln -sf /usr/lib/systemd/system/lightdm.service \
+    /etc/systemd/system/graphical.target.wants/lightdm.service; \
+  ln -sf /usr/lib/systemd/system/lightdm.service \
     /etc/systemd/system/display-manager.service; \
   ln -sf /usr/lib/systemd/system/graphical.target \
     /etc/systemd/system/default.target; \
