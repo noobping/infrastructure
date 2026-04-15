@@ -41,6 +41,7 @@ RUN set -euxo pipefail; \
 
 RUN set -euxo pipefail; \
   mkdir -p \
+    /etc/environment.d \
     /etc/firewalld/zones \
     /etc/gdm \
     /etc/systemd/system/graphical.target.wants \
@@ -50,17 +51,26 @@ RUN set -euxo pipefail; \
 
 COPY firewall.xml /etc/firewalld/zones/public.xml
 COPY fapolicyd-flatpak-sync /usr/libexec/infrastructure/fapolicyd-flatpak-sync
+COPY flatpak-exports.conf /etc/environment.d/60-flatpak-exports.conf
 COPY gdm-custom.conf /etc/gdm/custom.conf
 COPY suricata-direct.xml /etc/firewalld/direct.xml
 
 RUN set -euxo pipefail; \
   chmod 0755 /usr/libexec/infrastructure/fapolicyd-flatpak-sync; \
+  chmod 0644 /etc/environment.d/60-flatpak-exports.conf; \
   chmod 0644 /etc/firewalld/direct.xml; \
   chmod 0644 /etc/firewalld/zones/public.xml; \
   chmod 0644 /etc/gdm/custom.conf; \
+  if [ -e /etc/environment ]; then \
+    grep -qxF 'XDG_DATA_DIRS=/var/lib/flatpak/exports/share:/usr/local/share:/usr/share' /etc/environment || \
+      printf '%s\n' 'XDG_DATA_DIRS=/var/lib/flatpak/exports/share:/usr/local/share:/usr/share' >> /etc/environment; \
+  else \
+    install -m 0644 /etc/environment.d/60-flatpak-exports.conf /etc/environment; \
+  fi; \
   rm -f /etc/resolv.conf; \
   ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf; \
   sed -i 's/tcp dport @allowed_tcp_dports accept/# &/' /etc/nftables/main.nft; \
+  sed -i '/^\[Desktop Entry\]/a Hidden=true' /usr/share/applications/cinnamon-settings-users.desktop; \
   sed -i '/^\[Desktop Entry\]/a Hidden=true' /usr/share/xsessions/cinnamon.desktop; \
   sed -i '/^\[Desktop Entry\]/a Hidden=true' /usr/share/xsessions/cinnamon2d.desktop; \
   printf '%s\n' 'DefaultZone=public' > /etc/firewalld/firewalld.conf; \
