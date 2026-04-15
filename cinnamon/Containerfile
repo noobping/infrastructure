@@ -24,11 +24,12 @@ RUN set -euxo pipefail; \
     accountsservice \
     bluez cups dconf dbus-daemon flatpak \
     fapolicyd fapolicyd-selinux \
+    gdm \
     power-profiles-daemon upower \
     mesa-dri-drivers switcheroo-control \
     cinnamon cinnamon-control-center cinnamon-session \
-    lightdm slick-greeter \
     nemo xed xreader \
+    xorg-x11-server-Xwayland \
     xdg-desktop-portal xdg-desktop-portal-gtk \
     pipewire wireplumber \
     plymouth plymouth-theme-spinner \
@@ -39,7 +40,7 @@ RUN set -euxo pipefail; \
 RUN set -euxo pipefail; \
   mkdir -p \
     /etc/firewalld/zones \
-    /etc/lightdm/lightdm.conf.d \
+    /etc/gdm \
     /etc/systemd/system/graphical.target.wants \
     /etc/systemd/system/multi-user.target.wants \
     /etc/systemd/system/sysinit.target.wants \
@@ -47,21 +48,23 @@ RUN set -euxo pipefail; \
 
 COPY firewall.xml /etc/firewalld/zones/public.xml
 COPY fapolicyd-flatpak-sync /usr/libexec/infrastructure/fapolicyd-flatpak-sync
-COPY lightdm-autologin.conf /etc/lightdm/lightdm.conf.d/50-autologin.conf
+COPY gdm-custom.conf /etc/gdm/custom.conf
 COPY suricata-direct.xml /etc/firewalld/direct.xml
 
 RUN set -euxo pipefail; \
   chmod 0755 /usr/libexec/infrastructure/fapolicyd-flatpak-sync; \
   chmod 0644 /etc/firewalld/direct.xml; \
   chmod 0644 /etc/firewalld/zones/public.xml; \
-  chmod 0644 /etc/lightdm/lightdm.conf.d/50-autologin.conf; \
+  chmod 0644 /etc/gdm/custom.conf; \
   rm -f /etc/resolv.conf; \
   ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf; \
   sed -i 's/tcp dport @allowed_tcp_dports accept/# &/' /etc/nftables/main.nft; \
+  sed -i '/^\[Desktop Entry\]/a Hidden=true' /usr/share/xsessions/cinnamon.desktop; \
+  sed -i '/^\[Desktop Entry\]/a Hidden=true' /usr/share/xsessions/cinnamon2d.desktop; \
   printf '%s\n' 'DefaultZone=public' > /etc/firewalld/firewalld.conf; \
-  ln -sf /usr/lib/systemd/system/lightdm.service \
-    /etc/systemd/system/graphical.target.wants/lightdm.service; \
-  ln -sf /usr/lib/systemd/system/lightdm.service \
+  ln -sf /usr/lib/systemd/system/gdm.service \
+    /etc/systemd/system/graphical.target.wants/gdm.service; \
+  ln -sf /usr/lib/systemd/system/gdm.service \
     /etc/systemd/system/display-manager.service; \
   ln -sf /usr/lib/systemd/system/graphical.target \
     /etc/systemd/system/default.target; \

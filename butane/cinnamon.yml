@@ -26,6 +26,14 @@ storage:
       contents:
         inline: |
           cinnamon
+    - path: /var/lib/AccountsService/users/opa
+      mode: 0600
+      overwrite: true
+      contents:
+        inline: |
+          [User]
+          XSession=cinnamon-wayland
+          SystemAccount=false
 
 systemd:
   units:
