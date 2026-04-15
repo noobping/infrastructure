@@ -36,11 +36,11 @@ jobs:
           - name: stable
             fcos_stream: stable
             tag: latest
-            arch_tag_suffix: ""
+            suffix: ""
           - name: next
             fcos_stream: next
             tag: next
-            arch_tag_suffix: "-next"
+            suffix: "-next"
 
     runs-on: ${{ matrix.arch.runs_on }}
 
@@ -107,7 +107,7 @@ jobs:
           BUILDAH_ISOLATION: chroot
           TMPDIR: /mnt/tmp
         run: |
-          IMAGE="${IMAGE_NAME}:${{ matrix.arch.name }}${{ matrix.stream.arch_tag_suffix }}"
+          IMAGE="${IMAGE_NAME}:${{ matrix.arch.name }}${{ matrix.stream.suffix }}"
 
           buildah bud \
             --pull-always \
@@ -141,10 +141,10 @@ jobs:
         stream:
           - name: stable
             tag: latest
-            arch_tag_suffix: ""
+            suffix: ""
           - name: next
             tag: next
-            arch_tag_suffix: "-next"
+            suffix: "-next"
 
     permissions:
       packages: write
@@ -163,5 +163,5 @@ jobs:
         run: |
           docker buildx imagetools create \
             -t "${IMAGE_NAME}:${{ matrix.stream.tag }}" \
-            "${IMAGE_NAME}:amd64${{ matrix.stream.arch_tag_suffix }}" \
-            "${IMAGE_NAME}:arm64${{ matrix.stream.arch_tag_suffix }}"
+            "${IMAGE_NAME}:amd64${{ matrix.stream.suffix }}" \
+            "${IMAGE_NAME}:arm64${{ matrix.stream.suffix }}"

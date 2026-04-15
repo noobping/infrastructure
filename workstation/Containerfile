@@ -7,8 +7,8 @@ RUN dnf -y install dnf-plugins-core \
   > /tmp/firmware-packages.txt \
   && wc -l /tmp/firmware-packages.txt
 
-ARG FCOS_STREAM=latest
-FROM ghcr.io/noobping/ips:${FCOS_STREAM}
+ARG TAG=latest
+FROM ghcr.io/noobping/ips:${TAG}
 LABEL org.opencontainers.image.title="Workstation"
 LABEL org.opencontainers.image.description="Nick's bootable container"
 ARG REBASE_IMAGE_BASE=ostree-image-signed:docker://ghcr.io/noobping/
