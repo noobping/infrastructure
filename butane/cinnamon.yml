@@ -67,6 +67,20 @@ systemd:
       mask: true
     - name: debug-shell.service
       mask: true
+    - name: clear-opa-password.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Clear password for opa
+        ConditionPathExists=!/var/lib/opa-password-cleared
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/bin/passwd -d opa
+        ExecStart=/usr/bin/touch /var/lib/opa-password-cleared
+
+        [Install]
+        WantedBy=multi-user.target
     - name: rebase-to-cinnamon.service
       enabled: true
       contents: |
