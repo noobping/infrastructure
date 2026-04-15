@@ -98,6 +98,7 @@ systemd:
           org.gnome.SimpleScan \
           org.gnome.Snapshot \
           org.gnome.TextEditor
+        ExecStart=/usr/libexec/infrastructure/fapolicyd-flatpak-sync
         ExecStart=/usr/bin/touch /var/lib/system-flatpaks.done
 
         [Install]
@@ -117,6 +118,7 @@ systemd:
         RestartSec=30s
         StartLimitIntervalSec=0
         ExecStart=/usr/bin/flatpak update --system --noninteractive
+        ExecStart=/usr/libexec/infrastructure/fapolicyd-flatpak-sync
 
         [Install]
         WantedBy=multi-user.target

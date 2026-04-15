@@ -23,6 +23,7 @@ RUN set -euxo pipefail; \
     NetworkManager-wifi NetworkManager-bluetooth NetworkManager-openvpn firewalld \
     accountsservice \
     bluez cups dconf dbus-daemon flatpak \
+    fapolicyd fapolicyd-selinux \
     power-profiles-daemon upower \
     mesa-dri-drivers switcheroo-control \
     cinnamon cinnamon-control-center cinnamon-session \
@@ -41,13 +42,16 @@ RUN set -euxo pipefail; \
     /etc/lightdm/lightdm.conf.d \
     /etc/systemd/system/graphical.target.wants \
     /etc/systemd/system/multi-user.target.wants \
-    /etc/systemd/system/sysinit.target.wants
+    /etc/systemd/system/sysinit.target.wants \
+    /usr/libexec/infrastructure
 
 COPY firewall.xml /etc/firewalld/zones/public.xml
+COPY fapolicyd-flatpak-sync /usr/libexec/infrastructure/fapolicyd-flatpak-sync
 COPY lightdm-autologin.conf /etc/lightdm/lightdm.conf.d/50-autologin.conf
 COPY suricata-direct.xml /etc/firewalld/direct.xml
 
 RUN set -euxo pipefail; \
+  chmod 0755 /usr/libexec/infrastructure/fapolicyd-flatpak-sync; \
   chmod 0644 /etc/firewalld/direct.xml; \
   chmod 0644 /etc/firewalld/zones/public.xml; \
   chmod 0644 /etc/lightdm/lightdm.conf.d/50-autologin.conf; \
@@ -63,6 +67,8 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/default.target; \
   ln -sf /usr/lib/systemd/system/firewalld.service \
     /etc/systemd/system/multi-user.target.wants/firewalld.service; \
+  ln -sf /usr/lib/systemd/system/fapolicyd.service \
+    /etc/systemd/system/multi-user.target.wants/fapolicyd.service; \
   ln -sf /usr/lib/systemd/system/switcheroo-control.service \
     /etc/systemd/system/graphical.target.wants/switcheroo-control.service; \
   ln -sf /usr/lib/systemd/system/power-profiles-daemon.service \
