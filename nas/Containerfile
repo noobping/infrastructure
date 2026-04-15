@@ -4,8 +4,13 @@ LABEL org.opencontainers.image.title="NAS"
 LABEL org.opencontainers.image.description="Nick's bootable container"
 
 RUN set -euxo pipefail; \
-  rpm-ostree override remove nfs-utils-coreos; \
-  rpm-ostree install -y \
+  if rpm -q nfs-utils-coreos >/dev/null 2>&1; then \
+    rpm-ostree override remove nfs-utils-coreos; \
+  fi; \
+  rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
+  ostree container commit
+
+RUN rpm-ostree install -y \
     libvirt qemu-kvm pcp-zeroconf smartmontools \
     cockpit-system cockpit-ostree cockpit-podman cockpit-machines cockpit-storaged cockpit-files cockpit-networkmanager cockpit-sosreport cockpit-kdump cockpit-selinux \
     gssproxy \

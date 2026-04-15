@@ -1,4 +1,5 @@
-FROM quay.io/fedora/fedora-coreos:stable
+ARG FCOS_STREAM=stable
+FROM quay.io/fedora/fedora-coreos:${FCOS_STREAM}
 
 LABEL org.opencontainers.image.title="IPS"
 LABEL org.opencontainers.image.description="Nick's inline IPS base image"
