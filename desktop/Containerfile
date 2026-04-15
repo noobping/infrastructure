@@ -1,4 +1,4 @@
-FROM ghcr.io/noobping/workstation
+FROM ghcr.io/noobping/workstation:latest
 LABEL org.opencontainers.image.title="Desktop"
 LABEL org.opencontainers.image.description="Nick's bootable container"
 ARG REBASE_IMAGE_BASE=ostree-image-signed:docker://ghcr.io/noobping/
