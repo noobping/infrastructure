@@ -20,6 +20,31 @@ passwd:
 
 storage:
   files:
+    - path: /etc/locale.conf
+      mode: 0644
+      overwrite: true
+      contents:
+        inline: |
+          LANG=nl_NL.UTF-8
+    - path: /etc/vconsole.conf
+      mode: 0644
+      overwrite: true
+      contents:
+        inline: |
+          KEYMAP=us
+          XKBLAYOUT=us
+          XKBVARIANT=intl
+    - path: /etc/X11/xorg.conf.d/00-keyboard.conf
+      mode: 0644
+      overwrite: true
+      contents:
+        inline: |
+          Section "InputClass"
+            Identifier "keyboard-all"
+            MatchIsKeyboard "on"
+            Option "XkbLayout" "us"
+            Option "XkbVariant" "intl"
+          EndSection
     - path: /etc/hostname
       mode: 0440
       overwrite: true
@@ -32,6 +57,7 @@ storage:
       contents:
         inline: |
           [User]
+          Language=nl_NL.UTF-8
           XSession=cinnamon-wayland
           SystemAccount=false
 
