@@ -2,4 +2,7 @@
 <zone target="DROP">
   <short>Public</short>
   <description>Default policy</description>
+  <service name="ipp-client"/>
+  <service name="mdns"/>
+  <service name="samba-client"/>
 </zone>

@@ -24,13 +24,15 @@ RUN set -euxo pipefail; \
   rpm-ostree install -y \
     NetworkManager-wifi NetworkManager-bluetooth NetworkManager-openvpn firewalld \
     accountsservice \
-    bluez cups dconf dbus-daemon flatpak \
+    avahi bluez cups cups-browsed cups-filters cups-filters-driverless cups-pk-helper \
+    dconf dbus-daemon flatpak gutenprint-cups ipp-usb nss-mdns samba-client \
     fapolicyd fapolicyd-selinux \
     gdm \
     power-profiles-daemon upower \
     mesa-dri-drivers switcheroo-control \
     cinnamon cinnamon-control-center cinnamon-session \
     nemo \
+    system-config-printer system-config-printer-applet system-config-printer-udev \
     xorg-x11-server-Xwayland \
     xdg-desktop-portal xdg-desktop-portal-gtk \
     pipewire wireplumber \
@@ -46,8 +48,10 @@ RUN set -euxo pipefail; \
     /etc/environment.d \
     /etc/firewalld/zones \
     /etc/gdm \
+    /etc/polkit-1/rules.d \
     /etc/systemd/system/graphical.target.wants \
     /etc/systemd/system/multi-user.target.wants \
+    /etc/systemd/system/sockets.target.wants \
     /etc/systemd/system/sysinit.target.wants \
     /usr/libexec/infrastructure
 
@@ -58,6 +62,7 @@ COPY dconf-locks /etc/dconf/db/local.d/locks/cinnamon-lockdown
 COPY dconf-profile /etc/dconf/profile/user
 COPY flatpak-exports.conf /etc/environment.d/60-flatpak-exports.conf
 COPY gdm-custom.conf /etc/gdm/custom.conf
+COPY polkit-printers.rules /etc/polkit-1/rules.d/50-printer-access.rules
 COPY suricata-direct.xml /etc/firewalld/direct.xml
 
 RUN set -euxo pipefail; \
@@ -69,6 +74,7 @@ RUN set -euxo pipefail; \
   chmod 0644 /etc/firewalld/direct.xml; \
   chmod 0644 /etc/firewalld/zones/public.xml; \
   chmod 0644 /etc/gdm/custom.conf; \
+  chmod 0644 /etc/polkit-1/rules.d/50-printer-access.rules; \
   dconf update; \
   if [ -e /etc/environment ]; then \
     grep -qxF 'XDG_DATA_DIRS=/var/lib/flatpak/exports/share:/usr/local/share:/usr/share' /etc/environment || \
@@ -91,6 +97,12 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/display-manager.service; \
   ln -sf /usr/lib/systemd/system/graphical.target \
     /etc/systemd/system/default.target; \
+  ln -sf /usr/lib/systemd/system/avahi-daemon.service \
+    /etc/systemd/system/multi-user.target.wants/avahi-daemon.service; \
+  ln -sf /usr/lib/systemd/system/cups-browsed.service \
+    /etc/systemd/system/multi-user.target.wants/cups-browsed.service; \
+  ln -sf /usr/lib/systemd/system/ipp-usb.service \
+    /etc/systemd/system/multi-user.target.wants/ipp-usb.service; \
   ln -sf /usr/lib/systemd/system/firewalld.service \
     /etc/systemd/system/multi-user.target.wants/firewalld.service; \
   ln -sf /usr/lib/systemd/system/fapolicyd.service \
@@ -101,6 +113,8 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/graphical.target.wants/power-profiles-daemon.service; \
   ln -sf /usr/lib/systemd/system/upower.service \
     /etc/systemd/system/graphical.target.wants/upower.service; \
+  ln -sf /usr/lib/systemd/system/cups.socket \
+    /etc/systemd/system/sockets.target.wants/cups.socket; \
   ln -sf /usr/lib/systemd/system/plymouth-start.service \
     /etc/systemd/system/sysinit.target.wants/plymouth-start.service; \
   ln -sf /dev/null /etc/systemd/system/sshd.service; \
