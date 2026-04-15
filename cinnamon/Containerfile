@@ -57,6 +57,7 @@ RUN set -euxo pipefail; \
 
 COPY firewall.xml /etc/firewalld/zones/public.xml
 COPY fapolicyd-flatpak-sync /usr/libexec/infrastructure/fapolicyd-flatpak-sync
+COPY patch-cinnamon-ui.py /usr/libexec/infrastructure/patch-cinnamon-ui.py
 COPY dconf-lockdown.ini /etc/dconf/db/local.d/00-cinnamon-lockdown
 COPY dconf-locks /etc/dconf/db/local.d/locks/cinnamon-lockdown
 COPY dconf-profile /etc/dconf/profile/user
@@ -67,6 +68,7 @@ COPY suricata-direct.xml /etc/firewalld/direct.xml
 
 RUN set -euxo pipefail; \
   chmod 0755 /usr/libexec/infrastructure/fapolicyd-flatpak-sync; \
+  chmod 0755 /usr/libexec/infrastructure/patch-cinnamon-ui.py; \
   chmod 0644 /etc/dconf/db/local.d/00-cinnamon-lockdown; \
   chmod 0644 /etc/dconf/db/local.d/locks/cinnamon-lockdown; \
   chmod 0644 /etc/dconf/profile/user; \
@@ -84,9 +86,7 @@ RUN set -euxo pipefail; \
   rm -f /etc/resolv.conf; \
   ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf; \
   sed -i 's/tcp dport @allowed_tcp_dports accept/# &/' /etc/nftables/main.nft; \
-  sed -i '/^\[Desktop Entry\]/a Hidden=true' /usr/share/applications/cinnamon-settings-screensaver.desktop; \
-  sed -i '/^\[Desktop Entry\]/a Hidden=true' /usr/share/applications/cinnamon-settings-user.desktop; \
-  sed -i '/^\[Desktop Entry\]/a Hidden=true' /usr/share/applications/cinnamon-settings-users.desktop; \
+  /usr/libexec/infrastructure/patch-cinnamon-ui.py; \
   sed -i '/^\[Desktop Entry\]/a Hidden=true' /usr/share/xsessions/cinnamon.desktop; \
   sed -i '/^\[Desktop Entry\]/a Hidden=true' /usr/share/xsessions/cinnamon2d.desktop; \
   chmod 0644 /etc/lightdm/lightdm.conf.d/50-autologin.conf; \
