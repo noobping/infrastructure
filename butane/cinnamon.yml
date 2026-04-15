@@ -16,6 +16,7 @@ kernel_arguments:
 passwd:
   users:
     - name: opa
+      shell: /usr/bin/nologin
       uid: 1000
 
 storage:
