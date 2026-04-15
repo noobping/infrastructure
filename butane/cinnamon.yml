@@ -83,7 +83,21 @@ systemd:
         ExecStart=/usr/bin/flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
         ExecStart=/usr/bin/flatpak remote-add --system --if-not-exists fedora oci+https://registry.fedoraproject.org
         ExecStart=/usr/bin/flatpak install --system --noninteractive flathub \
-          org.mozilla.firefox
+          com.collaboraoffice.Office \
+          com.github.k4zmu2a.spacecadetpinball \
+          io.github.noobping.keycord \
+          io.gitlab.librewolf-community \
+          org.gnome.Calculator \
+          org.gnome.Decibels \
+          org.gnome.Fractal \
+          org.gnome.Loupe \
+          org.gnome.Mahjongg \
+          org.gnome.NetworkDisplays \
+          org.gnome.Papers \
+          org.gnome.Showtime \
+          org.gnome.SimpleScan \
+          org.gnome.Snapshot \
+          org.gnome.TextEditor
         ExecStart=/usr/bin/touch /var/lib/system-flatpaks.done
 
         [Install]
