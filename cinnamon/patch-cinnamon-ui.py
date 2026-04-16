@@ -17,13 +17,9 @@ OPTIONAL_DESKTOP_FILES = (
 
 REMOVE_PATHS = (
     "/usr/bin/cinnamon-menu-editor",
-    "/usr/bin/cinnamon-screensaver-command",
-    "/usr/bin/cinnamon-unlock-desktop",
     "/usr/share/cinnamon/cinnamon-settings/modules/cs_user.py",
     "/usr/share/cinnamon/cinnamon-settings-users",
     "/usr/bin/cinnamon-settings-users",
-    "/usr/share/applications/org.cinnamon.ScreenSaver.desktop",
-    "/usr/share/dbus-1/services/org.cinnamon.ScreenSaver.service",
 )
 
 LOCK_AND_LOGOUT = (
