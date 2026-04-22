@@ -39,11 +39,13 @@ RUN set -euxo pipefail; \
 COPY extensions.txt /etc/recommended/extensions
 COPY extensions.dconf /etc/recommended/settings.dconf
 COPY disable-appimages.sh /etc/profile.d/zz-desktop-hardening.sh
+COPY fapolicyd-gnome-extensions.rules /etc/fapolicyd/rules.d/29-gnome-user-extensions.rules
 COPY polkit-user-self-service.rules /etc/polkit-1/rules.d/40-user-self-service.rules
 
 RUN set -euxo pipefail; \
   rm -f /etc/cachefilesd.conf; \
   chmod 0644 /etc/profile.d/zz-desktop-hardening.sh; \
+  chmod 0644 /etc/fapolicyd/rules.d/29-gnome-user-extensions.rules; \
   chmod 0644 /etc/polkit-1/rules.d/40-user-self-service.rules; \
   touch /etc/recommended/disable-lock-and-suspend; \
   fapolicyd-cli --check-config; \
