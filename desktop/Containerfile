@@ -31,21 +31,32 @@ RUN set -euxo pipefail; \
   rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
   ostree container commit
 
+RUN set -euxo pipefail; \
+  rpm-ostree install -y rclone; \
+  rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
+  ostree container commit
+
+RUN set -euxo pipefail; mkdir -p /etc/rclone
+
+COPY rclone.conf /etc/rclone/rclone.conf.example
 COPY extensions.txt /etc/recommended/extensions
 COPY extensions.dconf /etc/recommended/settings.dconf
 COPY disable-appimages.sh /etc/profile.d/zz-desktop-hardening.sh
 
 RUN set -euxo pipefail; \
-    chmod 0644 /etc/profile.d/zz-desktop-hardening.sh; \
-    echo "${REBASE_IMAGE_BASE}workstation:latest" > /etc/recommended/base; \
-    ln -sf /usr/lib/systemd/system/fapolicyd.service \
-        /etc/systemd/system/multi-user.target.wants/fapolicyd.service; \
-    ln -sf /etc/systemd/system/fapolicyd-flatpak-sync.path \
-        /etc/systemd/system/multi-user.target.wants/fapolicyd-flatpak-sync.path; \
-    ln -sf /etc/systemd/system/fapolicyd-flatpak-sync.timer \
-        /etc/systemd/system/timers.target.wants/fapolicyd-flatpak-sync.timer; \
-    rm -f /etc/systemd/system/multi-user.target.wants/cachefilesd.service; \
-    rm -f /etc/systemd/system/multi-user.target.wants/libvirtd.service; \
-    rm -f /etc/systemd/system/multi-user.target.wants/virtlockd.service; \
-    rm -f /etc/systemd/system/multi-user.target.wants/virtlogd.service; \
-    ostree container commit
+  rm -f /etc/cachefilesd.conf; \
+  chmod 0700 /etc/rclone; \
+  chmod 0600 /etc/rclone/rclone.conf.example; \
+  chmod 0644 /etc/profile.d/zz-desktop-hardening.sh; \
+  echo "${REBASE_IMAGE_BASE}workstation:latest" > /etc/recommended/base; \
+  ln -sf /usr/lib/systemd/system/fapolicyd.service \
+      /etc/systemd/system/multi-user.target.wants/fapolicyd.service; \
+  ln -sf /etc/systemd/system/fapolicyd-flatpak-sync.path \
+      /etc/systemd/system/multi-user.target.wants/fapolicyd-flatpak-sync.path; \
+  ln -sf /etc/systemd/system/fapolicyd-flatpak-sync.timer \
+      /etc/systemd/system/timers.target.wants/fapolicyd-flatpak-sync.timer; \
+  rm -f /etc/systemd/system/multi-user.target.wants/cachefilesd.service; \
+  rm -f /etc/systemd/system/multi-user.target.wants/libvirtd.service; \
+  rm -f /etc/systemd/system/multi-user.target.wants/virtlockd.service; \
+  rm -f /etc/systemd/system/multi-user.target.wants/virtlogd.service; \
+  ostree container commit
