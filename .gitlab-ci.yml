@@ -244,6 +244,7 @@ variables:
       }
 
       ensure_package podman
+      ensure_package xorriso
 
       ARCH="$(uname -m)"
       PROFILE_FILE="butane/${PROFILE}.yml"
@@ -283,8 +284,15 @@ variables:
         quay.io/coreos/coreos-installer:release \
         download -s stable -a "${ARCH}" -p metal -f iso -C /work --decompress
 
+      mkdir -p bootc
+      podman pull "ghcr.io/noobping/${PROFILE}:latest"
+      podman save --format oci-archive \
+        -o "bootc/${PROFILE}.ociarchive" \
+        "ghcr.io/noobping/${PROFILE}:latest"
+
       BASE_ISO="$(ls -1 fedora-coreos-*-live-iso."${ARCH}".iso | tail -n1)"
       OUT_ISO="${PROFILE}-${ARCH}.iso"
+      TMP_ISO="${OUT_ISO}.tmp"
 
       podman run --rm \
         -v "${CI_PROJECT_DIR}:/work" \
@@ -294,8 +302,18 @@ variables:
           --live-ignition setup.ign \
           --dest-ignition "${PROFILE}.ign" \
           --pre-install butane/detect-device.sh \
+          --post-install butane/cache-bootc-image.sh \
           -o "${OUT_ISO}" \
           "${BASE_ISO}"
+
+      xorriso \
+        -indev "${OUT_ISO}" \
+        -outdev "${TMP_ISO}" \
+        -map "bootc/${PROFILE}.ociarchive" "/bootc/${PROFILE}.ociarchive" \
+        -boot_image any replay \
+        -compliance no_emul_toc \
+        -padding included
+      mv "${TMP_ISO}" "${OUT_ISO}"
 
       sha256sum "${OUT_ISO}" > "${OUT_ISO}.sha256"
   artifacts:

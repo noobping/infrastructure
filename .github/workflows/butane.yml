@@ -36,16 +36,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
       - uses: mikefarah/yq@v4.45.1
 
       - name: Install Podman
         run: |
           set -euxo pipefail
-          if ! command -v podman >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y podman
-          fi
+          sudo apt-get update
+          sudo apt-get install -y podman xorriso
           podman --version
+          xorriso -version
 
       - name: Merge butane files
         run: |
@@ -56,7 +57,7 @@ jobs:
       - name: Build ignition files
         run: |
           set -euxo pipefail
-          # setup.ign needs --files-dir .
+
           podman run --rm \
             -v "$PWD:/work:Z" -w /work \
             quay.io/coreos/butane:release \
@@ -78,12 +79,26 @@ jobs:
             quay.io/coreos/coreos-installer:release \
             download -s stable -a "$arch" -p metal -f iso -C /work --decompress
 
+      - name: Export bootc image
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euxo pipefail
+          profile="${{ matrix.profile }}"
+          image_ref="ghcr.io/noobping/${profile}:latest"
+
+          mkdir -p bootc
+          echo "$GITHUB_TOKEN" | podman login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          podman pull "$image_ref"
+          podman save --format oci-archive -o "bootc/${profile}.ociarchive" "$image_ref"
+
       - name: Build artifacts
         run: |
           set -euxo pipefail
           arch="$(uname -m)"
           base_iso="$(ls -1 fedora-coreos-*-live-iso."$arch".iso | tail -n1)"
           out_iso="${{ matrix.profile }}-${arch}.iso"
+          tmp_iso="${out_iso}.tmp"
 
           podman run --rm \
             --userns=keep-id \
@@ -94,8 +109,18 @@ jobs:
               --live-ignition setup.ign \
               --dest-ignition ${{ matrix.profile }}.ign \
               --pre-install butane/detect-device.sh \
+              --post-install butane/cache-bootc-image.sh \
               -o "$out_iso" \
               "$base_iso"
+
+          xorriso \
+            -indev "$out_iso" \
+            -outdev "$tmp_iso" \
+            -map "bootc/${{ matrix.profile }}.ociarchive" "/bootc/${{ matrix.profile }}.ociarchive" \
+            -boot_image any replay \
+            -compliance no_emul_toc \
+            -padding included
+          mv "$tmp_iso" "$out_iso"
 
           sha256sum "$out_iso" | tee "${out_iso}.sha256"
 

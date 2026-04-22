@@ -20,6 +20,12 @@ storage:
         inline: |
           include "/etc/nftables/main.nft"
 
+    - path: /usr/local/sbin/rebase-to-bootc
+      mode: 0755
+      overwrite: true
+      contents:
+        local: ./butane/rebase-to-bootc
+
 systemd:
   units:
     - name: nftables.service
