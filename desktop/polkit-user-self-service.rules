@@ -1,0 +1,26 @@
+polkit.addRule(function(action, subject) {
+  if (!(subject.local && subject.active)) {
+    return polkit.Result.NOT_HANDLED;
+  }
+
+  var deniedAccountAdmin = [
+    "org.freedesktop.accounts.set-login-option",
+    "org.freedesktop.accounts.user-administration",
+    "org.gnome.controlcenter.user-accounts.administration"
+  ];
+
+  if (deniedAccountAdmin.indexOf(action.id) >= 0) {
+    return polkit.Result.NO;
+  }
+
+  var allowedSelfService = [
+    "org.freedesktop.accounts.change-own-password",
+    "org.freedesktop.accounts.change-own-user-data"
+  ];
+
+  if (allowedSelfService.indexOf(action.id) >= 0) {
+    return polkit.Result.YES;
+  }
+
+  return polkit.Result.NOT_HANDLED;
+});
