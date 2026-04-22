@@ -116,7 +116,7 @@ COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY profile.conf /var/lib/AccountsService/default
 COPY profile.png /usr/share/pixmaps/faces/noobping.png
 COPY recommended.desktop /etc/xdg/autostart/
-# COPY recommended.desktop /usr/share/applications/
+COPY recommended.desktop /usr/share/applications/
 COPY recommended.sh /usr/bin/recommended
 COPY skel /etc/skel
 
