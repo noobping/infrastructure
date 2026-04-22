@@ -1,0 +1,4 @@
+# GNOME Shell extensions are JavaScript loaded by GNOME Shell from the user's
+# extension directory. Keep the exception scoped to the shell process.
+allow perm=open exe=/usr/bin/gnome-shell : dir=/home/
+allow perm=open exe=/usr/bin/gnome-shell : dir=/var/home/
