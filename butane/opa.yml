@@ -53,7 +53,7 @@ storage:
       overwrite: true
       contents:
         inline: |
-          pc
+          computer
 
 systemd:
   units:

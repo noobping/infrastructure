@@ -5,31 +5,32 @@ ARG REBASE_IMAGE_BASE=ostree-image-signed:docker://ghcr.io/noobping/
 
 RUN set -euxo pipefail; \
   rpm-ostree override remove \
+    aemu libvirt qemu-kvm virglrenderer \
+    cachefilesd NetworkManager-openvpn nut \
     fuse fuse-libs \
     gnome-disk-utility gnome-menus \
-    seahorse-nautilus \
+    seahorse-nautilus nautilus-python python3-pygit2 \
     toolbox ptyxis \
     yubikey-manager; \
-  rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
-  ostree container commit
-
-RUN set -euxo pipefail; \
-  rpm-ostree install -y \
-    fapolicyd fapolicyd-selinux; \
   rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
   ostree container commit
 
 COPY firewall.xml /etc/firewalld/zones/public.xml
 COPY extensions.txt /etc/recommended/extensions
 COPY extensions.dconf /etc/recommended/settings.dconf
-RUN echo "${REBASE_IMAGE_BASE}workstation:latest" > /etc/recommended/base; \
-    ostree container commit
+COPY disable-appimages.sh /etc/profile.d/zz-desktop-hardening.sh
 
 RUN set -euxo pipefail; \
+    chmod 0644 /etc/profile.d/zz-desktop-hardening.sh; \
+    echo "${REBASE_IMAGE_BASE}workstation:latest" > /etc/recommended/base; \
     ln -sf /usr/lib/systemd/system/fapolicyd.service \
         /etc/systemd/system/multi-user.target.wants/fapolicyd.service; \
     ln -sf /etc/systemd/system/fapolicyd-flatpak-sync.path \
         /etc/systemd/system/multi-user.target.wants/fapolicyd-flatpak-sync.path; \
     ln -sf /etc/systemd/system/fapolicyd-flatpak-sync.timer \
         /etc/systemd/system/timers.target.wants/fapolicyd-flatpak-sync.timer; \
+    rm -f /etc/systemd/system/multi-user.target.wants/cachefilesd.service; \
+    rm -f /etc/systemd/system/multi-user.target.wants/libvirtd.service; \
+    rm -f /etc/systemd/system/multi-user.target.wants/virtlockd.service; \
+    rm -f /etc/systemd/system/multi-user.target.wants/virtlogd.service; \
     ostree container commit

@@ -26,6 +26,7 @@ RUN set -euxo pipefail; \
   rpm-ostree install -y \
     cachefilesd \
     NetworkManager-wifi NetworkManager-bluetooth NetworkManager-openvpn firewalld \
+    fapolicyd fapolicyd-selinux \
     accountsservice \
     aemu libvirt qemu-kvm android-tools \
     gssproxy \

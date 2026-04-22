@@ -8,6 +8,11 @@ fi
 exec 9>/run/fapolicyd-flatpak-sync.lock
 flock -n 9 || exit 0
 
+if ! systemctl is-enabled --quiet fapolicyd.service && \
+   ! systemctl is-active --quiet fapolicyd.service; then
+  exit 0
+fi
+
 synced=0
 for flatpak_root in /var/lib/flatpak/app /var/lib/flatpak/runtime; do
   [ -d "$flatpak_root" ] || continue
