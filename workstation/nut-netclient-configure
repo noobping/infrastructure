@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CONFIG=/etc/ups/netclient.env
+
+[ -r "$CONFIG" ] || exit 0
+
+# shellcheck disable=SC1090
+. "$CONFIG"
+
+: "${NUT_UPS_HOST:?missing NUT_UPS_HOST in $CONFIG}"
+: "${NUT_UPS_NAME:=UPS}"
+: "${NUT_UPS_PORT:=3493}"
+: "${NUT_MONITOR_USER:?missing NUT_MONITOR_USER in $CONFIG}"
+: "${NUT_MONITOR_PASSWORD:?missing NUT_MONITOR_PASSWORD in $CONFIG}"
+: "${NUT_POWER_VALUE:=1}"
+: "${NUT_ROLE:=secondary}"
+: "${NUT_SHUTDOWNCMD:=/usr/sbin/shutdown -h +0}"
+
+install -d -m 0750 -o root -g nut /etc/ups
+
+cat > /etc/ups/nut.conf <<EOF
+MODE=netclient
+EOF
+
+cat > /etc/ups/upsmon.conf <<EOF
+MONITOR ${NUT_UPS_NAME}@${NUT_UPS_HOST}:${NUT_UPS_PORT} ${NUT_POWER_VALUE} ${NUT_MONITOR_USER} ${NUT_MONITOR_PASSWORD} ${NUT_ROLE}
+MINSUPPLIES 1
+SHUTDOWNCMD "${NUT_SHUTDOWNCMD}"
+POLLFREQ 5
+POLLFREQALERT 5
+HOSTSYNC 15
+DEADTIME 15
+POWERDOWNFLAG /run/nut/killpower
+RBWARNTIME 43200
+NOCOMMWARNTIME 300
+FINALDELAY 5
+EOF
+
+chown root:nut /etc/ups/nut.conf /etc/ups/upsmon.conf
+chmod 0640 /etc/ups/nut.conf /etc/ups/upsmon.conf
+
+if systemctl list-unit-files nut-monitor.service >/dev/null 2>&1; then
+  systemctl restart nut-monitor.service
+elif systemctl list-unit-files nut.target >/dev/null 2>&1; then
+  systemctl restart nut.target
+fi

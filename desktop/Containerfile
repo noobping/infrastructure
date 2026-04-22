@@ -6,7 +6,7 @@ ARG REBASE_IMAGE_BASE=ostree-image-signed:docker://ghcr.io/noobping/
 RUN set -euxo pipefail; \
   rpm-ostree override remove \
     aemu libvirt qemu-kvm virglrenderer \
-    cachefilesd NetworkManager-openvpn nut \
+    cachefilesd NetworkManager-openvpn \
     fuse fuse-libs \
     gnome-disk-utility gnome-menus \
     seahorse-nautilus nautilus-python python3-pygit2 \

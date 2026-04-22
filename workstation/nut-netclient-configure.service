@@ -1,0 +1,13 @@
+[Unit]
+Description=Configure NUT as a network UPS client
+Documentation=man:upsmon.conf(5) man:nut.conf(5)
+ConditionPathExists=/etc/ups/netclient.env
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/infrastructure/nut-netclient-configure
+
+[Install]
+WantedBy=multi-user.target

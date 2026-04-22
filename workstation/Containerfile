@@ -79,6 +79,7 @@ RUN set -euxo pipefail; \
     /etc/polkit-1/rules.d \
     /etc/recommended \
     /etc/sysconfig \
+    /etc/ups \
     /etc/systemd/system/graphical.target.wants \
     /etc/systemd/system/multi-user.target.wants \
     /etc/systemd/system/sockets.target.wants \
@@ -107,6 +108,9 @@ COPY fapolicyd-flatpak-sync.timer /etc/systemd/system/fapolicyd-flatpak-sync.tim
 COPY firewall.xml /etc/firewalld/zones/public.xml
 COPY suricata-direct.xml /etc/firewalld/direct.xml
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
+COPY nut-netclient-configure /usr/libexec/infrastructure/nut-netclient-configure
+COPY nut-netclient-configure.service /etc/systemd/system/nut-netclient-configure.service
+COPY nut-netclient.env.example /etc/ups/netclient.env.example
 COPY polkit-printers.rules /etc/polkit-1/rules.d/50-printer-access.rules
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY profile.conf /var/lib/AccountsService/default
@@ -126,6 +130,7 @@ RUN set -euxo pipefail; \
   chmod +x /usr/bin/alternative; \
   chmod +x /usr/libexec/infrastructure/alternative-root; \
   chmod +x /usr/libexec/infrastructure/fapolicyd-flatpak-sync; \
+  chmod +x /usr/libexec/infrastructure/nut-netclient-configure; \
 
   # chmod 0600 /etc/NetworkManager/system-connections/*.nmconnection; \
   chmod 0644 /etc/firewalld/direct.xml; \
@@ -156,6 +161,8 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/multi-user.target.wants/cachefilesd.service; \
   ln -sf /usr/lib/systemd/system/firewalld.service \
     /etc/systemd/system/multi-user.target.wants/firewalld.service; \
+  ln -sf /etc/systemd/system/nut-netclient-configure.service \
+    /etc/systemd/system/multi-user.target.wants/nut-netclient-configure.service; \
   ln -sf /usr/lib/systemd/system/avahi-daemon.service \
     /etc/systemd/system/multi-user.target.wants/avahi-daemon.service; \
   ln -sf /usr/lib/systemd/system/cups-browsed.service \
