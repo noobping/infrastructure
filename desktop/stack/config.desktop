@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Configure TransIP STACK
+Comment=Set up STACK credentials for rclone
+Exec=/usr/bin/stack-config-ui
+Icon=folder-remote
+Terminal=false
+Categories=Settings;Utility;
+StartupNotify=true
