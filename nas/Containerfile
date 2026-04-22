@@ -37,7 +37,6 @@ RUN rpm-ostree install -y \
 COPY todo.sh /usr/bin/todo
 COPY caddy.conf /etc/caddy.conf
 COPY containers /etc/containers/systemd
-COPY fstab.txt /etc/fstab
 COPY freeipa-bootstrap-radius /usr/libexec/infrastructure/freeipa-bootstrap-radius
 COPY freeipa-bootstrap-radius.service /etc/systemd/system/freeipa-bootstrap-radius.service
 COPY freeipa-prepare /usr/libexec/infrastructure/freeipa-prepare
