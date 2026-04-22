@@ -32,31 +32,21 @@ RUN set -euxo pipefail; \
   ostree container commit
 
 RUN set -euxo pipefail; \
-  rpm-ostree install -y rclone zenity; \
+  rpm-ostree install -y rclone; \
   rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
   ostree container commit
 
 RUN set -euxo pipefail; mkdir -p /etc/rclone
 
-COPY disable-appimages.sh /etc/profile.d/zz-desktop-hardening.sh
-COPY extensions.dconf /etc/recommended/settings.dconf
+COPY rclone.conf /etc/rclone/rclone.conf.example
 COPY extensions.txt /etc/recommended/extensions
-COPY fapolicyd-gnome-extensions.rules /etc/fapolicyd/rules.d/29-gnome-user-extensions.rules
-COPY stack/config.desktop /usr/share/applications/stack-config.desktop
-COPY stack/config.sh /usr/bin/stack-config-ui
-COPY stack/helper.sh /usr/libexec/stack-config-helper
-COPY stack/policy.xml /usr/share/polkit-1/actions/io.github.noobping.stack-config.policy
-COPY stack/rclone.conf /etc/rclone/rclone.conf.example
+COPY extensions.dconf /etc/recommended/settings.dconf
+COPY disable-appimages.sh /etc/profile.d/zz-desktop-hardening.sh
 
 RUN set -euxo pipefail; \
   rm -f /etc/cachefilesd.conf; \
   chmod 0700 /etc/rclone; \
   chmod 0600 /etc/rclone/rclone.conf.example; \
-  chmod 0755 /usr/bin/stack-config-ui; \
-  chmod 0755 /usr/libexec/stack-config-helper; \
-  chmod 0644 /etc/fapolicyd/rules.d/29-gnome-user-extensions.rules; \
-  chmod 0644 /usr/share/polkit-1/actions/io.github.noobping.stack-config.policy; \
-  chmod 0644 /usr/share/applications/stack-config.desktop; \
   chmod 0644 /etc/profile.d/zz-desktop-hardening.sh; \
   touch /etc/recommended/disable-lock-and-suspend; \
   fapolicyd-cli --check-config; \
