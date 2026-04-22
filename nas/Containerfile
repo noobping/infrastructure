@@ -65,30 +65,6 @@ COPY uptime/bootstrap.service /etc/systemd/system/uptime-kuma-bootstrap.service
 RUN set -euxo pipefail; \
   chmod -R 0600 /etc/nftables/rules; \
   find /etc/containers/systemd -type f -name '*.container' -exec chmod 0644 '{}' ';'; \
-  find /usr/share/infrastructure/uptime-kuma -type d -exec chmod 0755 '{}' ';'; \
-  find /usr/share/infrastructure/uptime-kuma -type f -exec chmod 0644 '{}' ';'; \
-  find /usr/share/infrastructure/freeradius -type d -exec chmod 0755 '{}' ';'; \
-  find /usr/share/infrastructure/freeradius -type f -exec chmod 0644 '{}' ';'; \
-  chmod 0755 /usr/libexec/infrastructure/freeipa-bootstrap-radius; \
-  chmod 0755 /usr/libexec/infrastructure/freeipa-prepare; \
-  chmod 0755 /usr/libexec/infrastructure/freeradius-prepare; \
-  chmod 0755 /usr/libexec/infrastructure/gitlab-runner-register; \
-  chmod 0755 /usr/libexec/infrastructure/nut-configure; \
-  chmod 0755 /usr/libexec/infrastructure/uptime-kuma-bootstrap; \
-  chmod 0644 /usr/libexec/infrastructure/uptime-kuma-bootstrap.js; \
-  chmod 0755 /usr/libexec/infrastructure/gssproxy-prepare; \
-  chmod 0755 /usr/libexec/infrastructure/suricata-sync-rules; \
-  chmod 0644 /etc/systemd/system/freeipa-bootstrap-radius.service; \
-  chmod 0644 /etc/systemd/system/freeipa-prepare.service; \
-  chmod 0644 /etc/systemd/system/freeradius-prepare.service; \
-  chmod 0644 /etc/systemd/system/gitlab-runner-register.service; \
-  chmod 0644 /etc/systemd/system/nut-configure.service; \
-  chmod 0644 /etc/systemd/system/uptime-kuma-bootstrap.service; \
-  chmod 0644 /etc/ups/nut.env.example; \
-  chmod 0644 /etc/systemd/system/gssproxy-prepare.service; \
-  chmod 0644 /etc/systemd/system/gssproxy.service.d/10-infrastructure.conf; \
-  chmod 0644 /usr/share/gitlab-runner/register.template.toml; \
-  chmod 0600 /etc/nftables/suricata.nft; \
   awk '/set allowed_tcp_dports[[:space:]]*\{/{flag=1} flag{print} /^\t*\}/{if(flag){exit}}' /etc/nftables/main.nft \
   | grep -q '\<http\>' \
   || sed -i '/set allowed_tcp_dports[[:space:]]*{/,/}/{/elements = {/ s/}/, http, https}/;}' /etc/nftables/main.nft; \
