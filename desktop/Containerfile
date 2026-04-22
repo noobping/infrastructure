@@ -5,7 +5,11 @@ ARG REBASE_IMAGE_BASE=ostree-image-signed:docker://ghcr.io/noobping/
 
 RUN set -euxo pipefail; \
   rpm-ostree override remove \
-    aemu libvirt libvirt-daemon-driver-lxc qemu-kvm qemu-device-display-virtio-gpu-gl virglrenderer \
+    aemu libvirt libvirt-daemon-driver-lxc \
+    qemu-kvm qemu-system-x86 \
+    qemu-device-display-virtio-gpu-gl qemu-device-display-virtio-gpu-pci-gl \
+    qemu-device-display-vhost-user-gpu \
+    virglrenderer \
     cachefilesd NetworkManager-openvpn \
     fuse fuse-libs \
     gnome-disk-utility gnome-menus \
