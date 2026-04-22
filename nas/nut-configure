@@ -1,0 +1,139 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CONFIG=/etc/ups/nut.env
+
+[ -r "$CONFIG" ] || exit 0
+
+# shellcheck disable=SC1090
+. "$CONFIG"
+
+: "${NUT_MODE:?missing NUT_MODE in $CONFIG}"
+: "${NUT_UPS_NAME:=UPS}"
+: "${NUT_UPS_PORT:=3493}"
+: "${NUT_POWER_VALUE:=1}"
+: "${NUT_SHUTDOWNCMD:=/usr/sbin/shutdown -h +0}"
+
+install -d -m 0750 -o root -g nut /etc/ups
+
+write_common_upsmon() {
+  cat >> /etc/ups/upsmon.conf <<EOF
+MINSUPPLIES 1
+SHUTDOWNCMD "${NUT_SHUTDOWNCMD}"
+POLLFREQ 5
+POLLFREQALERT 5
+HOSTSYNC 15
+DEADTIME 15
+POWERDOWNFLAG /run/nut/killpower
+RBWARNTIME 43200
+NOCOMMWARNTIME 300
+FINALDELAY 5
+EOF
+}
+
+case "$NUT_MODE" in
+  netclient)
+    : "${NUT_UPS_HOST:?missing NUT_UPS_HOST in $CONFIG}"
+    : "${NUT_MONITOR_USER:?missing NUT_MONITOR_USER in $CONFIG}"
+    : "${NUT_MONITOR_PASSWORD:?missing NUT_MONITOR_PASSWORD in $CONFIG}"
+    : "${NUT_ROLE:=secondary}"
+
+    printf '%s\n' 'MODE=netclient' > /etc/ups/nut.conf
+    cat > /etc/ups/upsmon.conf <<EOF
+MONITOR ${NUT_UPS_NAME}@${NUT_UPS_HOST}:${NUT_UPS_PORT} ${NUT_POWER_VALUE} ${NUT_MONITOR_USER} ${NUT_MONITOR_PASSWORD} ${NUT_ROLE}
+EOF
+    write_common_upsmon
+    ;;
+
+  standalone|netserver)
+    : "${NUT_DRIVER:=usbhid-ups}"
+    : "${NUT_DEVICE_PORT:=auto}"
+    : "${NUT_MONITOR_USER:?missing NUT_MONITOR_USER in $CONFIG}"
+    : "${NUT_MONITOR_PASSWORD:?missing NUT_MONITOR_PASSWORD in $CONFIG}"
+    : "${NUT_ROLE:=primary}"
+    : "${NUT_UPS_DESCRIPTION:=Local USB UPS}"
+
+    printf 'MODE=%s\n' "$NUT_MODE" > /etc/ups/nut.conf
+    cat > /etc/ups/ups.conf <<EOF
+[${NUT_UPS_NAME}]
+  driver = ${NUT_DRIVER}
+  port = ${NUT_DEVICE_PORT}
+  desc = "${NUT_UPS_DESCRIPTION}"
+EOF
+
+    if [ "$NUT_MODE" = "netserver" ]; then
+      cat > /etc/ups/upsd.conf <<EOF
+LISTEN 127.0.0.1 ${NUT_UPS_PORT}
+LISTEN 0.0.0.0 ${NUT_UPS_PORT}
+EOF
+    else
+      cat > /etc/ups/upsd.conf <<EOF
+LISTEN 127.0.0.1 ${NUT_UPS_PORT}
+EOF
+    fi
+
+    cat > /etc/ups/upsd.users <<EOF
+[${NUT_MONITOR_USER}]
+  password = ${NUT_MONITOR_PASSWORD}
+  upsmon ${NUT_ROLE}
+EOF
+
+    if [ "$NUT_MODE" = "netserver" ] && \
+       [ -n "${NUT_REMOTE_MONITOR_USER:-}" ] && \
+       [ -n "${NUT_REMOTE_MONITOR_PASSWORD:-}" ]; then
+      cat >> /etc/ups/upsd.users <<EOF
+
+[${NUT_REMOTE_MONITOR_USER}]
+  password = ${NUT_REMOTE_MONITOR_PASSWORD}
+  upsmon secondary
+EOF
+    fi
+
+    cat > /etc/ups/upsmon.conf <<EOF
+MONITOR ${NUT_UPS_NAME}@localhost:${NUT_UPS_PORT} ${NUT_POWER_VALUE} ${NUT_MONITOR_USER} ${NUT_MONITOR_PASSWORD} ${NUT_ROLE}
+EOF
+    write_common_upsmon
+    ;;
+
+  *)
+    printf 'Unsupported NUT_MODE=%s\n' "$NUT_MODE" >&2
+    exit 1
+    ;;
+esac
+
+chown root:nut /etc/ups/nut.conf /etc/ups/upsmon.conf
+chmod 0640 /etc/ups/nut.conf /etc/ups/upsmon.conf
+
+for file in /etc/ups/ups.conf /etc/ups/upsd.conf /etc/ups/upsd.users; do
+  [ -e "$file" ] || continue
+  chown root:nut "$file"
+  chmod 0640 "$file"
+done
+
+unit_exists() {
+  systemctl list-unit-files "$1" --no-legend 2>/dev/null | grep -q .
+}
+
+enable_restart() {
+  local unit=$1
+
+  unit_exists "$unit" || return 0
+  systemctl enable "$unit" >/dev/null
+  systemctl restart "$unit"
+}
+
+if [ "$NUT_MODE" = "netclient" ]; then
+  if unit_exists nut-monitor.service; then
+    enable_restart nut-monitor.service
+  else
+    enable_restart nut.target
+  fi
+else
+  if command -v upsdrvsvcctl >/dev/null 2>&1; then
+    upsdrvsvcctl reconfigure
+  fi
+  enable_restart nut.target
+  enable_restart nut-driver-enumerator.service
+  enable_restart nut-server.service
+  enable_restart nut-monitor.service
+fi

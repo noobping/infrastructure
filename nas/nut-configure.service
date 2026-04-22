@@ -1,0 +1,13 @@
+[Unit]
+Description=Configure Network UPS Tools
+Documentation=man:nut.conf(5) man:ups.conf(5) man:upsmon.conf(5)
+ConditionPathExists=/etc/ups/nut.env
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/infrastructure/nut-configure
+
+[Install]
+WantedBy=multi-user.target
