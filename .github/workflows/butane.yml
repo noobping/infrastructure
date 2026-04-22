@@ -106,6 +106,7 @@ jobs:
           path: |
             ${{ matrix.profile }}-*.iso
             ${{ matrix.profile }}-*.iso.sha256
+            ${{ matrix.profile }}.ign
             setup.ign
 
       - name: Release artifacts
