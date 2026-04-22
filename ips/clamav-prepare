@@ -1,0 +1,34 @@
+#!/bin/sh
+set -eu
+
+install -d -o clamupdate -g virusgroup -m 0755 /var/lib/clamav
+install -d -o clamupdate -g virusgroup -m 0775 /var/log/clamav
+install -d -o clamscan -g virusgroup -m 0755 /run/clamd.scan
+
+install -d -m 0755 \
+  /run/media \
+  /var/home \
+  /var/mnt \
+  /var/opt \
+  /var/srv \
+  /var/usrlocal
+install -d -m 0700 /var/roothome
+install -d -m 1777 /tmp /var/tmp
+
+if [ -d /usr/share/clamav ]; then
+  for database in /usr/share/clamav/*; do
+    [ -e "$database" ] || continue
+    target="/var/lib/clamav/$(basename "$database")"
+    [ -e "$target" ] || cp -a "$database" "$target"
+  done
+fi
+
+chown -R clamupdate:virusgroup /var/lib/clamav /var/log/clamav
+chmod 0755 /var/lib/clamav
+chmod 0775 /var/log/clamav
+find /var/lib/clamav -type f -exec chmod 0644 '{}' ';'
+find /var/log/clamav -type f -exec chmod 0664 '{}' ';'
+
+if command -v restorecon >/dev/null 2>&1; then
+  restorecon -RF /var/lib/clamav /var/log/clamav /run/clamd.scan || true
+fi

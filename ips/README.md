@@ -1,5 +1,9 @@
 # IPS
 
+The image enables Suricata inline filtering and ClamAV on-access scanning.
+ClamAV watches mutable data locations, updates signatures with `freshclam`,
+and removes infected files directly instead of quarantining them.
+
 Build the operating system:
 
 ```sh

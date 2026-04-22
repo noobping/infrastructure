@@ -6,17 +6,30 @@ LABEL org.opencontainers.image.description="Nick's inline IPS base image"
 
 RUN set -euxo pipefail; \
   rpm-ostree install -y \
+    clamav clamav-data clamd clamav-freshclam \
     suricata; \
   rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
   mkdir -p \
+    /etc/sysctl.d \
+    /etc/systemd/system/clamav-freshclam.service.d \
+    /etc/systemd/system/clamd@scan.service.d \
     /etc/systemd/system/multi-user.target.wants \
     /etc/systemd/system/timers.target.wants \
     /etc/systemd/system/gssproxy.service.d \
     /etc/systemd/system/suricata.service.d \
+    /usr/share/clamav \
     /usr/share/suricata \
     /usr/libexec/infrastructure; \
   ostree container commit
 
+COPY clamav-clamonacc.service /etc/systemd/system/clamav-clamonacc.service
+COPY clamav-freshclam.service.d/10-prepare.conf /etc/systemd/system/clamav-freshclam.service.d/10-prepare.conf
+COPY clamav-inotify.conf /etc/sysctl.d/90-clamav-inotify.conf
+COPY clamav-prepare.service /etc/systemd/system/clamav-prepare.service
+COPY clamav-prepare /usr/libexec/infrastructure/clamav-prepare
+COPY clamd.scan.conf /etc/clamd.d/scan.conf
+COPY clamd@scan.service.d/10-prepare.conf /etc/systemd/system/clamd@scan.service.d/10-prepare.conf
+COPY freshclam.conf /etc/freshclam.conf
 COPY gssproxy-prepare.service /etc/systemd/system/gssproxy-prepare.service
 COPY gssproxy-prepare /usr/libexec/infrastructure/gssproxy-prepare
 COPY gssproxy.service.d/10-infrastructure.conf /etc/systemd/system/gssproxy.service.d/10-infrastructure.conf
@@ -29,9 +42,23 @@ COPY suricata-update.timer /etc/systemd/system/suricata-update.timer
 COPY suricata.service.d/10-inline.conf /etc/systemd/system/suricata.service.d/10-inline.conf
 
 RUN set -euxo pipefail; \
+  chmod 0755 /usr/libexec/infrastructure/clamav-prepare; \
   chmod 0755 /usr/libexec/infrastructure/gssproxy-prepare; \
   chmod 0755 /usr/libexec/infrastructure/suricata-prepare; \
   chmod 0755 /usr/libexec/infrastructure/suricata-sync-rules; \
+  chmod 0644 \
+    /etc/clamd.d/scan.conf \
+    /etc/freshclam.conf \
+    /etc/sysctl.d/90-clamav-inotify.conf \
+    /etc/systemd/system/clamav-clamonacc.service \
+    /etc/systemd/system/clamav-freshclam.service.d/10-prepare.conf \
+    /etc/systemd/system/clamav-prepare.service \
+    /etc/systemd/system/clamd@scan.service.d/10-prepare.conf; \
+  install -d -o clamupdate -g virusgroup -m 0755 /var/lib/clamav; \
+  install -d -o clamupdate -g virusgroup -m 0775 /var/log/clamav; \
+  cp -a /var/lib/clamav/. /usr/share/clamav/; \
+  chown -R root:root /usr/share/clamav; \
+  /usr/libexec/infrastructure/clamav-prepare; \
   install -d -o suricata -g suricata -m 0750 /var/lib/suricata /var/log/suricata; \
   /usr/libexec/infrastructure/suricata-sync-rules; \
   mv /var/lib/suricata/rules /usr/share/suricata/rules; \
@@ -43,6 +70,14 @@ RUN set -euxo pipefail; \
   else \
     printf '%s\n' 'OPTIONS="-q 0"' >> /etc/sysconfig/suricata; \
   fi; \
+  ln -sf /etc/systemd/system/clamav-prepare.service \
+    /etc/systemd/system/multi-user.target.wants/clamav-prepare.service; \
+  ln -sf /usr/lib/systemd/system/clamav-freshclam.service \
+    /etc/systemd/system/multi-user.target.wants/clamav-freshclam.service; \
+  ln -sf /usr/lib/systemd/system/clamd@.service \
+    /etc/systemd/system/multi-user.target.wants/clamd@scan.service; \
+  ln -sf /etc/systemd/system/clamav-clamonacc.service \
+    /etc/systemd/system/multi-user.target.wants/clamav-clamonacc.service; \
   ln -sf /usr/lib/systemd/system/suricata.service \
     /etc/systemd/system/multi-user.target.wants/suricata.service; \
   ln -sf /etc/systemd/system/suricata-update.timer \

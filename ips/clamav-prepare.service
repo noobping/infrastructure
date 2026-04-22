@@ -1,0 +1,12 @@
+[Unit]
+Description=Prepare ClamAV state directories
+After=local-fs.target
+Before=clamav-freshclam.service clamd@scan.service clamav-clamonacc.service
+ConditionPathIsDirectory=/var/lib
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/infrastructure/clamav-prepare
+
+[Install]
+WantedBy=multi-user.target
