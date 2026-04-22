@@ -143,7 +143,6 @@ systemd:
           com.collaboraoffice.Office \
           com.github.johnfactotum.Foliate \
           dev.geopjr.Collision \
-          dev.mufeed.Wordbook \
           io.bassi.Amberol \
           io.github.linx_systems.ClamUI \
           io.github.noobping.keycord \
