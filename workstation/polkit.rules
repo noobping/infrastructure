@@ -4,15 +4,11 @@ polkit.addRule(function(action, subject) {
   }
 
   var userAllowed = [
-    "org.projectatomic.rpmostree1.repo-refresh",
-    "org.projectatomic.rpmostree1.upgrade",
-    "org.freedesktop.Flatpak.app-install",
-    "org.freedesktop.Flatpak.runtime-install",
-    "org.freedesktop.Flatpak.app-uninstall",
-    "org.freedesktop.Flatpak.runtime-uninstall",
     "org.freedesktop.Flatpak.app-update",
+    "org.freedesktop.Flatpak.metadata-update",
     "org.freedesktop.Flatpak.runtime-update",
-    "org.freedesktop.Flatpak.metadata-update"
+    "org.projectatomic.rpmostree1.repo-refresh",
+    "org.projectatomic.rpmostree1.upgrade"
   ];
 
   if (userAllowed.indexOf(action.id) >= 0) {
@@ -24,9 +20,13 @@ polkit.addRule(function(action, subject) {
   }
 
   var adminAllowed = [
-    "org.libvirt.unix.manage",
+    "org.freedesktop.Flatpak.app-install",
+    "org.freedesktop.Flatpak.app-uninstall",
+    "org.freedesktop.Flatpak.modify-repo",
+    "org.freedesktop.Flatpak.runtime-install",
+    "org.freedesktop.Flatpak.runtime-uninstall",
     "org.freedesktop.udisks2.manage",
-    "org.freedesktop.Flatpak.modify-repo"
+    "org.libvirt.unix.manage"
   ];
 
   if (adminAllowed.indexOf(action.id) >= 0) {
