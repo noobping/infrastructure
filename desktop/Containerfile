@@ -15,7 +15,6 @@ RUN set -euxo pipefail; \
   rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
   ostree container commit
 
-COPY firewall.xml /etc/firewalld/zones/public.xml
 COPY extensions.txt /etc/recommended/extensions
 COPY extensions.dconf /etc/recommended/settings.dconf
 COPY disable-appimages.sh /etc/profile.d/zz-desktop-hardening.sh

@@ -2,6 +2,10 @@
 <zone target="DROP">
   <short>Public</short>
   <description>Default policy</description>
+  <!-- Printer/scanner discovery -->
+  <port protocol="udp" port="5353"/>
+  <port protocol="udp" port="631"/>
+  <port protocol="udp" port="3702"/>
   <!-- Steam remote play -->
   <port protocol="tcp" port="27036-27037"/>
   <port protocol="udp" port="27031-27036"/>

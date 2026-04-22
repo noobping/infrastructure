@@ -31,7 +31,10 @@ RUN set -euxo pipefail; \
     aemu libvirt qemu-kvm android-tools \
     gssproxy \
     power-profiles-daemon upower nut \
-    cups bluez dconf dbus-daemon \
+    avahi bluez cups cups-browsed cups-filters cups-filters-driverless cups-pk-helper \
+    dconf dbus-daemon gutenprint-cups hplip ipp-usb nss-mdns samba-client \
+    sane-airscan sane-backends sane-backends-drivers-scanners \
+    system-config-printer system-config-printer-applet system-config-printer-udev \
     toolbox git \
     mesa-dri-drivers switcheroo-control virglrenderer \
     libhid hidapi openrgb-udev-rules \
@@ -153,6 +156,12 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/multi-user.target.wants/cachefilesd.service; \
   ln -sf /usr/lib/systemd/system/firewalld.service \
     /etc/systemd/system/multi-user.target.wants/firewalld.service; \
+  ln -sf /usr/lib/systemd/system/avahi-daemon.service \
+    /etc/systemd/system/multi-user.target.wants/avahi-daemon.service; \
+  ln -sf /usr/lib/systemd/system/cups-browsed.service \
+    /etc/systemd/system/multi-user.target.wants/cups-browsed.service; \
+  ln -sf /usr/lib/systemd/system/ipp-usb.service \
+    /etc/systemd/system/multi-user.target.wants/ipp-usb.service; \
   ln -sf /usr/lib/systemd/system/switcheroo-control.service \
     /etc/systemd/system/graphical.target.wants/switcheroo-control.service; \
   ln -sf /usr/lib/systemd/system/power-profiles-daemon.service \
@@ -161,6 +170,8 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/graphical.target.wants/upower.service; \
   ln -sf /usr/lib/systemd/system/pcscd.socket \
     /etc/systemd/system/sockets.target.wants/pcscd.socket; \
+  ln -sf /usr/lib/systemd/system/cups.socket \
+    /etc/systemd/system/sockets.target.wants/cups.socket; \
   ln -sf /usr/lib/systemd/system/plymouth-start.service \
     /etc/systemd/system/sysinit.target.wants/plymouth-start.service; \
   ln -sf /dev/null /etc/systemd/system/nftables.service; \

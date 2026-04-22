@@ -117,6 +117,7 @@ systemd:
           org.gnome.Epiphany \
           org.gnome.Loupe \
           org.gnome.Papers \
+          org.gnome.SimpleScan \
           io.github.noobping.keycord \
           org.gnome.TextEditor \
           org.getzola.zola \
