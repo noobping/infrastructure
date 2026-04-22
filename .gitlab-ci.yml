@@ -292,7 +292,6 @@ variables:
 
       BASE_ISO="$(ls -1 fedora-coreos-*-live-iso."${ARCH}".iso | tail -n1)"
       OUT_ISO="${PROFILE}-${ARCH}.iso"
-      TMP_ISO="${OUT_ISO}.tmp"
 
       podman run --rm \
         -v "${CI_PROJECT_DIR}:/work" \
@@ -306,14 +305,14 @@ variables:
           -o "${OUT_ISO}" \
           "${BASE_ISO}"
 
+      # Grow the customized ISO in place. Using separate -indev/-outdev
+      # duplicates the full image and can exhaust the runner workspace.
       xorriso \
-        -indev "${OUT_ISO}" \
-        -outdev "${TMP_ISO}" \
+        -dev "${OUT_ISO}" \
         -map "bootc/${PROFILE}.ociarchive" "/bootc/${PROFILE}.ociarchive" \
         -boot_image any replay \
         -compliance no_emul_toc \
         -padding included
-      mv "${TMP_ISO}" "${OUT_ISO}"
 
       sha256sum "${OUT_ISO}" > "${OUT_ISO}.sha256"
   artifacts:
