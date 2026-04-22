@@ -2,9 +2,6 @@ appindicatorsupport@rgcjonas.gmail.com
 arcmenu@arcmenu.com
 category-sorted-app-grid@noobping.dev
 dash-to-panel@jderose9.github.com
-draw-on-gnome@daveprowse.github.io
 gtk4-ding@smedius.gitlab.com
-hotedge@jonathan.jdoda.ca
 in-picture@filiprund.cz
-reboottouefi@ubaygd.com
 set-notification-position@brgvos
