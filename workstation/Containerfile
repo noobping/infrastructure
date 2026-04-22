@@ -126,11 +126,25 @@ RUN set -euxo pipefail; \
   mkdir -p /etc/skel/.config; \
 
   chmod +x /etc/profile.d/aliases.sh; \
+  chmod +x /etc/xdg/autostart/recommended.desktop; \
+  chmod +x /usr/share/applications/recommended.desktop; \
+  # chmod +x /usr/share/applications/alternative.desktop; \
   chmod +x /usr/bin/recommended; \
   chmod +x /usr/bin/alternative; \
   chmod +x /usr/libexec/infrastructure/alternative-root; \
   chmod +x /usr/libexec/infrastructure/fapolicyd-flatpak-sync; \
   chmod +x /usr/libexec/infrastructure/nut-netclient-configure; \
+  for trusted_file in \
+    /etc/xdg/autostart/recommended.desktop \
+    /usr/share/applications/recommended.desktop \
+    # /usr/share/applications/alternative.desktop \
+    /usr/bin/recommended \
+    /usr/bin/alternative \
+    /usr/libexec/infrastructure/alternative-root \
+    /usr/libexec/infrastructure/fapolicyd-flatpak-sync \
+    /usr/libexec/infrastructure/nut-netclient-configure; do \
+      fapolicyd-cli --file add "$trusted_file"; \
+  done; \
 
   # chmod 0600 /etc/NetworkManager/system-connections/*.nmconnection; \
   chmod 0644 /etc/firewalld/direct.xml; \
