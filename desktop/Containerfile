@@ -4,9 +4,9 @@ LABEL org.opencontainers.image.description="Nick's bootable container"
 ARG REBASE_IMAGE_BASE=ostree-image-signed:docker://ghcr.io/noobping/
 
 RUN set -euxo pipefail; \
-  rpm-ostree override remove \
+  remove_packages=" \
     aemu libvirt libvirt-daemon-driver-lxc \
-    qemu-kvm qemu-system-x86 \
+    qemu-kvm qemu-system-x86 qemu-system-aarch64 \
     qemu-device-display-virtio-gpu-gl qemu-device-display-virtio-gpu-pci-gl \
     qemu-device-display-vhost-user-gpu \
     virglrenderer \
@@ -15,7 +15,19 @@ RUN set -euxo pipefail; \
     gnome-disk-utility gnome-menus \
     seahorse-nautilus python3-pygit2 \
     toolbox ptyxis \
-    yubikey-manager; \
+    yubikey-manager \
+  "; \
+  installed_packages=""; \
+  for package in ${remove_packages}; do \
+    if rpm -q "${package}" >/dev/null 2>&1; then \
+      installed_packages="${installed_packages:+${installed_packages} }${package}"; \
+    else \
+      echo "Skipping not-installed package: ${package}"; \
+    fi; \
+  done; \
+  if [ -n "${installed_packages}" ]; then \
+    rpm-ostree override remove ${installed_packages}; \
+  fi; \
   rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
   ostree container commit
 
