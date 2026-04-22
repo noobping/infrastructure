@@ -112,6 +112,7 @@ RUN set -euxo pipefail; \
   chmod +x /etc/profile.d/aliases.sh; \
   chmod +x /usr/bin/recommended; \
   chmod +x /usr/bin/alternative; \
+  chmod +x /usr/libexec/infrastructure/alternative-root; \
 
   # chmod 0600 /etc/NetworkManager/system-connections/*.nmconnection; \
   chmod 0644 /etc/firewalld/direct.xml; \
