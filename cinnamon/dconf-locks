@@ -1,9 +1,0 @@
-/org/cinnamon/desktop/lockdown/disable-lock-screen
-/org/cinnamon/desktop/screensaver/ask-for-away-message
-/org/cinnamon/desktop/screensaver/idle-activation-enabled
-/org/cinnamon/desktop/screensaver/lock-enabled
-/org/cinnamon/desktop/screensaver/user-switch-enabled
-/org/cinnamon/settings-daemon/plugins/power/lock-on-suspend
-/org/gnome/desktop/lockdown/disable-lock-screen
-/org/gnome/desktop/screensaver/lock-enabled
-/org/gnome/settings-daemon/plugins/power/lock-on-suspend

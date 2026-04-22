@@ -5,6 +5,9 @@ if ! command -v fapolicyd-cli >/dev/null 2>&1; then
   exit 0
 fi
 
+exec 9>/run/fapolicyd-flatpak-sync.lock
+flock -n 9 || exit 0
+
 synced=0
 for flatpak_root in /var/lib/flatpak/app /var/lib/flatpak/runtime; do
   [ -d "$flatpak_root" ] || continue

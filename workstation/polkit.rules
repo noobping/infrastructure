@@ -6,6 +6,10 @@ polkit.addRule(function(action, subject) {
   var userAllowed = [
     "org.projectatomic.rpmostree1.repo-refresh",
     "org.projectatomic.rpmostree1.upgrade",
+    "org.freedesktop.Flatpak.app-install",
+    "org.freedesktop.Flatpak.runtime-install",
+    "org.freedesktop.Flatpak.app-uninstall",
+    "org.freedesktop.Flatpak.runtime-uninstall",
     "org.freedesktop.Flatpak.app-update",
     "org.freedesktop.Flatpak.runtime-update",
     "org.freedesktop.Flatpak.metadata-update"
@@ -22,8 +26,6 @@ polkit.addRule(function(action, subject) {
   var adminAllowed = [
     "org.libvirt.unix.manage",
     "org.freedesktop.udisks2.manage",
-    "org.freedesktop.Flatpak.app-install",
-    "org.freedesktop.Flatpak.app-uninstall",
     "org.freedesktop.Flatpak.modify-repo"
   ];
 

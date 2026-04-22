@@ -161,6 +161,7 @@ systemd:
           org.gnome.World.Iotas \
           org.gnome.baobab \
           org.gnome.clocks
+        ExecStart=/usr/libexec/infrastructure/fapolicyd-flatpak-sync
         ExecStart=/usr/bin/touch /var/lib/system-flatpaks.done
 
         [Install]

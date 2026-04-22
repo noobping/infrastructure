@@ -1,0 +1,13 @@
+[Unit]
+Description=Periodic fapolicyd trust sync for system Flatpaks
+ConditionPathIsDirectory=/var/lib/flatpak
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=30min
+AccuracySec=1min
+Persistent=true
+Unit=fapolicyd-flatpak-sync.service
+
+[Install]
+WantedBy=timers.target

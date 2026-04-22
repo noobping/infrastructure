@@ -70,6 +70,7 @@ RUN set -euxo pipefail; \
 RUN set -euxo pipefail; \
   mkdir -p \
     /etc/NetworkManager/system-connections \
+    /etc/fapolicyd/rules.d \
     /etc/firewalld/zones \
     /etc/polkit-1/rules.d \
     /etc/recommended \
@@ -78,6 +79,7 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/multi-user.target.wants \
     /etc/systemd/system/sockets.target.wants \
     /etc/systemd/system/sysinit.target.wants \
+    /etc/systemd/system/timers.target.wants \
     /usr/libexec/infrastructure \
     /usr/share/gnome-background-properties \
     /var/lib/AccountsService
@@ -93,9 +95,15 @@ COPY background.xml /usr/share/gnome-background-properties/nick.xml
 COPY cachefilesd.conf /etc/cachefilesd.conf
 COPY certs/ /etc/pki/ca-trust/source/anchors/
 COPY extensions.txt /etc/recommended/extensions
+COPY fapolicyd-deny-user-writable-exec.rules /etc/fapolicyd/rules.d/30-deny-user-writable-exec.rules
+COPY fapolicyd-flatpak-sync /usr/libexec/infrastructure/fapolicyd-flatpak-sync
+COPY fapolicyd-flatpak-sync.path /etc/systemd/system/fapolicyd-flatpak-sync.path
+COPY fapolicyd-flatpak-sync.service /etc/systemd/system/fapolicyd-flatpak-sync.service
+COPY fapolicyd-flatpak-sync.timer /etc/systemd/system/fapolicyd-flatpak-sync.timer
 COPY firewall.xml /etc/firewalld/zones/public.xml
 COPY suricata-direct.xml /etc/firewalld/direct.xml
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
+COPY polkit-printers.rules /etc/polkit-1/rules.d/50-printer-access.rules
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY profile.conf /var/lib/AccountsService/default
 COPY profile.png /usr/share/pixmaps/faces/nick.png
@@ -113,10 +121,12 @@ RUN set -euxo pipefail; \
   chmod +x /usr/bin/recommended; \
   chmod +x /usr/bin/alternative; \
   chmod +x /usr/libexec/infrastructure/alternative-root; \
+  chmod +x /usr/libexec/infrastructure/fapolicyd-flatpak-sync; \
 
   # chmod 0600 /etc/NetworkManager/system-connections/*.nmconnection; \
   chmod 0644 /etc/firewalld/direct.xml; \
   chmod 0644 /etc/polkit-1/rules.d/50-libvirt-access.rules; \
+  fapolicyd-cli --check-config; \
 
   rm -f /etc/resolv.conf; \
   ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf; \

@@ -3,7 +3,33 @@ LABEL org.opencontainers.image.title="Desktop"
 LABEL org.opencontainers.image.description="Nick's bootable container"
 ARG REBASE_IMAGE_BASE=ostree-image-signed:docker://ghcr.io/noobping/
 
+RUN set -euxo pipefail; \
+  rpm-ostree override remove \
+    fuse fuse-libs \
+    gnome-disk-utility gnome-menus \
+    seahorse-nautilus \
+    toolbox ptyxis \
+    yubikey-manager; \
+  rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
+  ostree container commit
+
+RUN set -euxo pipefail; \
+  rpm-ostree install -y \
+    fapolicyd fapolicyd-selinux; \
+  rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
+  ostree container commit
+
+COPY firewall.xml /etc/firewalld/zones/public.xml
 COPY extensions.txt /etc/recommended/extensions
 COPY extensions.dconf /etc/recommended/settings.dconf
 RUN echo "${REBASE_IMAGE_BASE}workstation:latest" > /etc/recommended/base; \
+    ostree container commit
+
+RUN set -euxo pipefail; \
+    ln -sf /usr/lib/systemd/system/fapolicyd.service \
+        /etc/systemd/system/multi-user.target.wants/fapolicyd.service; \
+    ln -sf /etc/systemd/system/fapolicyd-flatpak-sync.path \
+        /etc/systemd/system/multi-user.target.wants/fapolicyd-flatpak-sync.path; \
+    ln -sf /etc/systemd/system/fapolicyd-flatpak-sync.timer \
+        /etc/systemd/system/timers.target.wants/fapolicyd-flatpak-sync.timer; \
     ostree container commit
