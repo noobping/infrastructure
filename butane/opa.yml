@@ -1,0 +1,167 @@
+variant: fcos
+version: 1.6.0
+
+boot_device:
+  luks:
+    tpm2: true
+
+kernel_arguments:
+  should_exist:
+    - quiet
+    - splash
+    - loglevel=3
+    - systemd.show_status=false
+    - rd.systemd.show_status=false
+
+passwd:
+  users:
+    - name: herman
+      uid: 1000
+
+storage:
+  directories:
+    - path: /var/cache/fscache
+      mode: 0700
+  files:
+    - path: /etc/locale.conf
+      mode: 0644
+      overwrite: true
+      contents:
+        inline: |
+          LANG=nl_NL.UTF-8
+    - path: /etc/vconsole.conf
+      mode: 0644
+      overwrite: true
+      contents:
+        inline: |
+          KEYMAP=us
+          XKBLAYOUT=us
+          XKBVARIANT=intl
+    - path: /etc/X11/xorg.conf.d/00-keyboard.conf
+      mode: 0644
+      overwrite: true
+      contents:
+        inline: |
+          Section "InputClass"
+            Identifier "keyboard-all"
+            MatchIsKeyboard "on"
+            Option "XkbLayout" "us"
+            Option "XkbVariant" "intl"
+          EndSection
+    - path: /etc/hostname
+      mode: 0440
+      overwrite: true
+      contents:
+        inline: |
+          pc
+
+systemd:
+  units:
+    - name: getty@.service
+      mask: true
+    - name: serial-getty@.service
+      mask: true
+    - name: emergency.service
+      mask: true
+    - name: rescue.service
+      mask: true
+    - name: debug-shell.service
+      mask: true
+    - name: sshd.service
+      mask: true
+    - name: clear-password.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Clear password for herman
+        ConditionPathExists=!/var/lib/herman-password.cleared
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/bin/passwd -d herman
+        ExecStart=/usr/bin/touch /var/lib/herman-password.cleared
+
+        [Install]
+        WantedBy=multi-user.target
+    - name: rebase-to-desktop.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Rebase FCOS to boot container image
+        Wants=network-online.target NetworkManager-wait-online.service
+        After=network-online.target NetworkManager-wait-online.service
+        ConditionPathExists=!/var/lib/rebase.done
+
+        [Service]
+        Type=oneshot
+        Restart=on-failure
+        RestartSec=30s
+        StartLimitIntervalSec=0
+        StandardOutput=tty
+        StandardError=tty
+        TTYPath=/dev/tty1
+        Environment=LANG=C.UTF-8
+        Environment=LC_ALL=C.UTF-8
+        ExecStart=/usr/bin/rpm-ostree rebase ostree-image-signed:docker://ghcr.io/noobping/desktop:latest
+        ExecStart=/usr/bin/touch /var/lib/rebase.done
+        ExecStart=/usr/bin/systemctl --no-block reboot
+
+        [Install]
+        WantedBy=multi-user.target
+
+    - name: system-flatpaks.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Install system Flatpaks
+        Wants=network-online.target
+        After=network-online.target
+        ConditionPathExists=/var/lib/rebase.done
+        ConditionPathExists=!/var/lib/system-flatpaks.done
+
+        [Service]
+        Type=oneshot
+        Restart=on-failure
+        RestartSec=30s
+        StartLimitIntervalSec=0
+        ExecStart=/usr/bin/flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+        ExecStart=/usr/bin/flatpak remote-add --system --if-not-exists fedora oci+https://registry.fedoraproject.org
+        ExecStart=/usr/bin/flatpak install --system --noninteractive flathub \
+          app.drey.Dialect \
+          app.fotema.Fotema \
+          com.belmoussaoui.Decoder \
+          com.collaboraoffice.Office \
+          com.github.johnfactotum.Foliate \
+          dev.geopjr.Collision \
+          dev.mufeed.Wordbook \
+          io.bassi.Amberol \
+          io.github.kolunmi.Bazaar \
+          io.github.linx_systems.ClamUI \
+          io.github.noobping.keycord \
+          io.gitlab.adhami3310.Converter \
+          net.nokyan.Resources \
+          org.gnome.Calculator \
+          org.gnome.Calendar \
+          org.gnome.Contacts \
+          org.gnome.Decibels \
+          org.gnome.Epiphany \
+          org.gnome.Extensions \
+          org.gnome.Geary \
+          org.gnome.Logs \
+          org.gnome.Loupe \
+          org.gnome.Mahjongg \
+          org.gnome.Papers \
+          org.gnome.Quadrapassel \
+          org.gnome.Showtime \
+          org.gnome.SimpleScan \
+          org.gnome.Snapshot \
+          org.gnome.SoundRecorder \
+          org.gnome.TextEditor \
+          org.gnome.Weather \
+          org.gnome.World.Iotas \
+          org.gnome.baobab \
+          org.gnome.clocks
+        ExecStart=/usr/bin/touch /var/lib/system-flatpaks.done
+
+        [Install]
+        WantedBy=multi-user.target
