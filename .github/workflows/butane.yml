@@ -56,7 +56,7 @@ jobs:
       - name: Build ignition files
         run: |
           set -euxo pipefail
-          # setup.ign needs --files-dir .
+
           podman run --rm \
             -v "$PWD:/work:Z" -w /work \
             quay.io/coreos/butane:release \
@@ -65,7 +65,7 @@ jobs:
           podman run --rm \
             -v "$PWD:/work:Z" -w /work \
             quay.io/coreos/butane:release \
-            --pretty --strict butane/${{ matrix.profile }}.bu > ${{ matrix.profile }}.ign
+            --pretty --strict --files-dir . butane/${{ matrix.profile }}.bu > ${{ matrix.profile }}.ign
 
       - name: Download stable release
         run: |
