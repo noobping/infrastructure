@@ -1,7 +1,7 @@
 {
   "statusPage": {
     "slug": "default",
-    "title": "Nick's NAS",
+    "title": "NAS",
     "description": "Current status of the NAS and its containerized services.",
     "groupName": "Services",
     "theme": "auto",

@@ -4,7 +4,7 @@
 [![Workstation](https://github.com/noobping/infrastructure/actions/workflows/workstation.yml/badge.svg)](https://github.com/noobping/infrastructure/actions/workflows/workstation.yml)
 [![NAS](https://github.com/noobping/infrastructure/actions/workflows/nas.yml/badge.svg)](https://github.com/noobping/infrastructure/actions/workflows/nas.yml)
 
-# Nick's Infrastructure
+# Infrastructure
 
 Declarative infrastructure for workstations and servers.
 

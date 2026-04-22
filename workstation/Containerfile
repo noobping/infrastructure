@@ -10,7 +10,7 @@ RUN dnf -y install dnf-plugins-core \
 
 FROM ghcr.io/noobping/ips:${TAG}
 LABEL org.opencontainers.image.title="Workstation"
-LABEL org.opencontainers.image.description="Nick's bootable container"
+LABEL org.opencontainers.image.description="a bootable container"
 ARG REBASE_IMAGE_BASE=ostree-image-signed:docker://ghcr.io/noobping/
 
 COPY --from=pkgs /tmp/firmware-packages.txt /tmp/firmware-packages.txt
@@ -95,8 +95,8 @@ COPY aliases.sh /etc/profile.d/
 COPY alternative.policy /usr/share/polkit-1/actions/dev.noobping.workstation.alternative.policy
 COPY alternative.sh /usr/bin/alternative
 COPY alternative-root.sh /usr/libexec/infrastructure/alternative-root
-COPY background.png /usr/share/backgrounds/nick-wallpaper.png
-COPY background.xml /usr/share/gnome-background-properties/nick.xml
+COPY background.png /usr/share/backgrounds/wallpaper.png
+COPY background.xml /usr/share/gnome-background-properties/noobping.xml
 COPY cachefilesd.conf /etc/cachefilesd.conf
 COPY certs/ /etc/pki/ca-trust/source/anchors/
 COPY extensions.txt /etc/recommended/extensions
@@ -114,7 +114,7 @@ COPY nut-netclient.env.example /etc/ups/netclient.env.example
 COPY polkit-printers.rules /etc/polkit-1/rules.d/50-printer-access.rules
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY profile.conf /var/lib/AccountsService/default
-COPY profile.png /usr/share/pixmaps/faces/nick.png
+COPY profile.png /usr/share/pixmaps/faces/noobping.png
 COPY recommended.desktop /etc/xdg/autostart/
 # COPY recommended.desktop /usr/share/applications/
 COPY recommended.sh /usr/bin/recommended

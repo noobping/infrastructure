@@ -2,7 +2,7 @@ ARG FCOS_STREAM=stable
 FROM quay.io/fedora/fedora-coreos:${FCOS_STREAM}
 
 LABEL org.opencontainers.image.title="IPS"
-LABEL org.opencontainers.image.description="Nick's inline IPS base image"
+LABEL org.opencontainers.image.description="a inline IPS base image"
 
 RUN set -euxo pipefail; \
   rpm-ostree install -y \

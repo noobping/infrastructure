@@ -4,8 +4,8 @@ set -euo pipefail
 DONE_FILE="$HOME/.config/recommended.done"
 LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}"
 LOG_FILE="$LOG_DIR/recommended.log"
-WALLPAPER_URI="file:///usr/share/backgrounds/nick-wallpaper.png"
-PROFILE_ICON="/usr/share/pixmaps/faces/nick.png"
+WALLPAPER_URI="file:///usr/share/backgrounds/wallpaper.png"
+PROFILE_ICON="/usr/share/pixmaps/faces/noobping.png"
 PROFILE_LANGUAGE="nl_NL.UTF-8"
 
 mkdir -p "$HOME/.config" "$LOG_DIR"

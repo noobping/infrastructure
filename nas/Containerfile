@@ -1,7 +1,7 @@
 FROM ghcr.io/noobping/ips:latest
 
 LABEL org.opencontainers.image.title="NAS"
-LABEL org.opencontainers.image.description="Nick's bootable container"
+LABEL org.opencontainers.image.description="a bootable container"
 
 RUN set -euxo pipefail; \
   if rpm -q nfs-utils-coreos >/dev/null 2>&1; then \
