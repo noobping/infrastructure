@@ -22,6 +22,8 @@ storage:
   directories:
     - path: /var/cache/fscache
       mode: 0700
+    - path: /etc/gdm
+      mode: 0755
   files:
     - path: /etc/locale.conf
       mode: 0644
@@ -54,6 +56,14 @@ storage:
       contents:
         inline: |
           computer
+    - path: /etc/gdm/custom.conf
+      mode: 0644
+      overwrite: true
+      contents:
+        inline: |
+          [daemon]
+          AutomaticLoginEnable=True
+          AutomaticLogin=herman
 
 systemd:
   units:
