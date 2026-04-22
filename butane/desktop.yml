@@ -13,11 +13,6 @@ kernel_arguments:
     - systemd.show_status=false
     - rd.systemd.show_status=false
 
-passwd:
-  users:
-    - name: herman
-      uid: 1000
-
 storage:
   directories:
     - path: /etc/gdm
@@ -56,14 +51,6 @@ storage:
       contents:
         inline: |
           computer
-    - path: /etc/gdm/custom.conf
-      mode: 0644
-      overwrite: true
-      contents:
-        inline: |
-          [daemon]
-          AutomaticLoginEnable=True
-          AutomaticLogin=herman
 
 systemd:
   units:
@@ -79,20 +66,6 @@ systemd:
       mask: true
     - name: sshd.service
       mask: true
-    - name: clear-password.service
-      enabled: true
-      contents: |
-        [Unit]
-        Description=Clear password for herman
-        ConditionPathExists=!/var/lib/herman-password.cleared
-
-        [Service]
-        Type=oneshot
-        ExecStart=/usr/bin/passwd -d herman
-        ExecStart=/usr/bin/touch /var/lib/herman-password.cleared
-
-        [Install]
-        WantedBy=multi-user.target
     - name: rebase-to-desktop.service
       enabled: true
       contents: |
@@ -174,29 +147,11 @@ systemd:
 
         [Install]
         WantedBy=multi-user.target
-    - name: profile-sync.service
-      enabled: true
-      contents: |
-        [Unit]
-        Description=Sync local profile to STACK
-        Wants=network-online.target
-        After=network-online.target
-        ConditionPathExists=/usr/bin/rclone
-
-        [Service]
-        Type=oneshot
-        ExecStart=/usr/bin/rclone sync /var/home/herman stack:profiles/%H/
-        Nice=10
-
-        [Install]
-        WantedBy=multi-user.target
-
     - name: profile-sync.timer
       enabled: true
       contents: |
         [Unit]
         Description=Periodic profile sync to STACK
-        ConditionPathExists=/usr/bin/rclone
 
         [Timer]
         OnBootSec=5min
