@@ -5,11 +5,11 @@ ARG REBASE_IMAGE_BASE=ostree-image-signed:docker://ghcr.io/noobping/
 
 RUN set -euxo pipefail; \
   rpm-ostree override remove \
-    aemu libvirt qemu-kvm virglrenderer \
+    aemu libvirt libvirt-daemon-driver-lxc qemu-kvm qemu-device-display-virtio-gpu-gl virglrenderer \
     cachefilesd NetworkManager-openvpn \
     fuse fuse-libs \
     gnome-disk-utility gnome-menus \
-    seahorse-nautilus nautilus-python python3-pygit2 \
+    seahorse-nautilus python3-pygit2 \
     toolbox ptyxis \
     yubikey-manager; \
   rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
