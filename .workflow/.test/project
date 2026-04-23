@@ -18,7 +18,7 @@ ci_test_assert_log "public:gext:schedule"
 
 ci_test_reset_log
 "${CI_ROOT}/.ci/alias/run" schedule update
-ci_test_assert_log "update:schedule"
+ci_test_assert_log "root:update:schedule"
 
 ci_test_reset_log
 "${CI_ROOT}/.ci/alias/run" manual butane
