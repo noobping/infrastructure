@@ -17,6 +17,7 @@ fi
 
 uid_arg="${1:-}"
 home_arg="${2:-}"
+pkexec_uid="${PKEXEC_UID:-}"
 
 if [[ ! "$uid_arg" =~ ^[0-9]+$ ]]; then
   echo "Expected numeric uid argument." >&2
@@ -25,6 +26,33 @@ fi
 
 if [[ -z "$home_arg" || "$home_arg" != /* ]]; then
   echo "Expected absolute home directory argument." >&2
+  exit 1
+fi
+
+if [[ ! "$pkexec_uid" =~ ^[0-9]+$ ]]; then
+  echo "Missing invoking user identity." >&2
+  exit 1
+fi
+
+if [[ "$uid_arg" != "$pkexec_uid" ]]; then
+  echo "Refusing to sync trust for another user." >&2
+  exit 1
+fi
+
+passwd_entry="$(getent passwd "$pkexec_uid" || true)"
+if [[ -z "$passwd_entry" ]]; then
+  echo "Unable to resolve invoking user." >&2
+  exit 1
+fi
+
+expected_home="$(printf '%s\n' "$passwd_entry" | cut -d: -f6)"
+if [[ -z "$expected_home" || "$expected_home" != /* ]]; then
+  echo "Unable to resolve invoking home directory." >&2
+  exit 1
+fi
+
+if [[ "$home_arg" != "$expected_home" ]]; then
+  echo "Refusing to sync trust for another home directory." >&2
   exit 1
 fi
 
@@ -41,7 +69,7 @@ sync_root() {
 
 synced=0
 for root in \
-  "$home_arg/.local/share/containers/storage" \
+  "$expected_home/.local/share/containers/storage" \
   "/run/user/$uid_arg/containers" \
   "/tmp/containers-user-$uid_arg/containers"; do
   if [[ -d "$root" ]]; then

@@ -1,4 +1,7 @@
-# GNOME Shell extensions are JavaScript loaded by GNOME Shell from the user's
-# extension directory. Keep the exception scoped to the shell process.
-allow perm=open exe=/usr/bin/gnome-shell : dir=/home/
-allow perm=open exe=/usr/bin/gnome-shell : dir=/var/home/
+# GNOME Shell extensions are user-provided JS/CSS/metadata under $HOME.
+# Allow GNOME Shell and its GJS helpers to access them without trusting the
+# entire home tree globally in fapolicyd.
+allow perm=any exe=/usr/bin/gnome-shell : dir=/home/
+allow perm=any exe=/usr/bin/gnome-shell : dir=/var/home/
+allow perm=any exe=/usr/bin/gjs : dir=/home/
+allow perm=any exe=/usr/bin/gjs : dir=/var/home/

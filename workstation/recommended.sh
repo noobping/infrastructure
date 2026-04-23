@@ -46,15 +46,15 @@ prepare_gext() {
   GEXT_IMAGE="$(resolve_gext_image)"
 
   if ! podman image exists "$GEXT_IMAGE" >/dev/null 2>&1; then
-    podman pull "$GEXT_IMAGE"
+    podman pull "$GEXT_IMAGE" || return 1
   fi
 
-  sync_podman_trust
+  sync_podman_trust || return 1
   GEXT_PREPARED=1
 }
 
 gext() {
-  prepare_gext
+  prepare_gext || return 1
 
   podman run --rm \
     --userns=keep-id \

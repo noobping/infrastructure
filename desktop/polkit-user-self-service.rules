@@ -3,6 +3,10 @@ polkit.addRule(function(action, subject) {
     return polkit.Result.NOT_HANDLED;
   }
 
+  if (action.id == "dev.noobping.workstation.fapolicyd-podman-sync") {
+    return polkit.Result.YES;
+  }
+
   var deniedAccountAdmin = [
     "org.freedesktop.accounts.set-login-option",
     "org.freedesktop.accounts.user-administration"
