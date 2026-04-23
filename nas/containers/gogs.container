@@ -1,0 +1,23 @@
+[Unit]
+Description=Gogs rootless forge
+ConditionPathExists=/var/lib/containers/gogs
+
+[Container]
+Image=docker.io/gogs/gogs:next-latest
+AutoUpdate=registry
+User=1000:1000
+UserNS=keep-id:uid=1000,gid=1000
+PublishPort=8929:3000/tcp
+PublishPort=2222:2222/tcp
+Volume=/var/lib/containers/gogs/data:/data:Z
+Volume=/var/lib/containers/gogs/conf:/data/gogs/conf:Z
+Volume=/etc/localtime:/etc/localtime:ro
+
+[Service]
+User=git
+ExecStartPre=/usr/libexec/infrastructure/gogs-prepare
+Restart=always
+TimeoutStartSec=900
+
+[Install]
+WantedBy=multi-user.target

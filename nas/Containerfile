@@ -43,6 +43,7 @@ COPY freeipa-prepare.service /etc/systemd/system/freeipa-prepare.service
 COPY freeradius /usr/share/infrastructure/freeradius
 COPY freeradius-prepare /usr/libexec/infrastructure/freeradius-prepare
 COPY freeradius-prepare.service /etc/systemd/system/freeradius-prepare.service
+COPY gogs-prepare /usr/libexec/infrastructure/gogs-prepare
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
 COPY localhost-registry.conf /etc/containers/registries.conf.d/10-localhost-registry.conf
 COPY mdadm.conf /etc/mdadm.conf
@@ -60,6 +61,7 @@ COPY uptime/bootstrap.service /etc/systemd/system/uptime-kuma-bootstrap.service
 RUN set -euxo pipefail; \
   chmod -R 0600 /etc/nftables/rules; \
   find /etc/containers/systemd -type f -name '*.container' -exec chmod 0644 '{}' ';'; \
+  chmod 0755 /usr/libexec/infrastructure/gogs-prepare; \
   awk '/set allowed_tcp_dports[[:space:]]*\{/{flag=1} flag{print} /^\t*\}/{if(flag){exit}}' /etc/nftables/main.nft \
   | grep -q '\<http\>' \
   || sed -i '/set allowed_tcp_dports[[:space:]]*{/,/}/{/elements = {/ s/}/, http, https}/;}' /etc/nftables/main.nft; \

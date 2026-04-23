@@ -51,12 +51,6 @@ storage:
         name: git
       group:
         name: git
-    - path: /var/srv/git/.config/systemd/user/timers.target.wants
-      mode: 0750
-      user:
-        name: git
-      group:
-        name: git
     - path: /var/lib/containers/minecraft/java
       mode: 0755
       user:
@@ -85,13 +79,19 @@ storage:
       mode: 0755
     - path: /var/lib/containers/nextcloud
       mode: 0755
-    - path: /var/lib/containers/gitea/config
+    - path: /var/lib/containers/gogs
       mode: 0750
       user:
         name: git
       group:
         name: git
-    - path: /var/lib/containers/gitea/data
+    - path: /var/lib/containers/gogs/data
+      mode: 0750
+      user:
+        name: git
+      group:
+        name: git
+    - path: /var/lib/containers/gogs/conf
       mode: 0750
       user:
         name: git
@@ -121,16 +121,7 @@ storage:
         name: music
       group:
         name: music
-  links:
-    - path: /var/srv/git/.config/systemd/user/timers.target.wants/podman-auto-update.timer
-      target: /usr/lib/systemd/user/podman-auto-update.timer
-      overwrite: true
   files:
-    - path: /var/lib/systemd/linger/git
-      mode: 0644
-      overwrite: true
-      contents:
-        inline: ""
     - path: /etc/ssh/sshd_config.d/40-disable-passwords.conf
       mode: 0644
       overwrite: true
