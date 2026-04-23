@@ -24,7 +24,7 @@ storage:
       mode: 0755
       overwrite: true
       contents:
-        local: ./butane/rebase-to-bootc
+        local: ./butane/rebase-to-bootc.sh
 
 systemd:
   units:

@@ -1,4 +1,6 @@
-FROM ghcr.io/noobping/workstation:latest
+ARG TAG=latest
+ARG IMAGE_NAMESPACE=ghcr.io/noobping
+FROM ${IMAGE_NAMESPACE}/workstation:${TAG}
 LABEL org.opencontainers.image.title="Desktop"
 LABEL org.opencontainers.image.description="a bootable container"
 ARG REBASE_IMAGE_BASE=ostree-image-signed:docker://ghcr.io/noobping/

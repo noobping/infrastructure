@@ -1,4 +1,5 @@
-FROM ghcr.io/noobping/ips:latest
+ARG IMAGE_NAMESPACE=ghcr.io/noobping
+FROM ${IMAGE_NAMESPACE}/ips:latest
 
 LABEL org.opencontainers.image.title="NAS"
 LABEL org.opencontainers.image.description="a bootable container"
