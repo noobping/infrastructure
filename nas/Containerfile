@@ -27,7 +27,6 @@ RUN rpm-ostree install -y \
   /etc/systemd/system/multi-user.target.wants \
   /etc/systemd/system/timers.target.wants \
   /usr/libexec/infrastructure \
-  /usr/share/gitlab-runner \
   /usr/share/infrastructure/uptime-kuma \
   /usr/share/infrastructure/freeradius \
   /var/lib/suricata \
@@ -44,9 +43,6 @@ COPY freeipa-prepare.service /etc/systemd/system/freeipa-prepare.service
 COPY freeradius /usr/share/infrastructure/freeradius
 COPY freeradius-prepare /usr/libexec/infrastructure/freeradius-prepare
 COPY freeradius-prepare.service /etc/systemd/system/freeradius-prepare.service
-COPY gitlab-runner-config.template.toml /usr/share/gitlab-runner/register.template.toml
-COPY gitlab-runner-register /usr/libexec/infrastructure/gitlab-runner-register
-COPY gitlab-runner-register.service /etc/systemd/system/gitlab-runner-register.service
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
 COPY localhost-registry.conf /etc/containers/registries.conf.d/10-localhost-registry.conf
 COPY mdadm.conf /etc/mdadm.conf
@@ -83,8 +79,6 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/multi-user.target.wants/upower.service; \
   ln -sf /etc/systemd/system/nut-configure.service \
     /etc/systemd/system/multi-user.target.wants/nut-configure.service; \
-  ln -sf /etc/systemd/system/gitlab-runner-register.service \
-    /etc/systemd/system/multi-user.target.wants/gitlab-runner-register.service; \
   ln -sf /etc/systemd/system/uptime-kuma-bootstrap.service \
     /etc/systemd/system/multi-user.target.wants/uptime-kuma-bootstrap.service; \
   ostree container commit
