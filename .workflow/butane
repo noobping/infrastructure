@@ -1,0 +1,67 @@
+#!/bin/sh
+set -eu
+
+CI_ROOT=${CI_ROOT:-$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)}
+PATH="${CI_ROOT}/.ci/alias:${PATH}"
+export CI_ROOT PATH
+
+. "${CI_ROOT}/.ci/lib/common.sh"
+
+CI_EVENT=${1:-}
+export CI_EVENT
+
+should_run=0
+case "${CI_EVENT}" in
+  manual)
+    should_run=1
+    ;;
+  pre-push)
+    if ci_should_run_on_push \
+      '.ci/*' '.ci/*/*' '.ci/*/*/*' \
+      '.workflow/butane' \
+      'butane/*' 'butane/*/*'; then
+      should_run=1
+    fi
+    ;;
+esac
+
+[ "${should_run}" -eq 1 ] || exit 3
+
+if ci_test_mode; then
+  ci_test_log "public:butane:${CI_EVENT}"
+  exit 0
+fi
+
+machine_arch=$(ci_current_machine_arch)
+
+yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/setup.yml > butane/setup.bu
+yq ea '. as $item ireduce ({}; . *+ $item)' \
+  butane/base.yml \
+  butane/updates.yml \
+  butane/workstation.yml > butane/workstation.bu
+
+sed "s#__CI_IMAGE_NAMESPACE__#${CI_IMAGE_NAMESPACE}#g" butane/setup.bu > butane/setup.rendered.bu
+sed "s#__CI_IMAGE_NAMESPACE__#${CI_IMAGE_NAMESPACE}#g" butane/workstation.bu > butane/workstation.rendered.bu
+
+butane --pretty --strict --files-dir . butane/setup.rendered.bu > setup.ign
+butane --pretty --strict --files-dir . butane/workstation.rendered.bu > workstation.ign
+
+coreos-installer download \
+  -s stable \
+  -a "${machine_arch}" \
+  -p metal \
+  -f iso \
+  -C "${CI_ROOT}" \
+  --decompress
+
+base_iso=$(ls -1 fedora-coreos-*-live-iso."${machine_arch}".iso | tail -n 1)
+out_iso="workstation-${machine_arch}.iso"
+
+coreos-installer iso customize \
+  --live-ignition setup.ign \
+  --dest-ignition workstation.ign \
+  --pre-install butane/detect-device.sh \
+  -o "${out_iso}" \
+  "${base_iso}"
+
+sha256sum "${out_iso}" > "${out_iso}.sha256"
