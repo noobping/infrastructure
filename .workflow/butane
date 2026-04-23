@@ -46,6 +46,15 @@ sed "s#__CI_IMAGE_NAMESPACE__#${CI_IMAGE_NAMESPACE}#g" butane/workstation.bu > b
 butane --pretty --strict --files-dir . butane/setup.rendered.bu > setup.ign
 butane --pretty --strict --files-dir . butane/workstation.rendered.bu > workstation.ign
 
+mkdir -p bootc
+image_ref="${CI_IMAGE_NAMESPACE}/workstation:latest"
+archive_path="bootc/workstation.ociarchive"
+digest_path="${archive_path}.sha256"
+
+ci_podman_pull "${image_ref}"
+podman save --format oci-archive -o "${archive_path}" "${image_ref}"
+sha256sum "${archive_path}" | awk '{ print $1 }' > "${digest_path}"
+
 coreos-installer download \
   -s stable \
   -a "${machine_arch}" \
@@ -61,7 +70,16 @@ coreos-installer iso customize \
   --live-ignition setup.ign \
   --dest-ignition workstation.ign \
   --pre-install butane/detect-device.sh \
+  --post-install butane/cache-bootc-image.sh \
   -o "${out_iso}" \
   "${base_iso}"
+
+xorriso \
+  -dev "${out_iso}" \
+  -map "${archive_path}" "/bootc/workstation.ociarchive" \
+  -map "${digest_path}" "/bootc/workstation.ociarchive.sha256" \
+  -boot_image any replay \
+  -compliance no_emul_toc \
+  -padding included
 
 sha256sum "${out_iso}" > "${out_iso}.sha256"
