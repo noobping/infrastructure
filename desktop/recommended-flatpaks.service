@@ -1,0 +1,23 @@
+[Unit]
+Description=Sync system Flatpaks to the recommended desktop list
+Wants=network-online.target
+After=network-online.target
+Before=system-flatpaks.service
+Before=update-system-flatpaks.service
+Conflicts=system-flatpaks.service
+StartLimitIntervalSec=0
+ConditionPathExists=/var/lib/rebase.done
+ConditionPathExists=/usr/bin/flatpak
+ConditionPathExists=/etc/recommended/flathub
+ConditionPathExists=/usr/libexec/infrastructure/fapolicyd-flatpak-sync
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Restart=on-failure
+RestartSec=30s
+ExecStartPre=/usr/bin/rm -f /etc/systemd/system/multi-user.target.wants/system-flatpaks.service
+ExecStart=/usr/libexec/infrastructure/recommended-flatpaks
+
+[Install]
+WantedBy=multi-user.target

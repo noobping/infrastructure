@@ -77,9 +77,7 @@ systemd:
         Description=Update system flatpaks
         Wants=network-online.target
         After=network-online.target
-        ConditionPathExists=/var/lib/system-flatpaks.done
         ConditionPathExists=/usr/bin/flatpak
-        ConditionPathExists=/usr/libexec/infrastructure/fapolicyd-flatpak-sync
 
         [Service]
         Type=oneshot
@@ -96,7 +94,7 @@ systemd:
       contents: |
         [Unit]
         Description=Daily system Flatpak update timer
-        ConditionPathExists=/var/lib/system-flatpaks.done
+        ConditionPathExists=/usr/bin/flatpak
 
         [Timer]
         OnCalendar=daily

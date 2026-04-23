@@ -92,7 +92,7 @@ systemd:
         Description=Install system Flatpaks
         Wants=network-online.target
         After=network-online.target
-        ConditionPathExists=/var/lib/rebase.done
+        ConditionPathExists=/usr/bin/flatpak
         ConditionPathExists=!/var/lib/system-flatpaks.done
 
         [Service]
@@ -115,7 +115,6 @@ systemd:
           org.gnome.TextEditor \
           org.getzola.zola \
           org.flatpak.Builder
-        ExecStart=/usr/libexec/infrastructure/fapolicyd-flatpak-sync
         ExecStart=/usr/bin/touch /var/lib/system-flatpaks.done
 
         [Install]
