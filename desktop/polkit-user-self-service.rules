@@ -5,8 +5,7 @@ polkit.addRule(function(action, subject) {
 
   var deniedAccountAdmin = [
     "org.freedesktop.accounts.set-login-option",
-    "org.freedesktop.accounts.user-administration",
-    "org.gnome.controlcenter.user-accounts.administration"
+    "org.freedesktop.accounts.user-administration"
   ];
 
   if (deniedAccountAdmin.indexOf(action.id) >= 0) {
@@ -14,6 +13,7 @@ polkit.addRule(function(action, subject) {
   }
 
   var allowedSelfService = [
+    "org.gnome.controlcenter.user-accounts.administration",
     "org.freedesktop.accounts.change-own-password",
     "org.freedesktop.accounts.change-own-user-data"
   ];
