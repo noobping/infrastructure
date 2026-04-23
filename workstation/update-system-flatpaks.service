@@ -4,7 +4,6 @@ Wants=network-online.target
 After=network-online.target
 StartLimitIntervalSec=0
 ConditionPathExists=/usr/bin/flatpak
-ConditionPathExists=/usr/libexec/infrastructure/update-system-flatpaks
 
 [Service]
 Type=oneshot
