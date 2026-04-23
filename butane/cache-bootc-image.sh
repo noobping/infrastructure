@@ -35,6 +35,23 @@ resolve_dest() {
     detect_dest
 }
 
+resolve_var_root() {
+    local stateroot
+
+    if [[ -e "$target/var" ]]; then
+        echo "$target/var"
+        return 0
+    fi
+
+    stateroot="$(find "$target/ostree/deploy" -mindepth 1 -maxdepth 1 -type d -print -quit)"
+    if [[ -n "$stateroot" ]]; then
+        echo "$stateroot/var"
+        return 0
+    fi
+
+    return 1
+}
+
 if [[ ! -d "$archive_dir" ]]; then
     echo "No embedded bootc image directory found at $archive_dir"
     exit 0
@@ -73,12 +90,12 @@ if [[ -z "$root_part" || ! -b "$root_part" ]]; then
 fi
 
 mkdir -p "$target"
-mount "$root_part" "$target"
+mount -o rw "$root_part" "$target"
 trap 'umount "$target"' EXIT
 
-stateroot="$(find "$target/ostree/deploy" -mindepth 1 -maxdepth 1 -type d -print -quit)"
-if [[ -z "$stateroot" ]]; then
-    echo "Unable to find OSTree stateroot in installed system" >&2
+var_root="$(resolve_var_root || true)"
+if [[ -z "$var_root" ]]; then
+    echo "Unable to determine writable /var path in installed system" >&2
     exit 1
 fi
 
@@ -94,10 +111,11 @@ else
     echo "No embedded bootc image digest found for $profile; offline fallback will be unavailable" >&2
 fi
 
-install -d -m 0755 "$stateroot/var/lib/bootc-images"
-install -m 0644 "$archive" "$stateroot/var/lib/bootc-images/${profile}.ociarchive"
+dest_dir="$var_root/lib/bootc-images"
+install -d -m 0755 "$dest_dir"
+install -m 0644 "$archive" "$dest_dir/${profile}.ociarchive"
 if [[ -f "$digest_src" ]]; then
-    install -m 0644 "$digest_src" "$stateroot/var/lib/bootc-images/${profile}.ociarchive.sha256"
+    install -m 0644 "$digest_src" "$dest_dir/${profile}.ociarchive.sha256"
 fi
 sync
 
