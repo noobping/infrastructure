@@ -7,13 +7,42 @@ LOG_FILE="$LOG_DIR/recommended.log"
 WALLPAPER_URI="file:///usr/share/backgrounds/wallpaper.png"
 PROFILE_ICON="/usr/share/pixmaps/faces/noobping.png"
 PROFILE_LANGUAGE="nl_NL.UTF-8"
+GEXT_IMAGE="ghcr.io/noobping/gext"
+GEXT_PREPARED=0
 
 mkdir -p "$HOME/.config" "$LOG_DIR"
 exec >>"$LOG_FILE" 2>&1
 
 echo "[$(date --iso-8601=seconds)] starting recommended"
 
+sync_podman_trust() {
+  [ -x /usr/libexec/infrastructure/fapolicyd-podman-sync ] || return 0
+  command -v pkexec >/dev/null 2>&1 || return 0
+  command -v systemctl >/dev/null 2>&1 || return 0
+
+  if ! systemctl is-enabled --quiet fapolicyd.service && \
+     ! systemctl is-active --quiet fapolicyd.service; then
+    return 0
+  fi
+
+  pkexec /usr/libexec/infrastructure/fapolicyd-podman-sync "$UID" "$HOME"
+}
+
+prepare_gext() {
+  [ "$GEXT_PREPARED" -eq 0 ] || return 0
+  command -v podman >/dev/null 2>&1 || return 1
+
+  if ! podman image exists "$GEXT_IMAGE" >/dev/null 2>&1; then
+    podman pull "$GEXT_IMAGE"
+  fi
+
+  sync_podman_trust
+  GEXT_PREPARED=1
+}
+
 gext() {
+  prepare_gext
+
   podman run --rm \
     --userns=keep-id \
     --security-opt label=disable \
@@ -22,7 +51,7 @@ gext() {
     -v /run/user/$UID/bus:/run/user/$UID/bus \
     -v "$HOME:$HOME" \
     -w "$PWD" \
-    ghcr.io/noobping/gext "$@"
+    "$GEXT_IMAGE" "$@"
 }
 
 set_profile_icon() {

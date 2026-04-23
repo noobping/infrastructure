@@ -23,12 +23,33 @@ alias yq='podman run --rm -i \
 alias flatpak-builder="flatpak run org.flatpak.Builder"
 alias zola="flatpak run org.getzola.zola"
 
-alias gext='podman run --rm \
-  --userns=keep-id \
-  --security-opt label=disable \
-  -e DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$UID/bus" \
-  -e XDG_RUNTIME_DIR="/run/user/$UID" \
-  -v /run/user/$UID/bus:/run/user/$UID/bus \
-  -v $HOME:$HOME \
-  -w $PWD \
-  ghcr.io/noobping/gext "$@"'
+sync_podman_trust() {
+  [ -x /usr/libexec/infrastructure/fapolicyd-podman-sync ] || return 0
+  command -v pkexec >/dev/null 2>&1 || return 0
+  command -v systemctl >/dev/null 2>&1 || return 0
+
+  if ! systemctl is-enabled --quiet fapolicyd.service && \
+     ! systemctl is-active --quiet fapolicyd.service; then
+    return 0
+  fi
+
+  pkexec /usr/libexec/infrastructure/fapolicyd-podman-sync "$UID" "$HOME"
+}
+
+gext() {
+  if ! podman image exists ghcr.io/noobping/gext >/dev/null 2>&1; then
+    podman pull ghcr.io/noobping/gext
+  fi
+
+  sync_podman_trust || return 1
+
+  podman run --rm \
+    --userns=keep-id \
+    --security-opt label=disable \
+    -e DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$UID/bus" \
+    -e XDG_RUNTIME_DIR="/run/user/$UID" \
+    -v /run/user/$UID/bus:/run/user/$UID/bus \
+    -v "$HOME:$HOME" \
+    -w "$PWD" \
+    ghcr.io/noobping/gext "$@"
+}

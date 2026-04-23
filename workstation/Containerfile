@@ -105,6 +105,8 @@ COPY fapolicyd-flatpak-sync /usr/libexec/infrastructure/fapolicyd-flatpak-sync
 COPY fapolicyd-flatpak-sync.path /etc/systemd/system/fapolicyd-flatpak-sync.path
 COPY fapolicyd-flatpak-sync.service /etc/systemd/system/fapolicyd-flatpak-sync.service
 COPY fapolicyd-flatpak-sync.timer /etc/systemd/system/fapolicyd-flatpak-sync.timer
+COPY fapolicyd-podman-sync /usr/libexec/infrastructure/fapolicyd-podman-sync
+COPY fapolicyd-podman-sync.policy /usr/share/polkit-1/actions/dev.noobping.workstation.fapolicyd-podman-sync.policy
 COPY firewall.xml /etc/firewalld/zones/public.xml
 COPY suricata-direct.xml /etc/firewalld/direct.xml
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
@@ -133,6 +135,7 @@ RUN set -euxo pipefail; \
   chmod +x /usr/bin/alternative; \
   chmod +x /usr/libexec/infrastructure/alternative-root; \
   chmod +x /usr/libexec/infrastructure/fapolicyd-flatpak-sync; \
+  chmod +x /usr/libexec/infrastructure/fapolicyd-podman-sync; \
   chmod +x /usr/libexec/infrastructure/nut-netclient-configure; \
   for trusted_file in \
     /etc/xdg/autostart/recommended.desktop \
@@ -142,6 +145,7 @@ RUN set -euxo pipefail; \
     /usr/bin/alternative \
     /usr/libexec/infrastructure/alternative-root \
     /usr/libexec/infrastructure/fapolicyd-flatpak-sync \
+    /usr/libexec/infrastructure/fapolicyd-podman-sync \
     /usr/libexec/infrastructure/nut-netclient-configure; do \
       fapolicyd-cli --file add "$trusted_file"; \
   done; \

@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ! command -v fapolicyd-cli >/dev/null 2>&1; then
+  exit 0
+fi
+
+if ! systemctl is-enabled --quiet fapolicyd.service && \
+   ! systemctl is-active --quiet fapolicyd.service; then
+  exit 0
+fi
+
+if [[ "${EUID}" -ne 0 ]]; then
+  echo "This helper must be run as root." >&2
+  exit 1
+fi
+
+uid_arg="${1:-}"
+home_arg="${2:-}"
+
+if [[ ! "$uid_arg" =~ ^[0-9]+$ ]]; then
+  echo "Expected numeric uid argument." >&2
+  exit 1
+fi
+
+if [[ -z "$home_arg" || "$home_arg" != /* ]]; then
+  echo "Expected absolute home directory argument." >&2
+  exit 1
+fi
+
+sync_root() {
+  local root="$1"
+
+  [[ -d "$root" ]] || return 0
+
+  root="${root%/}/"
+  fapolicyd-cli --file delete "$root" >/dev/null 2>&1 || true
+  fapolicyd-cli --file add "$root"
+  return 0
+}
+
+synced=0
+for root in \
+  "$home_arg/.local/share/containers/storage" \
+  "/run/user/$uid_arg/containers" \
+  "/tmp/containers-user-$uid_arg/containers"; do
+  if [[ -d "$root" ]]; then
+    sync_root "$root"
+    synced=1
+  fi
+done
+
+if [[ "$synced" -eq 1 ]]; then
+  fapolicyd-cli --update
+fi
