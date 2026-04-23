@@ -5,7 +5,6 @@ After=network-online.target
 Before=update-system-flatpaks.service
 StartLimitIntervalSec=0
 ConditionPathExists=/usr/bin/flatpak
-ConditionPathExists=/etc/recommended/flathub
 
 [Service]
 Type=oneshot

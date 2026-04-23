@@ -8,15 +8,17 @@ MODE="${SYSTEM_FLATPAKS_MODE:-init}"
 declare -A wanted=()
 declare -a refs=()
 
-mapfile -t refs < <(
-  sed \
-    -e 's/[[:space:]]*#.*$//' \
-    -e 's/^[[:space:]]*//' \
-    -e 's/[[:space:]]*$//' \
-    -e '/^$/d' \
-    "$LIST_FILE" \
-  | sort -u
-)
+if [ -f "$LIST_FILE" ]; then
+  mapfile -t refs < <(
+    sed \
+      -e 's/[[:space:]]*#.*$//' \
+      -e 's/^[[:space:]]*//' \
+      -e 's/[[:space:]]*$//' \
+      -e '/^$/d' \
+      "$LIST_FILE" \
+    | sort -u
+  )
+fi
 
 for ref in "${refs[@]}"; do
   wanted["$ref"]=1
