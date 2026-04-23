@@ -45,6 +45,18 @@ passwd:
 
 storage:
   directories:
+    - path: /var/srv/git
+      mode: 0750
+      user:
+        name: git
+      group:
+        name: git
+    - path: /var/srv/git/.config/systemd/user/timers.target.wants
+      mode: 0750
+      user:
+        name: git
+      group:
+        name: git
     - path: /var/lib/containers/minecraft/java
       mode: 0755
       user:
@@ -73,16 +85,18 @@ storage:
       mode: 0755
     - path: /var/lib/containers/nextcloud
       mode: 0755
-    - path: /var/lib/containers/gitlab/config
-      mode: 0755
-    - path: /var/lib/containers/gitlab/logs
-      mode: 0755
-    - path: /var/lib/containers/gitlab/data
-      mode: 0755
-    - path: /var/lib/containers/gitlab-runner/config
-      mode: 0700
-    - path: /var/lib/containers/gitlab-runner/cache
-      mode: 0755
+    - path: /var/lib/containers/gitea/config
+      mode: 0750
+      user:
+        name: git
+      group:
+        name: git
+    - path: /var/lib/containers/gitea/data
+      mode: 0750
+      user:
+        name: git
+      group:
+        name: git
     - path: /var/lib/containers/secrets
       mode: 0700
     - path: /var/lib/containers/registry
@@ -107,7 +121,16 @@ storage:
         name: music
       group:
         name: music
+  links:
+    - path: /var/srv/git/.config/systemd/user/timers.target.wants/podman-auto-update.timer
+      target: /usr/lib/systemd/user/podman-auto-update.timer
+      overwrite: true
   files:
+    - path: /var/lib/systemd/linger/git
+      mode: 0644
+      overwrite: true
+      contents:
+        inline: ""
     - path: /etc/ssh/sshd_config.d/40-disable-passwords.conf
       mode: 0644
       overwrite: true

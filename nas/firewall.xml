@@ -23,7 +23,7 @@
     <port protocol="udp" port="19132"/>
     <port protocol="udp" port="19133"/>
 
-    <!-- Gitlab -->
+    <!-- Gitea -->
     <port protocol="tcp" port="2222"/>
     <port protocol="tcp" port="8929"/>
 
