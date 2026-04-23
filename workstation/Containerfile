@@ -124,6 +124,7 @@ COPY recommended.sh /usr/bin/recommended
 COPY skel /etc/skel
 COPY system-flatpaks /usr/libexec/infrastructure/system-flatpaks
 COPY system-flatpaks.service /etc/systemd/system/system-flatpaks.service
+COPY update-system-flatpaks /usr/libexec/infrastructure/update-system-flatpaks
 COPY update-system-flatpaks.service /etc/systemd/system/update-system-flatpaks.service
 COPY update-system-flatpaks.timer /etc/systemd/system/update-system-flatpaks.timer
 
@@ -143,6 +144,7 @@ RUN set -euxo pipefail; \
   chmod +x /usr/libexec/infrastructure/fapolicyd-podman-sync; \
   chmod +x /usr/libexec/infrastructure/nut-netclient-configure; \
   chmod +x /usr/libexec/infrastructure/system-flatpaks; \
+  chmod +x /usr/libexec/infrastructure/update-system-flatpaks; \
   for trusted_file in \
     /etc/xdg/autostart/recommended.desktop \
     /usr/share/applications/recommended.desktop \
@@ -153,7 +155,8 @@ RUN set -euxo pipefail; \
     /usr/libexec/infrastructure/fapolicyd-flatpak-sync \
     /usr/libexec/infrastructure/fapolicyd-podman-sync \
     /usr/libexec/infrastructure/nut-netclient-configure \
-    /usr/libexec/infrastructure/system-flatpaks; do \
+    /usr/libexec/infrastructure/system-flatpaks \
+    /usr/libexec/infrastructure/update-system-flatpaks; do \
       fapolicyd-cli --file add "$trusted_file"; \
   done; \
 

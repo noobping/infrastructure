@@ -3,6 +3,10 @@ set -euo pipefail
 
 LIST_FILE="/etc/recommended/flathub"
 DONE_FILE="/var/lib/system-flatpaks.done"
+MODE="${SYSTEM_FLATPAKS_MODE:-init}"
+
+declare -A wanted=()
+declare -a refs=()
 
 mapfile -t refs < <(
   sed \
@@ -14,15 +18,38 @@ mapfile -t refs < <(
   | sort -u
 )
 
+for ref in "${refs[@]}"; do
+  wanted["$ref"]=1
+done
+
 flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 flatpak remote-add --system --if-not-exists fedora oci+https://registry.fedoraproject.org
+
+if [ "$MODE" = "managed" ]; then
+  while IFS=$'\t' read -r app origin; do
+    [ -n "${app:-}" ] || continue
+
+    if [ -z "${wanted[$app]+x}" ] || [ "${origin:-}" != "flathub" ]; then
+      flatpak uninstall --system --noninteractive "$app"
+    fi
+  done < <(flatpak list --system --app --columns=application,origin)
+fi
 
 for ref in "${refs[@]}"; do
   flatpak install --system --noninteractive flathub "$ref"
 done
 
+if [ "$MODE" = "managed" ]; then
+  flatpak uninstall --system --noninteractive --unused
+elif [ "$MODE" != "init" ]; then
+  echo "Unknown SYSTEM_FLATPAKS_MODE: $MODE" >&2
+  exit 1
+fi
+
 if [ -x /usr/libexec/infrastructure/fapolicyd-flatpak-sync ]; then
   /usr/libexec/infrastructure/fapolicyd-flatpak-sync
 fi
 
-touch "$DONE_FILE"
+if [ "$MODE" = "init" ]; then
+  touch "$DONE_FILE"
+fi

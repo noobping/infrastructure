@@ -1,15 +1,18 @@
 [Unit]
-Description=Install system Flatpaks
+Description=Sync system Flatpaks
 Wants=network-online.target
 After=network-online.target
+Before=update-system-flatpaks.service
 StartLimitIntervalSec=0
 ConditionPathExists=/usr/bin/flatpak
+ConditionPathExists=/etc/recommended/flathub
 ConditionPathExists=!/var/lib/system-flatpaks.done
 
 [Service]
 Type=oneshot
 Restart=on-failure
 RestartSec=30s
+Environment=SYSTEM_FLATPAKS_MODE=init
 ExecStart=/usr/libexec/infrastructure/system-flatpaks
 
 [Install]
