@@ -1,0 +1,16 @@
+[Unit]
+Description=Install system Flatpaks
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=0
+ConditionPathExists=/usr/bin/flatpak
+ConditionPathExists=!/var/lib/system-flatpaks.done
+
+[Service]
+Type=oneshot
+Restart=on-failure
+RestartSec=30s
+ExecStart=/usr/libexec/infrastructure/system-flatpaks
+
+[Install]
+WantedBy=multi-user.target

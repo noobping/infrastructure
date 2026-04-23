@@ -70,36 +70,3 @@ systemd:
 
         [Install]
         WantedBy=halt.target reboot.target shutdown.target
-    - name: update-system-flatpaks.service
-      enabled: true
-      contents: |
-        [Unit]
-        Description=Update system flatpaks
-        Wants=network-online.target
-        After=network-online.target
-        ConditionPathExists=/usr/bin/flatpak
-
-        [Service]
-        Type=oneshot
-        Restart=on-failure
-        RestartSec=30s
-        StartLimitIntervalSec=0
-        ExecStart=/usr/bin/flatpak update --system --noninteractive
-        ExecStart=/usr/libexec/infrastructure/fapolicyd-flatpak-sync
-
-        [Install]
-        WantedBy=multi-user.target
-    - name: update-system-flatpaks.timer
-      enabled: true
-      contents: |
-        [Unit]
-        Description=Daily system Flatpak update timer
-        ConditionPathExists=/usr/bin/flatpak
-
-        [Timer]
-        OnCalendar=daily
-        Persistent=true
-        RandomizedDelaySec=1h
-
-        [Install]
-        WantedBy=timers.target

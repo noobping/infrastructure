@@ -100,6 +100,7 @@ COPY background.xml /usr/share/gnome-background-properties/noobping.xml
 COPY cachefilesd.conf /etc/cachefilesd.conf
 COPY certs/ /etc/pki/ca-trust/source/anchors/
 COPY extensions.txt /etc/recommended/extensions
+COPY flathub.txt /etc/recommended/flathub
 COPY fapolicyd-deny-user-writable-exec.rules /etc/fapolicyd/rules.d/30-deny-user-writable-exec.rules
 COPY fapolicyd-flatpak-sync /usr/libexec/infrastructure/fapolicyd-flatpak-sync
 COPY fapolicyd-flatpak-sync.path /etc/systemd/system/fapolicyd-flatpak-sync.path
@@ -121,6 +122,10 @@ COPY recommended.desktop /etc/xdg/autostart/
 COPY recommended.desktop /usr/share/applications/
 COPY recommended.sh /usr/bin/recommended
 COPY skel /etc/skel
+COPY system-flatpaks /usr/libexec/infrastructure/system-flatpaks
+COPY system-flatpaks.service /etc/systemd/system/system-flatpaks.service
+COPY update-system-flatpaks.service /etc/systemd/system/update-system-flatpaks.service
+COPY update-system-flatpaks.timer /etc/systemd/system/update-system-flatpaks.timer
 
 RUN set -euxo pipefail; \
   update-ca-trust; \
@@ -137,6 +142,7 @@ RUN set -euxo pipefail; \
   chmod +x /usr/libexec/infrastructure/fapolicyd-flatpak-sync; \
   chmod +x /usr/libexec/infrastructure/fapolicyd-podman-sync; \
   chmod +x /usr/libexec/infrastructure/nut-netclient-configure; \
+  chmod +x /usr/libexec/infrastructure/system-flatpaks; \
   for trusted_file in \
     /etc/xdg/autostart/recommended.desktop \
     /usr/share/applications/recommended.desktop \
@@ -146,7 +152,8 @@ RUN set -euxo pipefail; \
     /usr/libexec/infrastructure/alternative-root \
     /usr/libexec/infrastructure/fapolicyd-flatpak-sync \
     /usr/libexec/infrastructure/fapolicyd-podman-sync \
-    /usr/libexec/infrastructure/nut-netclient-configure; do \
+    /usr/libexec/infrastructure/nut-netclient-configure \
+    /usr/libexec/infrastructure/system-flatpaks; do \
       fapolicyd-cli --file add "$trusted_file"; \
   done; \
 
@@ -181,6 +188,10 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/multi-user.target.wants/firewalld.service; \
   ln -sf /etc/systemd/system/nut-netclient-configure.service \
     /etc/systemd/system/multi-user.target.wants/nut-netclient-configure.service; \
+  ln -sf /etc/systemd/system/system-flatpaks.service \
+    /etc/systemd/system/multi-user.target.wants/system-flatpaks.service; \
+  ln -sf /etc/systemd/system/update-system-flatpaks.service \
+    /etc/systemd/system/multi-user.target.wants/update-system-flatpaks.service; \
   ln -sf /usr/lib/systemd/system/avahi-daemon.service \
     /etc/systemd/system/multi-user.target.wants/avahi-daemon.service; \
   ln -sf /usr/lib/systemd/system/cups-browsed.service \
@@ -199,6 +210,8 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/sockets.target.wants/cups.socket; \
   ln -sf /usr/lib/systemd/system/plymouth-start.service \
     /etc/systemd/system/sysinit.target.wants/plymouth-start.service; \
+  ln -sf /etc/systemd/system/update-system-flatpaks.timer \
+    /etc/systemd/system/timers.target.wants/update-system-flatpaks.timer; \
   ln -sf /dev/null /etc/systemd/system/nftables.service; \
 
   printf '%s\n' "INITIAL_SETUP_ENABLE=YES" > /etc/sysconfig/initial-setup; \

@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+LIST_FILE="/etc/recommended/flathub"
+DONE_FILE="/var/lib/system-flatpaks.done"
+
+mapfile -t refs < <(
+  sed \
+    -e 's/[[:space:]]*#.*$//' \
+    -e 's/^[[:space:]]*//' \
+    -e 's/[[:space:]]*$//' \
+    -e '/^$/d' \
+    "$LIST_FILE" \
+  | sort -u
+)
+
+flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+flatpak remote-add --system --if-not-exists fedora oci+https://registry.fedoraproject.org
+
+for ref in "${refs[@]}"; do
+  flatpak install --system --noninteractive flathub "$ref"
+done
+
+if [ -x /usr/libexec/infrastructure/fapolicyd-flatpak-sync ]; then
+  /usr/libexec/infrastructure/fapolicyd-flatpak-sync
+fi
+
+touch "$DONE_FILE"

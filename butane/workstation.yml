@@ -84,38 +84,3 @@ systemd:
 
         [Install]
         WantedBy=multi-user.target
-
-    - name: system-flatpaks.service
-      enabled: true
-      contents: |
-        [Unit]
-        Description=Install system Flatpaks
-        Wants=network-online.target
-        After=network-online.target
-        ConditionPathExists=/usr/bin/flatpak
-        ConditionPathExists=!/var/lib/system-flatpaks.done
-
-        [Service]
-        Type=oneshot
-        Restart=on-failure
-        RestartSec=30s
-        StartLimitIntervalSec=0
-        ExecStart=/usr/bin/flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-        ExecStart=/usr/bin/flatpak remote-add --system --if-not-exists fedora oci+https://registry.fedoraproject.org
-        ExecStart=/usr/bin/flatpak install --system --noninteractive flathub \
-          com.belmoussaoui.Decoder \
-          com.mattjakeman.ExtensionManager \
-          io.github.kolunmi.Bazaar \
-          org.gnome.Calendar \
-          org.gnome.Epiphany \
-          org.gnome.Loupe \
-          org.gnome.Papers \
-          org.gnome.SimpleScan \
-          io.github.noobping.keycord \
-          org.gnome.TextEditor \
-          org.getzola.zola \
-          org.flatpak.Builder
-        ExecStart=/usr/bin/touch /var/lib/system-flatpaks.done
-
-        [Install]
-        WantedBy=multi-user.target

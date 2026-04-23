@@ -91,17 +91,3 @@ systemd:
 
         [Install]
         WantedBy=multi-user.target
-
-    - name: profile-sync.timer
-      enabled: true
-      contents: |
-        [Unit]
-        Description=Periodic profile sync to STACK
-
-        [Timer]
-        OnBootSec=5min
-        OnUnitActiveSec=15min
-        Persistent=true
-
-        [Install]
-        WantedBy=timers.target

@@ -1,0 +1,11 @@
+com.belmoussaoui.Decoder
+com.mattjakeman.ExtensionManager
+io.github.kolunmi.Bazaar
+io.github.noobping.keycord
+org.flatpak.Builder
+org.getzola.zola
+org.gnome.Calendar
+org.gnome.Epiphany
+org.gnome.Loupe
+org.gnome.Papers
+org.gnome.SimpleScan

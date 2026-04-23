@@ -42,24 +42,20 @@ COPY extensions.dconf /etc/recommended/settings.dconf
 COPY disable-appimages.sh /etc/profile.d/zz-desktop-hardening.sh
 COPY fapolicyd-gnome-extensions.rules /etc/fapolicyd/rules.d/29-gnome-user-extensions.rules
 COPY polkit-user-self-service.rules /etc/polkit-1/rules.d/40-user-self-service.rules
-COPY recommended-flatpaks /usr/libexec/infrastructure/recommended-flatpaks
-COPY recommended-flatpaks.service /usr/lib/systemd/system/recommended-flatpaks.service
+COPY system-flatpaks /usr/libexec/infrastructure/system-flatpaks
+COPY system-flatpaks.service /usr/lib/systemd/system/system-flatpaks.service
 
 RUN set -euxo pipefail; \
   rm -f /etc/cachefilesd.conf; \
   chmod 0644 /etc/profile.d/zz-desktop-hardening.sh; \
   chmod 0644 /etc/fapolicyd/rules.d/29-gnome-user-extensions.rules; \
   chmod 0644 /etc/polkit-1/rules.d/40-user-self-service.rules; \
-  chmod 0644 /usr/lib/systemd/system/recommended-flatpaks.service; \
-  chmod 0755 /usr/libexec/infrastructure/recommended-flatpaks; \
-  fapolicyd-cli --file add /usr/libexec/infrastructure/recommended-flatpaks; \
+  fapolicyd-cli --file add /usr/libexec/infrastructure/system-flatpaks; \
   touch /etc/recommended/disable-lock-and-suspend; \
   fapolicyd-cli --check-config; \
   echo "${REBASE_IMAGE_BASE}workstation:latest" > /etc/recommended/base; \
   ln -sf /usr/lib/systemd/system/fapolicyd.service \
       /etc/systemd/system/multi-user.target.wants/fapolicyd.service; \
-  ln -sf /usr/lib/systemd/system/recommended-flatpaks.service \
-      /etc/systemd/system/multi-user.target.wants/recommended-flatpaks.service; \
   ln -sf /etc/systemd/system/fapolicyd-flatpak-sync.path \
       /etc/systemd/system/multi-user.target.wants/fapolicyd-flatpak-sync.path; \
   ln -sf /etc/systemd/system/fapolicyd-flatpak-sync.timer \
