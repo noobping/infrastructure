@@ -11,6 +11,8 @@ PublishPort=8929:3000/tcp
 PublishPort=2222:2222/tcp
 Volume=/var/lib/containers/gogs/data:/data:Z
 Volume=/var/lib/containers/gogs/conf:/data/gogs/conf:Z
+Volume=/var/www/git:/web:Z
+Volume=/var/srv/git:/git:Z
 Volume=/etc/localtime:/etc/localtime:ro
 
 [Service]

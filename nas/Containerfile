@@ -31,7 +31,10 @@ RUN rpm-ostree install -y \
   /usr/share/infrastructure/uptime-kuma \
   /usr/share/infrastructure/freeradius \
   /var/lib/suricata \
-  /var/log/suricata; \
+  /var/log/suricata \
+  /var/www; \
+  install -d -m 0755 -o 1007 -g 1007 /var/www/git; \
+  ln -s /var/www/git /web; \
   ostree container commit
 
 COPY todo.sh /usr/bin/todo

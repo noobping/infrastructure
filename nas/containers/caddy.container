@@ -5,7 +5,7 @@ Description=Podman - caddy web service
 Image=docker.io/library/caddy:latest
 AutoUpdate=registry
 ShmSize=7168b
-PodmanArgs=--network=host -v /etc/caddy.conf:/etc/caddy/Caddyfile:Z
+PodmanArgs=--network=host -v /etc/caddy.conf:/etc/caddy/Caddyfile:Z -v /var/www/git:/srv/web:Z
 
 [Service]
 Restart=always

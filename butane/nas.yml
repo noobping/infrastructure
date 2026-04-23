@@ -51,6 +51,12 @@ storage:
         name: git
       group:
         name: git
+    - path: /var/www/git
+      mode: 0755
+      user:
+        name: git
+      group:
+        name: git
     - path: /var/lib/containers/minecraft/java
       mode: 0755
       user:
