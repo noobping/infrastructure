@@ -24,6 +24,7 @@ if (( ${#archives[@]} > 1 )); then
 fi
 
 archive="${archives[0]}"
+digest_src="${archive}.sha256"
 profile="$(basename "$archive" .ociarchive)"
 dest="$(awk '$1 == "dest-device:" { print $2; exit }' /etc/coreos/installer.d/*.yaml 2>/dev/null || true)"
 
@@ -50,9 +51,23 @@ if [[ -z "$stateroot" ]]; then
     exit 1
 fi
 
+if [[ -f "$digest_src" ]]; then
+    expected="$(awk 'NR == 1 { print $1; exit }' "$digest_src")"
+    actual="$(sha256sum "$archive" | awk '{ print $1 }')"
+
+    if [[ -z "$expected" || "$actual" != "$expected" ]]; then
+        echo "Embedded bootc image digest mismatch for $profile" >&2
+        exit 1
+    fi
+else
+    echo "No embedded bootc image digest found for $profile; offline fallback will be unavailable" >&2
+fi
+
 install -d -m 0755 "$stateroot/var/lib/bootc-images"
 install -m 0644 "$archive" "$stateroot/var/lib/bootc-images/${profile}.ociarchive"
-sha256sum "$archive" > "$stateroot/var/lib/bootc-images/${profile}.ociarchive.sha256"
+if [[ -f "$digest_src" ]]; then
+    install -m 0644 "$digest_src" "$stateroot/var/lib/bootc-images/${profile}.ociarchive.sha256"
+fi
 sync
 
 echo "Cached embedded bootc image for $profile in installed system"

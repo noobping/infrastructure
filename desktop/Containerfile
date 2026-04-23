@@ -55,7 +55,7 @@ RUN set -euxo pipefail; \
   chmod 0644 /etc/systemd/system/update-system-flatpaks.service; \
   touch /etc/recommended/disable-lock-and-suspend; \
   find /usr/libexec/infrastructure -type f -executable -print0 | \
-    xargs -0 -I {} fapolicyd-cli --file add {}
+    xargs -0 -I {} fapolicyd-cli --file add {} \
 
   fapolicyd-cli --check-config; \
   echo "${REBASE_IMAGE_BASE}workstation:latest" > /etc/recommended/base; \

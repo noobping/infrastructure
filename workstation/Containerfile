@@ -170,6 +170,7 @@ RUN set -euxo pipefail; \
   echo DefaultZone=public > /etc/firewalld/firewalld.conf; \
 
   echo "${REBASE_IMAGE_BASE}desktop:latest" > /etc/recommended/base; \
+  echo "${IMAGE_NAMESPACE}/gext:latest" > /etc/recommended/gext-image; \
 
   ln -sf /usr/lib/systemd/system/gdm.service \
     /etc/systemd/system/graphical.target.wants/gdm.service; \

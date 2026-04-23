@@ -15,6 +15,9 @@ concurrency:
   group: butane
   cancel-in-progress: true
 
+env:
+  CI_IMAGE_NAMESPACE: ghcr.io/noobping
+
 jobs:
   build:
     name: Build ${{ matrix.arch.name }} ${{ matrix.profile }}
@@ -41,17 +44,20 @@ jobs:
       - name: Install Podman
         run: |
           set -euxo pipefail
-          if ! command -v podman >/dev/null 2>&1; then
+          if ! command -v podman >/dev/null 2>&1 || ! command -v xorriso >/dev/null 2>&1; then
             sudo apt-get update
-            sudo apt-get install -y podman
+            sudo apt-get install -y podman xorriso
           fi
           podman --version
+          xorriso -version
 
       - name: Merge butane files
         run: |
           set -euxo pipefail
           yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/setup.yml > butane/setup.bu
           yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/updates.yml butane/${{ matrix.profile }}.yml > butane/${{ matrix.profile }}.bu
+          sed "s#__CI_IMAGE_NAMESPACE__#${CI_IMAGE_NAMESPACE}#g" butane/setup.bu > butane/setup.rendered.bu
+          sed "s#__CI_IMAGE_NAMESPACE__#${CI_IMAGE_NAMESPACE}#g" butane/${{ matrix.profile }}.bu > butane/${{ matrix.profile }}.rendered.bu
 
       - name: Build ignition files
         run: |
@@ -60,12 +66,12 @@ jobs:
           podman run --rm \
             -v "$PWD:/work:Z" -w /work \
             quay.io/coreos/butane:release \
-            --pretty --strict --files-dir . butane/setup.bu > setup.ign
+            --pretty --strict --files-dir . butane/setup.rendered.bu > setup.ign
 
           podman run --rm \
             -v "$PWD:/work:Z" -w /work \
             quay.io/coreos/butane:release \
-            --pretty --strict --files-dir . butane/${{ matrix.profile }}.bu > ${{ matrix.profile }}.ign
+            --pretty --strict --files-dir . butane/${{ matrix.profile }}.rendered.bu > ${{ matrix.profile }}.ign
 
       - name: Download stable release
         run: |
@@ -77,6 +83,19 @@ jobs:
             -v "$PWD:/work:Z" -w /work \
             quay.io/coreos/coreos-installer:release \
             download -s stable -a "$arch" -p metal -f iso -C /work --decompress
+
+      - name: Export bootc image
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euxo pipefail
+          image_ref="${CI_IMAGE_NAMESPACE}/${{ matrix.profile }}:latest"
+
+          mkdir -p bootc
+          echo "$GITHUB_TOKEN" | podman login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          podman pull "$image_ref"
+          podman save --format oci-archive -o "bootc/${{ matrix.profile }}.ociarchive" "$image_ref"
+          sha256sum "bootc/${{ matrix.profile }}.ociarchive" | awk '{ print $1 }' > "bootc/${{ matrix.profile }}.ociarchive.sha256"
 
       - name: Build artifacts
         run: |
@@ -94,8 +113,17 @@ jobs:
               --live-ignition setup.ign \
               --dest-ignition ${{ matrix.profile }}.ign \
               --pre-install butane/detect-device.sh \
+              --post-install butane/cache-bootc-image.sh \
               -o "$out_iso" \
               "$base_iso"
+
+          xorriso \
+            -dev "$out_iso" \
+            -map "bootc/${{ matrix.profile }}.ociarchive" "/bootc/${{ matrix.profile }}.ociarchive" \
+            -map "bootc/${{ matrix.profile }}.ociarchive.sha256" "/bootc/${{ matrix.profile }}.ociarchive.sha256" \
+            -boot_image any replay \
+            -compliance no_emul_toc \
+            -padding included
 
           sha256sum "$out_iso" | tee "${out_iso}.sha256"
 

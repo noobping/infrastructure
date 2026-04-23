@@ -36,9 +36,22 @@ sync_podman_trust() {
   pkexec /usr/libexec/infrastructure/fapolicyd-podman-sync "$UID" "$HOME"
 }
 
+gext_image_ref() {
+  if [ -r /etc/recommended/gext-image ]; then
+    awk 'NF { print; exit }' /etc/recommended/gext-image
+    return
+  fi
+
+  printf '%s\n' 'ghcr.io/noobping/gext:latest'
+}
+
 gext() {
-  if ! podman image exists ghcr.io/noobping/gext >/dev/null 2>&1; then
-    podman pull ghcr.io/noobping/gext
+  local image
+
+  image="$(gext_image_ref)"
+
+  if ! podman image exists "$image" >/dev/null 2>&1; then
+    podman pull "$image"
   fi
 
   sync_podman_trust || return 1
@@ -51,5 +64,5 @@ gext() {
     -v /run/user/$UID/bus:/run/user/$UID/bus \
     -v "$HOME:$HOME" \
     -w "$PWD" \
-    ghcr.io/noobping/gext "$@"
+    "$image" "$@"
 }

@@ -7,7 +7,9 @@ LOG_FILE="$LOG_DIR/recommended.log"
 WALLPAPER_URI="file:///usr/share/backgrounds/wallpaper.png"
 PROFILE_ICON="/usr/share/pixmaps/faces/noobping.png"
 PROFILE_LANGUAGE="nl_NL.UTF-8"
-GEXT_IMAGE="ghcr.io/noobping/gext"
+GEXT_IMAGE_DEFAULT="ghcr.io/noobping/gext:latest"
+GEXT_IMAGE_FILE="/etc/recommended/gext-image"
+GEXT_IMAGE="$GEXT_IMAGE_DEFAULT"
 GEXT_PREPARED=0
 
 mkdir -p "$HOME/.config" "$LOG_DIR"
@@ -28,9 +30,20 @@ sync_podman_trust() {
   pkexec /usr/libexec/infrastructure/fapolicyd-podman-sync "$UID" "$HOME"
 }
 
+resolve_gext_image() {
+  if [ -r "$GEXT_IMAGE_FILE" ]; then
+    awk 'NF { print; exit }' "$GEXT_IMAGE_FILE"
+    return
+  fi
+
+  printf '%s\n' "$GEXT_IMAGE_DEFAULT"
+}
+
 prepare_gext() {
   [ "$GEXT_PREPARED" -eq 0 ] || return 0
   command -v podman >/dev/null 2>&1 || return 1
+
+  GEXT_IMAGE="$(resolve_gext_image)"
 
   if ! podman image exists "$GEXT_IMAGE" >/dev/null 2>&1; then
     podman pull "$GEXT_IMAGE"
