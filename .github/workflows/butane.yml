@@ -44,12 +44,11 @@ jobs:
       - name: Install Podman
         run: |
           set -euxo pipefail
-          if ! command -v podman >/dev/null 2>&1 || ! command -v xorriso >/dev/null 2>&1; then
+          if ! command -v podman >/dev/null 2>&1; then
             sudo apt-get update
-            sudo apt-get install -y podman xorriso
+            sudo apt-get install -y podman
           fi
           podman --version
-          xorriso -version
 
       - name: Merge butane files
         run: |
@@ -84,19 +83,6 @@ jobs:
             quay.io/coreos/coreos-installer:release \
             download -s stable -a "$arch" -p metal -f iso -C /work --decompress
 
-      - name: Export bootc image
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          set -euxo pipefail
-          image_ref="${CI_IMAGE_NAMESPACE}/${{ matrix.profile }}:latest"
-
-          mkdir -p bootc
-          echo "$GITHUB_TOKEN" | podman login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          podman pull "$image_ref"
-          podman save --format oci-archive -o "bootc/${{ matrix.profile }}.ociarchive" "$image_ref"
-          sha256sum "bootc/${{ matrix.profile }}.ociarchive" | awk '{ print $1 }' > "bootc/${{ matrix.profile }}.ociarchive.sha256"
-
       - name: Build artifacts
         run: |
           set -euxo pipefail
@@ -113,17 +99,8 @@ jobs:
               --live-ignition setup.ign \
               --dest-ignition ${{ matrix.profile }}.ign \
               --pre-install butane/detect-device.sh \
-              --post-install butane/cache-bootc-image.sh \
               -o "$out_iso" \
               "$base_iso"
-
-          xorriso \
-            -dev "$out_iso" \
-            -map "bootc/${{ matrix.profile }}.ociarchive" "/bootc/${{ matrix.profile }}.ociarchive" \
-            -map "bootc/${{ matrix.profile }}.ociarchive.sha256" "/bootc/${{ matrix.profile }}.ociarchive.sha256" \
-            -boot_image any replay \
-            -compliance no_emul_toc \
-            -padding included
 
           sha256sum "$out_iso" | tee "${out_iso}.sha256"
 
