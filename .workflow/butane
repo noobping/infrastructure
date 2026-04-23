@@ -51,7 +51,7 @@ coreos-installer download \
   -a "${machine_arch}" \
   -p metal \
   -f iso \
-  -C "${CI_ROOT}" \
+  -C . \
   --decompress
 
 base_iso=$(ls -1 fedora-coreos-*-live-iso."${machine_arch}".iso | tail -n 1)
