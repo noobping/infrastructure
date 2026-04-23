@@ -81,7 +81,7 @@ apply_desktop_session_policy() {
   gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-battery-type 'nothing'
 }
 
-apply_desktop_session_policy
+apply_desktop_session_policy || true
 
 if [ ! -f "$DONE_FILE" ]; then
   echo "Applying recommendations..."
@@ -95,13 +95,15 @@ if [ ! -f "$DONE_FILE" ]; then
   set_profile_icon || true
   set_profile_language || true
 
-  gsettings set org.gnome.settings-daemon.plugins.media-keys custom-keybindings "['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/']"
-  gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ \
-    name 'Terminal'
-  gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ \
-    command 'ptyxis --new-window'
-  gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ \
-    binding '<Control><Alt>t'
+  if [ -x /usr/bin/ptyxis ]; then
+    gsettings set org.gnome.settings-daemon.plugins.media-keys custom-keybindings "['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/']"
+    gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ \
+      name 'Terminal'
+    gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ \
+      command 'ptyxis --new-window'
+    gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ \
+      binding '<Control><Alt>t'
+  fi
 
   if [ -f /etc/recommended/settings.dconf ]; then
     dconf load /org/gnome/shell/extensions/ < /etc/recommended/settings.dconf
