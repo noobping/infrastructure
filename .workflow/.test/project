@@ -1,0 +1,25 @@
+#!/bin/sh
+set -eu
+
+. "${CI_ROOT}/.ci/test/common.sh"
+
+ci_test_reset_log
+ci_test_set_changes ips/Containerfile
+"${CI_ROOT}/.ci/alias/dispatch" pre-push
+ci_test_assert_log "public:ips:pre-push"
+ci_test_assert_log "public:workstation:workflow:ips"
+ci_test_assert_log "public:desktop:workflow:workstation"
+ci_test_assert_log "public:nas:workflow:ips"
+
+ci_test_reset_log
+"${CI_ROOT}/.ci/alias/run" schedule gext
+ci_test_assert_log "public:gext:schedule"
+
+ci_test_reset_log
+"${CI_ROOT}/.ci/alias/run" schedule update
+ci_test_assert_log "update:schedule"
+
+ci_test_reset_log
+"${CI_ROOT}/.ci/alias/run" manual butane
+ci_test_assert_log "public:butane:manual"
+
