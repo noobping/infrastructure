@@ -1,4 +1,5 @@
 ARG TAG=latest
+ARG IMAGE_NAMESPACE=ghcr.io/noobping
 FROM registry.fedoraproject.org/fedora:latest AS pkgs
 RUN dnf -y install dnf-plugins-core \
   && dnf repoquery --available --qf '%{name}\n' \
@@ -8,7 +9,7 @@ RUN dnf -y install dnf-plugins-core \
   > /tmp/firmware-packages.txt \
   && wc -l /tmp/firmware-packages.txt
 
-FROM ghcr.io/noobping/ips:${TAG}
+FROM ${IMAGE_NAMESPACE}/ips:${TAG}
 LABEL org.opencontainers.image.title="Workstation"
 LABEL org.opencontainers.image.description="a bootable container"
 ARG REBASE_IMAGE_BASE=ostree-image-signed:docker://ghcr.io/noobping/
@@ -124,7 +125,6 @@ COPY recommended.sh /usr/bin/recommended
 COPY skel /etc/skel
 COPY system-flatpaks /usr/libexec/infrastructure/system-flatpaks
 COPY system-flatpaks.service /etc/systemd/system/system-flatpaks.service
-COPY update-system-flatpaks /usr/libexec/infrastructure/update-system-flatpaks
 COPY update-system-flatpaks.service /etc/systemd/system/update-system-flatpaks.service
 COPY update-system-flatpaks.timer /etc/systemd/system/update-system-flatpaks.timer
 
