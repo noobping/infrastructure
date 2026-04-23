@@ -110,6 +110,7 @@ systemd:
         ExecStart=/usr/bin/flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
         ExecStart=/usr/bin/flatpak remote-add --system --if-not-exists fedora oci+https://registry.fedoraproject.org
         ExecStart=/usr/bin/flatpak install --system --noninteractive flathub \
+          app.devsuite.Ptyxis \
           app.drey.Dialect \
           app.fotema.Fotema \
           com.belmoussaoui.Decoder \
