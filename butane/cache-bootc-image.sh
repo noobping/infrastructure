@@ -3,6 +3,37 @@ set -euo pipefail
 
 archive_dir=/run/media/iso/bootc
 target=/mnt/bootc-target
+state_dest=/run/coreos-installer/dest-device
+
+detect_dest() {
+    local smallest
+    smallest=$(lsblk -dn -o NAME,SIZE,TYPE,TRAN,RM | awk '$3 == "disk" && $4 != "usb" && $5 == 0 {print "/dev/" $1, $2}' | sort -h -k2,2 | head -n1 | awk '{print $1}')
+    if [[ -b "$smallest" ]]; then
+        echo "$smallest"
+        return 0
+    fi
+    return 1
+}
+
+resolve_dest() {
+    local dest
+
+    if [[ -f "$state_dest" ]]; then
+        dest="$(awk 'NF { print; exit }' "$state_dest")"
+        if [[ -n "$dest" && -b "$dest" ]]; then
+            echo "$dest"
+            return 0
+        fi
+    fi
+
+    dest="$(awk '$1 == "dest-device:" { print $2; exit }' /etc/coreos/installer.d/*.yaml 2>/dev/null || true)"
+    if [[ -n "$dest" && -b "$dest" ]]; then
+        echo "$dest"
+        return 0
+    fi
+
+    detect_dest
+}
 
 if [[ ! -d "$archive_dir" ]]; then
     echo "No embedded bootc image directory found at $archive_dir"
@@ -26,7 +57,7 @@ fi
 archive="${archives[0]}"
 digest_src="${archive}.sha256"
 profile="$(basename "$archive" .ociarchive)"
-dest="$(awk '$1 == "dest-device:" { print $2; exit }' /etc/coreos/installer.d/*.yaml 2>/dev/null || true)"
+dest="$(resolve_dest || true)"
 
 if [[ -z "$dest" || ! -b "$dest" ]]; then
     echo "Unable to determine installed destination device" >&2
