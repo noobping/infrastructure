@@ -54,10 +54,6 @@ RUN set -euxo pipefail; \
   chmod 0644 /etc/systemd/system/system-flatpaks.service; \
   chmod 0644 /etc/systemd/system/update-system-flatpaks.service; \
   touch /etc/recommended/disable-lock-and-suspend; \
-  find /usr/libexec/infrastructure -type f -executable | \
-    while IFS= read -r trusted_file; do \
-      fapolicyd-cli --file add "$trusted_file"; \
-    done; \
   fapolicyd-cli --check-config; \
   echo "${REBASE_IMAGE_BASE}workstation:latest" > /etc/recommended/base; \
   ln -sf /usr/lib/systemd/system/fapolicyd.service \
