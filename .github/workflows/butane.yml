@@ -33,7 +33,7 @@ jobs:
     runs-on: ${{ matrix.arch.runs_on }}
 
     permissions:
-      contents: write
+      contents: read
       packages: write
       id-token: write
 
@@ -127,15 +127,46 @@ jobs:
 
           sha256sum "$out_iso" | tee "${out_iso}.sha256"
 
-      - name: Upload artifacts
+      - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.profile }}-${{ matrix.arch.runs_on }}
+          name: ${{ matrix.profile }}-${{ matrix.arch.name }}-release
+          compression-level: 0
           path: |
             ${{ matrix.profile }}-*.iso
             ${{ matrix.profile }}-*.iso.sha256
+
+      - name: Upload ignition artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.profile }}-${{ matrix.arch.name }}-ignition
+          compression-level: 0
+          path: |
             ${{ matrix.profile }}.ign
             setup.ign
+
+  release:
+    name: Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "*-release"
+          path: release
+          merge-multiple: true
+
+      - name: Verify release assets
+        run: |
+          set -euxo pipefail
+          ls -lh release
+          find release -maxdepth 1 -type f -name '*.iso' | grep -q .
+          find release -maxdepth 1 -type f -name '*.iso.sha256' | grep -q .
 
       - name: Release artifacts
         uses: ncipollo/release-action@v1
@@ -146,7 +177,7 @@ jobs:
           replacesArtifacts: true
           prerelease: false
           makeLatest: true
-          artifacts: "${{ matrix.profile }}-*.iso,${{ matrix.profile }}-*.iso.sha256"
+          artifacts: "release/*.iso,release/*.iso.sha256"
           generateReleaseNotes: false
           body: |
             This release is automatically updated.
