@@ -1,0 +1,39 @@
+#!/bin/sh
+set -eu
+
+CI_ROOT=${CI_ROOT:-$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)}
+PATH="${CI_ROOT}/.ci/alias:${PATH}"
+export CI_ROOT PATH
+
+. "${CI_ROOT}/.ci/lib/common.sh"
+
+CI_EVENT=${1:-}
+export CI_EVENT
+
+case "${CI_EVENT}" in
+  manual|schedule)
+    ;;
+  *)
+    exit 3
+    ;;
+esac
+
+if ci_test_mode; then
+  ci_test_log "root:update:${CI_EVENT}"
+  exit 0
+fi
+
+if ! git -C public diff --quiet --ignore-submodules=all --exit-code; then
+  ci_die "public/ has local modifications; refusing to update the submodule"
+fi
+
+git submodule update --init --remote public
+
+if git diff --quiet --ignore-submodules=dirty --exit-code -- public; then
+  ci_log "public/ is already up to date"
+  exit 0
+fi
+
+git add public
+git commit -m Update
+git push
