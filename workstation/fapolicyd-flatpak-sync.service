@@ -1,8 +1,0 @@
-[Unit]
-Description=Sync fapolicyd trust database for system Flatpaks
-After=local-fs.target
-ConditionPathIsDirectory=/var/lib/flatpak
-
-[Service]
-Type=oneshot
-ExecStart=/usr/libexec/infrastructure/fapolicyd-flatpak-sync

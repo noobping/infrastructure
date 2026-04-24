@@ -28,7 +28,6 @@ RUN set -euxo pipefail; \
   rpm-ostree install -y \
     cachefilesd \
     NetworkManager-wifi NetworkManager-bluetooth NetworkManager-openvpn firewalld \
-    fapolicyd fapolicyd-selinux \
     accountsservice \
     aemu libvirt qemu-kvm android-tools \
     gssproxy \
@@ -76,7 +75,6 @@ RUN set -euxo pipefail; \
 RUN set -euxo pipefail; \
   mkdir -p \
     /etc/NetworkManager/system-connections \
-    /etc/fapolicyd/rules.d \
     /etc/firewalld/zones \
     /etc/polkit-1/rules.d \
     /etc/recommended \
@@ -93,23 +91,12 @@ RUN set -euxo pipefail; \
 
 # COPY *.nmconnection /etc/NetworkManager/system-connections/
 COPY aliases.sh /etc/profile.d/
-# COPY alternative.desktop /usr/share/applications/
-COPY alternative.policy /usr/share/polkit-1/actions/dev.noobping.workstation.alternative.policy
-COPY alternative.sh /usr/bin/alternative
-COPY alternative-root.sh /usr/libexec/infrastructure/alternative-root
 COPY background.png /usr/share/backgrounds/wallpaper.png
 COPY background.xml /usr/share/gnome-background-properties/noobping.xml
 COPY cachefilesd.conf /etc/cachefilesd.conf
 COPY certs/ /etc/pki/ca-trust/source/anchors/
 COPY extensions.txt /etc/recommended/extensions
 COPY flathub.txt /etc/recommended/flathub
-COPY fapolicyd-deny-user-writable-exec.rules /etc/fapolicyd/rules.d/30-deny-user-writable-exec.rules
-COPY fapolicyd-flatpak-sync /usr/libexec/infrastructure/fapolicyd-flatpak-sync
-COPY fapolicyd-flatpak-sync.path /etc/systemd/system/fapolicyd-flatpak-sync.path
-COPY fapolicyd-flatpak-sync.service /etc/systemd/system/fapolicyd-flatpak-sync.service
-COPY fapolicyd-flatpak-sync.timer /etc/systemd/system/fapolicyd-flatpak-sync.timer
-COPY fapolicyd-podman-sync /usr/libexec/infrastructure/fapolicyd-podman-sync
-COPY fapolicyd-podman-sync.policy /usr/share/polkit-1/actions/dev.noobping.workstation.fapolicyd-podman-sync.policy
 COPY firewall.xml /etc/firewalld/zones/public.xml
 COPY suricata-direct.xml /etc/firewalld/direct.xml
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
@@ -121,7 +108,6 @@ COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY profile.conf /var/lib/AccountsService/default
 COPY profile.png /usr/share/pixmaps/faces/noobping.png
 COPY recommended.desktop /etc/xdg/autostart/
-COPY recommended.desktop /usr/share/applications/
 COPY recommended.sh /usr/bin/recommended
 COPY skel /etc/skel
 COPY system-flatpaks /usr/libexec/infrastructure/system-flatpaks
@@ -136,33 +122,12 @@ RUN set -euxo pipefail; \
 
   chmod +x /etc/profile.d/aliases.sh; \
   chmod +x /etc/xdg/autostart/recommended.desktop; \
-  chmod +x /usr/share/applications/recommended.desktop; \
-  # chmod +x /usr/share/applications/alternative.desktop; \
   chmod +x /usr/bin/recommended; \
-  chmod +x /usr/bin/alternative; \
-  chmod +x /usr/libexec/infrastructure/alternative-root; \
-  chmod +x /usr/libexec/infrastructure/fapolicyd-flatpak-sync; \
-  chmod +x /usr/libexec/infrastructure/fapolicyd-podman-sync; \
   chmod +x /usr/libexec/infrastructure/nut-netclient-configure; \
   chmod +x /usr/libexec/infrastructure/system-flatpaks; \
-  for trusted_file in \
-    /etc/xdg/autostart/recommended.desktop \
-    /usr/share/applications/recommended.desktop \
-    # /usr/share/applications/alternative.desktop \
-    /usr/bin/recommended \
-    /usr/bin/alternative \
-    /usr/libexec/infrastructure/alternative-root \
-    /usr/libexec/infrastructure/fapolicyd-flatpak-sync \
-    /usr/libexec/infrastructure/fapolicyd-podman-sync \
-    /usr/libexec/infrastructure/nut-netclient-configure \
-    /usr/libexec/infrastructure/system-flatpaks; do \
-      fapolicyd-cli --file add "$trusted_file"; \
-  done; \
 
-  # chmod 0600 /etc/NetworkManager/system-connections/*.nmconnection; \
   chmod 0644 /etc/firewalld/direct.xml; \
   chmod 0644 /etc/polkit-1/rules.d/50-libvirt-access.rules; \
-  fapolicyd-cli --check-config; \
 
   rm -f /etc/resolv.conf; \
   ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf; \

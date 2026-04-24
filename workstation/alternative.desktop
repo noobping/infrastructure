@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Alternative DE
-Comment=Rebase this system to the alternative rpm-ostree base
-Exec=/usr/bin/alternative
-Icon=preferences-desktop
-Terminal=false
-Categories=System;
-StartupNotify=true

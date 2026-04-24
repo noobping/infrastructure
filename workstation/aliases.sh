@@ -23,19 +23,6 @@ alias yq='podman run --rm -i \
 alias flatpak-builder="flatpak run org.flatpak.Builder"
 alias zola="flatpak run org.getzola.zola"
 
-sync_podman_trust() {
-  [ -x /usr/libexec/infrastructure/fapolicyd-podman-sync ] || return 0
-  command -v pkexec >/dev/null 2>&1 || return 0
-  command -v systemctl >/dev/null 2>&1 || return 0
-
-  if ! systemctl is-enabled --quiet fapolicyd.service && \
-     ! systemctl is-active --quiet fapolicyd.service; then
-    return 0
-  fi
-
-  pkexec /usr/libexec/infrastructure/fapolicyd-podman-sync "$UID" "$HOME"
-}
-
 gext_image_ref() {
   if [ -r /etc/recommended/gext-image ]; then
     awk 'NF { print; exit }' /etc/recommended/gext-image
@@ -53,8 +40,6 @@ gext() {
   if ! podman image exists "$image" >/dev/null 2>&1; then
     podman pull "$image"
   fi
-
-  sync_podman_trust || return 1
 
   podman run --rm \
     --userns=keep-id \

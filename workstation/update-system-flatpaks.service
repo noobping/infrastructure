@@ -10,7 +10,6 @@ Type=oneshot
 Restart=on-failure
 RestartSec=30s
 ExecStart=/usr/bin/flatpak update --system --noninteractive
-ExecStart=/bin/sh -c '[ -x /usr/libexec/infrastructure/fapolicyd-flatpak-sync ] && /usr/libexec/infrastructure/fapolicyd-flatpak-sync'
 
 [Install]
 WantedBy=multi-user.target
