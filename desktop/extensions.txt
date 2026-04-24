@@ -1,7 +1,0 @@
-appindicatorsupport@rgcjonas.gmail.com
-arcmenu@arcmenu.com
-category-sorted-app-grid@noobping.dev
-dash-to-panel@jderose9.github.com
-gtk4-ding@smedius.gitlab.com
-in-picture@filiprund.cz
-set-notification-position@brgvos
