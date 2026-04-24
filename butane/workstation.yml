@@ -17,6 +17,12 @@ passwd:
   groups:
     - name: qemu
       system: true
+    - name: nick
+      password_hash: $6$7fNbJeEeffQ7h36Y$u2tMk5CyjP/Q3pq.XFjFvDty0aKOUAhf4jsobML8rjlD2uBsGw44RTyG7qNcJhMr1GSXEdJ7ZHJGsZj2/Uyua1
+      uid: 1000
+      groups:
+        - wheel
+        - qemu
 
 storage:
   directories:

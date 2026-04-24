@@ -5,6 +5,14 @@ boot_device:
   luks:
     tpm2: true
 
+kernel_arguments:
+  should_exist:
+    - crashkernel=512M
+    - libata.eh_timeout=240
+    # - libata.force=noncq
+    # - libata.noacpi=1
+    # - ahci.mobile_lpm_policy=1
+
 passwd:
   groups:
     - name: qemu
@@ -42,6 +50,23 @@ passwd:
       uid: 1001
       home_dir: /var/srv/music
       shell: /usr/bin/nologin
+    - name: nick
+      password_hash: $6$7fNbJeEeffQ7h36Y$u2tMk5CyjP/Q3pq.XFjFvDty0aKOUAhf4jsobML8rjlD2uBsGw44RTyG7qNcJhMr1GSXEdJ7ZHJGsZj2/Uyua1
+      uid: 1000
+      groups:
+        - wheel
+        - qemu
+        - minecraft
+        - music
+        - steam
+        - docs
+        - photos
+        - videos
+        - git
+        - data
+      ssh_authorized_keys:
+        - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEjRfPMkXzhO4unF0mEOHge+wGAE9VarXYo7RRXX2L3j
+        - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBgtZmKuTJY2z88tCrtexFTPmXGA6oR1m4XQVn8ZLzmj
 
 storage:
   directories:
@@ -81,6 +106,12 @@ storage:
         name: steam
       group:
         name: steam
+    - path: /var/srv/music/touhou
+      mode: 0755
+      user:
+        name: music
+      group:
+        name: music
     - path: /var/lib/containers
       mode: 0755
     - path: /var/lib/containers/nextcloud
@@ -109,12 +140,6 @@ storage:
       mode: 0755
     - path: /var/lib/containers/uptime-kuma
       mode: 0755
-    - path: /var/lib/containers/freeipa/data
-      mode: 0750
-    - path: /var/lib/containers/freeradius
-      mode: 0755
-    - path: /var/lib/containers/freeradius/config
-      mode: 0755
     - path: /var/lib/containers/jellyfin
       mode: 0755
       user:
@@ -127,6 +152,20 @@ storage:
         name: music
       group:
         name: music
+    - path: /var/srv/books
+      mode: 0755
+      user:
+        name: music
+      group:
+        name: music
+    - path: /var/srv/ssd
+    - path: /var/srv/hdd
+    - path: /var/home/nick/.bashrc.d
+      mode: 0755
+      user:
+        name: nick
+      group:
+        name: nick
   files:
     - path: /etc/ssh/sshd_config.d/40-disable-passwords.conf
       mode: 0644
@@ -171,6 +210,20 @@ systemd:
         ExecStart=/usr/bin/rpm-ostree kargs --append=loglevel=3
         ExecStart=/usr/bin/touch /var/rebase.done
         ExecStart=/usr/bin/systemctl --no-block reboot
+
+        [Install]
+        WantedBy=multi-user.target
+
+    - name: nightly-shutdown.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Power off the system at 21:30
+        After=network.target
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/sbin/shutdown -h 21:30
 
         [Install]
         WantedBy=multi-user.target
