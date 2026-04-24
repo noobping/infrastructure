@@ -22,32 +22,3 @@ alias yq='podman run --rm -i \
 
 alias flatpak-builder="flatpak run org.flatpak.Builder"
 alias zola="flatpak run org.getzola.zola"
-
-gext_image_ref() {
-  if [ -r /etc/recommended/gext-image ]; then
-    awk 'NF { print; exit }' /etc/recommended/gext-image
-    return
-  fi
-
-  printf '%s\n' 'ghcr.io/noobping/gext:latest'
-}
-
-gext() {
-  local image
-
-  image="$(gext_image_ref)"
-
-  if ! podman image exists "$image" >/dev/null 2>&1; then
-    podman pull "$image"
-  fi
-
-  podman run --rm \
-    --userns=keep-id \
-    --security-opt label=disable \
-    -e DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$UID/bus" \
-    -e XDG_RUNTIME_DIR="/run/user/$UID" \
-    -v /run/user/$UID/bus:/run/user/$UID/bus \
-    -v "$HOME:$HOME" \
-    -w "$PWD" \
-    "$image" "$@"
-}

@@ -12,8 +12,6 @@ RUN dnf -y install dnf-plugins-core \
 FROM ${IMAGE_NAMESPACE}/ips:${TAG}
 LABEL org.opencontainers.image.title="Workstation"
 LABEL org.opencontainers.image.description="a bootable container"
-ARG IMAGE_NAMESPACE=ghcr.io/noobping
-ARG REBASE_IMAGE_BASE=ostree-image-signed:docker://ghcr.io/noobping/
 
 COPY --from=pkgs /tmp/firmware-packages.txt /tmp/firmware-packages.txt
 RUN xargs -r rpm-ostree install -y < /tmp/firmware-packages.txt
@@ -134,9 +132,6 @@ RUN set -euxo pipefail; \
 
   sed -i 's/tcp dport @allowed_tcp_dports accept/# &/' /etc/nftables/main.nft; \
   echo DefaultZone=public > /etc/firewalld/firewalld.conf; \
-
-  echo "${REBASE_IMAGE_BASE}desktop:latest" > /etc/recommended/base; \
-  echo "${IMAGE_NAMESPACE}/gext:latest" > /etc/recommended/gext-image; \
 
   ln -sf /usr/lib/systemd/system/gdm.service \
     /etc/systemd/system/graphical.target.wants/gdm.service; \
