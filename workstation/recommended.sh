@@ -13,19 +13,21 @@ exec >>"$LOG_FILE" 2>&1
 
 echo "[$(date --iso-8601=seconds)] starting recommended"
 
+accountsservice_user_path() {
+  command -v gdbus >/dev/null 2>&1 || return 1
+
+  gdbus call --system \
+    --dest org.freedesktop.Accounts \
+    --object-path /org/freedesktop/Accounts \
+    --method org.freedesktop.Accounts.FindUserByName "$USER" 2>/dev/null \
+    | sed -n "s/.*'\([^']*\)'.*/\1/p"
+}
+
 set_profile_icon() {
   local user_path
 
   [ -f "$PROFILE_ICON" ] || return 0
-  command -v gdbus >/dev/null 2>&1 || return 0
-
-  user_path="$(
-    gdbus call --system \
-      --dest org.freedesktop.Accounts \
-      --object-path /org/freedesktop/Accounts \
-      --method org.freedesktop.Accounts.FindUserByName "$USER" 2>/dev/null \
-      | sed -n "s/.*'\([^']*\)'.*/\1/p"
-  )"
+  user_path="$(accountsservice_user_path)" || return 0
   [ -n "$user_path" ] || return 0
 
   gdbus call --system \
@@ -38,15 +40,7 @@ set_profile_icon() {
 set_profile_language() {
   local user_path
 
-  command -v gdbus >/dev/null 2>&1 || return 0
-
-  user_path="$(
-    gdbus call --system \
-      --dest org.freedesktop.Accounts \
-      --object-path /org/freedesktop/Accounts \
-      --method org.freedesktop.Accounts.FindUserByName "$USER" 2>/dev/null \
-      | sed -n "s/.*'\([^']*\)'.*/\1/p"
-  )"
+  user_path="$(accountsservice_user_path)" || return 0
   [ -n "$user_path" ] || return 0
 
   gdbus call --system \
@@ -76,10 +70,6 @@ if [ ! -f "$DONE_FILE" ]; then
       command 'ptyxis --new-window'
     gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ \
       binding '<Control><Alt>t'
-  fi
-
-  if [ -f /etc/recommended/settings.dconf ]; then
-    dconf load /org/gnome/shell/extensions/ < /etc/recommended/settings.dconf
   fi
 
   gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop', 'io.github.kolunmi.Bazaar.desktop', 'com.mattjakeman.ExtensionManager.desktop', 'org.gnome.Epiphany.desktop']"

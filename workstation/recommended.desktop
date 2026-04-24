@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=Recommended Setup
-Comment=Apply the recommended GNOME extensions and desktop defaults
+Comment=Apply the recommended desktop defaults
 Exec=/usr/bin/recommended
 Icon=emblem-default
 Categories=System;

@@ -93,7 +93,6 @@ COPY background.png /usr/share/backgrounds/wallpaper.png
 COPY background.xml /usr/share/gnome-background-properties/noobping.xml
 COPY cachefilesd.conf /etc/cachefilesd.conf
 COPY certs/ /etc/pki/ca-trust/source/anchors/
-COPY extensions.txt /etc/recommended/extensions
 COPY flathub.txt /etc/recommended/flathub
 COPY firewall.xml /etc/firewalld/zones/public.xml
 COPY suricata-direct.xml /etc/firewalld/direct.xml

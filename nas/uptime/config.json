@@ -23,17 +23,6 @@
       }
     },
     {
-      "name": "FreeIPA",
-      "monitor": {
-        "type": "http",
-        "url": "https://127.0.0.1:8443",
-        "ignoreTls": true,
-        "accepted_statuscodes": [
-          "200-399"
-        ]
-      }
-    },
-    {
       "name": "Nextcloud",
       "monitor": {
         "type": "http",

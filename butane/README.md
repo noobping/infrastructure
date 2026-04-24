@@ -6,7 +6,6 @@ Build the butane files:
 ```sh
 yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/setup.yml > butane/setup.bu
 yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/updates.yml butane/workstation.yml > butane/workstation.bu
-yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/updates.yml butane/desktop.yml > butane/desktop.bu
 yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/updates.yml butane/nas.yml > butane/nas.bu
 ```
 
@@ -15,7 +14,6 @@ Build ignition file:
 ```sh
 butane --pretty --strict --files-dir . butane/setup.bu > setup.ign
 butane --pretty --strict butane/workstation.bu > workstation.ign
-butane --pretty --strict butane/desktop.bu > desktop.ign
 butane --pretty --strict butane/nas.bu > nas.ign
 ```
 

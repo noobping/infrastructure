@@ -1,2 +1,0 @@
-tcp dport { 88, 389, 464, 636 } accept
-udp dport { 88, 464 } accept
