@@ -1,0 +1,170 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!-- Created with Cambalache 0.96.3 -->
+<interface>
+  <!-- interface-name prefs.ui -->
+  <requires lib="gtk" version="4.18"/>
+  <requires lib="libadwaita" version="1.5"/>
+  <object class="AdwAlertDialog" id="identifiers_dialog">
+    <property name="body" translatable="yes">Fill at least one of the inputs to add a new identifier.</property>
+    <property name="default-response">add</property>
+    <property name="extra-child">
+      <object class="AdwPreferencesPage">
+        <child>
+          <object class="AdwPreferencesGroup">
+            <property name="description" translatable="yes">Window will be targeted if its title contains the following substring.</property>
+            <property name="title" translatable="yes">Window Title</property>
+            <child>
+              <object class="AdwEntryRow" id="identifier_title_row">
+                <property name="title" translatable="yes">e.g. &lt;i&gt;Picture-in-Picture&lt;/i&gt;</property>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="AdwPreferencesGroup">
+            <property name="description" translatable="yes">You can get the app id of an open window using the &lt;a href="https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/main/docs/looking-glass.md"&gt;GNOME Looking Glass&lt;/a&gt;.</property>
+            <property name="title" translatable="yes">Application ID</property>
+            <child>
+              <object class="AdwEntryRow" id="identifier_app_row">
+                <property name="title" translatable="yes">e.g. &lt;i&gt;org.mozilla.firefox.desktop&lt;/i&gt;</property>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </property>
+    <property name="heading" translatable="yes">Add PiP Identifier</property>
+    <property name="presentation-mode">auto</property>
+  </object>
+  <object class="AdwToast" id="identifier_warning">
+    <property name="title" translatable="yes">At least one of the entries is required.</property>
+  </object>
+  <object class="AdwPreferencesPage" id="preferences_page">
+    <property name="icon-name">dialog-information-symbolic</property>
+    <property name="title" translatable="yes">General</property>
+    <child>
+      <object class="AdwPreferencesGroup">
+        <property name="description" translatable="yes">Configure the PiP window position.</property>
+        <property name="title" translatable="yes">Position</property>
+        <child>
+          <object class="AdwComboRow" id="corner_row">
+            <property name="model">
+              <object class="GtkStringList">
+                <items>
+                  <item translatable="yes">Top left</item>
+                  <item translatable="yes">Top right</item>
+                  <item translatable="yes">Bottom left</item>
+                  <item translatable="yes">Bottom right</item>
+                </items>
+              </object>
+            </property>
+            <property name="subtitle" translatable="yes">The screen corner where to put the PiP window</property>
+            <property name="title" translatable="yes">Screen corner</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwSpinRow" id="margin_x_row">
+            <property name="adjustment">
+              <object class="GtkAdjustment" id="margin_x_adjustment">
+                <property name="page-increment">10.0</property>
+                <property name="step-increment">1.0</property>
+                <property name="upper">100.0</property>
+              </object>
+            </property>
+            <property name="subtitle" translatable="yes">The horizontal offset from the screen edge</property>
+            <property name="title" translatable="yes">Horizontal margin</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwSpinRow" id="margin_y_row">
+            <property name="adjustment">
+              <object class="GtkAdjustment" id="margin_y_adjustment">
+                <property name="page-increment">10.0</property>
+                <property name="step-increment">1.0</property>
+                <property name="upper">100.0</property>
+              </object>
+            </property>
+            <property name="subtitle" translatable="yes">The vertical offset from the screen edge</property>
+            <property name="title" translatable="yes">Vertical margin</property>
+          </object>
+        </child>
+      </object>
+    </child>
+    <child>
+      <object class="AdwPreferencesGroup">
+        <property name="description" translatable="yes">Configure the PiP window size.</property>
+        <property name="title" translatable="yes">Size</property>
+        <child>
+          <object class="AdwSpinRow" id="diagonal_row">
+            <property name="adjustment">
+              <object class="GtkAdjustment" id="diagonal_adjustment"/>
+            </property>
+            <property name="subtitle" translatable="yes">The length of the diagonal of the PiP window</property>
+            <property name="title" translatable="yes">Diagonal</property>
+            <child>
+              <object class="GtkDropDown" id="diagonal_units">
+                <property name="halign">end</property>
+                <property name="model">
+                  <object class="GtkStringList">
+                    <items>
+                      <item>%</item>
+                      <item>px</item>
+                    </items>
+                  </object>
+                </property>
+                <property name="valign">center</property>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+    <child>
+      <object class="AdwPreferencesGroup" id="visibility_group">
+        <property name="description" translatable="yes">Configure the PiP window visibility.</property>
+        <property name="title" translatable="yes">Visibility</property>
+        <child>
+          <object class="AdwSwitchRow" id="stay_on_top_row">
+            <property name="subtitle" translatable="yes">Keep the PiP window always on top</property>
+            <property name="title" translatable="yes">Stay on top</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwSwitchRow" id="stick_row">
+            <property name="subtitle" translatable="yes">Always show the window on the visible workspace</property>
+            <property name="title" translatable="yes">Show on all workspaces</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwSwitchRow" id="hide_from_window_list_row">
+            <property name="subtitle" translatable="yes">Hide from any window list (taskbars, pagers...)</property>
+            <property name="title" translatable="yes">Hide from overviews</property>
+          </object>
+        </child>
+      </object>
+    </child>
+    <child>
+      <object class="AdwPreferencesGroup">
+        <property name="description" translatable="yes">A window will be targeted if it matches one of the following identifiers.</property>
+        <property name="header-suffix">
+          <object class="GtkButton" id="identifiers_add">
+            <property name="css-classes">flat</property>
+            <property name="valign">center</property>
+            <child>
+              <object class="AdwButtonContent">
+                <property name="icon-name">list-add-symbolic</property>
+                <property name="label" translatable="yes">Add</property>
+              </object>
+            </child>
+          </object>
+        </property>
+        <property name="title" translatable="yes">Identifiers</property>
+        <child>
+          <object class="GtkListBox" id="identifiers_list">
+            <property name="css-classes">boxed-list</property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>

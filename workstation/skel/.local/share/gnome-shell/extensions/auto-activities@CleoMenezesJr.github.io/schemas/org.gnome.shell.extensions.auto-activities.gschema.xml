@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.auto-activities" path="/org/gnome/shell/extensions/auto-activities/">
+    <key name="isolate-workspaces" type="b">
+      <default>true</default>
+    </key>
+    <key name="isolate-monitors" type="b">
+      <default>false</default>
+    </key>
+    <key name="skip-taskbar" type="b">
+      <default>true</default>
+    </key>
+    <key name="skip-last-workspace" type="b">
+      <default>true</default>
+    </key>
+    <key name="detect-minimized" type="b">
+      <default>false</default>
+    </key>
+    <key name="hide-on-new-window" type="b">
+      <default>true</default>
+    </key>
+    <key name="window-checking-delay" type="i">
+      <default>100</default>
+    </key>
+    <key name="show-apps" type="b">
+      <default>false</default>
+    </key>
+  </schema>
+</schemalist>
