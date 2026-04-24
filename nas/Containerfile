@@ -29,7 +29,6 @@ RUN rpm-ostree install -y \
   /etc/systemd/system/timers.target.wants \
   /usr/libexec/infrastructure \
   /usr/share/infrastructure/uptime-kuma \
-  /usr/share/infrastructure/freeradius \
   /var/lib/suricata \
   /var/log/suricata \
   /var/www; \
@@ -37,16 +36,10 @@ RUN rpm-ostree install -y \
   ln -s /var/www/git /web; \
   ostree container commit
 
+COPY fstab.txt /etc/fstab
 COPY todo.sh /usr/bin/todo
 COPY caddy.conf /etc/caddy.conf
 COPY containers /etc/containers/systemd
-COPY freeipa-bootstrap-radius /usr/libexec/infrastructure/freeipa-bootstrap-radius
-COPY freeipa-bootstrap-radius.service /etc/systemd/system/freeipa-bootstrap-radius.service
-COPY freeipa-prepare /usr/libexec/infrastructure/freeipa-prepare
-COPY freeipa-prepare.service /etc/systemd/system/freeipa-prepare.service
-COPY freeradius /usr/share/infrastructure/freeradius
-COPY freeradius-prepare /usr/libexec/infrastructure/freeradius-prepare
-COPY freeradius-prepare.service /etc/systemd/system/freeradius-prepare.service
 COPY gogs-prepare /usr/libexec/infrastructure/gogs-prepare
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
 COPY localhost-registry.conf /etc/containers/registries.conf.d/10-localhost-registry.conf

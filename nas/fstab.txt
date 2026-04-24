@@ -1,0 +1,11 @@
+/dev/md/raid0 /var/srv/ssd btrfs nofail,subvol=/ 0 0
+/dev/md/raid0 /var/lib/containers btrfs nofail,subvol=containers 0 0
+/dev/md/raid0 /var/srv/books btrfs nofail,subvol=books 0 0
+/dev/md/raid1 /var/srv/data btrfs nofail,subvol=data 0 0
+/dev/md/raid0 /var/srv/docs btrfs nofail,subvol=docs 0 0
+/dev/md/raid0 /var/srv/git btrfs nofail,subvol=git 0 0
+/dev/md/raid1 /var/srv/hdd btrfs nofail,subvol=/ 0 0
+/dev/md/raid0 /var/srv/music btrfs nofail,subvol=music 0 0
+/dev/md/raid1 /var/srv/photos btrfs nofail,subvol=photos 0 0
+/dev/md/raid1 /var/srv/music/touhou btrfs nofail,subvol=touhou 0 0
+/dev/md/raid1 /var/srv/videos btrfs nofail,subvol=videos 0 0
