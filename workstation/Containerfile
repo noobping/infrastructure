@@ -83,6 +83,7 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/sockets.target.wants \
     /etc/systemd/system/sysinit.target.wants \
     /etc/systemd/system/timers.target.wants \
+    /usr/local/sbin \
     /usr/libexec/infrastructure \
     /usr/share/gnome-background-properties \
     /var/lib/AccountsService
@@ -107,6 +108,7 @@ COPY profile.png /usr/share/pixmaps/faces/noobping.png
 COPY recommended.desktop /etc/xdg/autostart/
 COPY recommended.sh /usr/bin/recommended
 COPY skel /etc/skel
+COPY switch-to-silverblue /usr/local/sbin/switch-to-silverblue
 COPY system-flatpaks /usr/libexec/infrastructure/system-flatpaks
 COPY system-flatpaks.service /etc/systemd/system/system-flatpaks.service
 COPY update-system-flatpaks.service /etc/systemd/system/update-system-flatpaks.service
@@ -120,6 +122,7 @@ RUN set -euxo pipefail; \
   chmod +x /etc/profile.d/aliases.sh; \
   chmod +x /etc/xdg/autostart/recommended.desktop; \
   chmod +x /usr/bin/recommended; \
+  chmod +x /usr/local/sbin/switch-to-silverblue; \
   chmod +x /usr/libexec/infrastructure/nut-netclient-configure; \
   chmod +x /usr/libexec/infrastructure/system-flatpaks; \
 

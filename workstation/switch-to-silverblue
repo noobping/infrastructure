@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: switch-to-silverblue [--version VERSION] [--arch ARCH] [--no-tpm-luks] [--reboot]
+
+Stage a rebase from this workstation image to Fedora Silverblue.
+
+Options:
+  --version VERSION  Fedora release to use. Defaults to VERSION_ID from /etc/os-release.
+  --arch ARCH        Fedora OSTree architecture. Defaults to rpm's architecture.
+  --no-tpm-luks      Do not layer TPM/LUKS unlock support into Silverblue.
+  --reboot           Reboot after the rebase is staged.
+  -h, --help         Show this help.
+EOF
+}
+
+die() {
+  echo "switch-to-silverblue: $*" >&2
+  exit 1
+}
+
+default_version() {
+  local version=
+
+  if [[ -r /etc/os-release ]]; then
+    version="$(awk -F= '$1 == "VERSION_ID" { gsub(/"/, "", $2); print $2; exit }' /etc/os-release)"
+  fi
+
+  [[ -n "$version" ]] || die "unable to determine Fedora version; pass --version"
+  printf '%s\n' "$version"
+}
+
+default_arch() {
+  local arch=
+
+  if command -v rpm >/dev/null 2>&1; then
+    arch="$(rpm --eval '%{_arch}')"
+  fi
+
+  if [[ -z "$arch" ]]; then
+    arch="$(uname -m)"
+  fi
+
+  [[ -n "$arch" ]] || die "unable to determine architecture; pass --arch"
+  printf '%s\n' "$arch"
+}
+
+need_value() {
+  local option="$1"
+  local value="${2:-}"
+
+  [[ -n "$value" ]] || die "$option requires a value"
+  printf '%s\n' "$value"
+}
+
+version="${SILVERBLUE_VERSION:-}"
+arch="${SILVERBLUE_ARCH:-}"
+tpm_luks=true
+reboot=false
+tpm_luks_packages=(
+  clevis
+  clevis-dracut
+  clevis-luks
+  clevis-systemd
+  tpm2-tools
+)
+
+while (($#)); do
+  case "$1" in
+    --version)
+      shift
+      version="$(need_value --version "${1:-}")"
+      ;;
+    --arch)
+      shift
+      arch="$(need_value --arch "${1:-}")"
+      ;;
+    --no-tpm-luks)
+      tpm_luks=false
+      ;;
+    --reboot)
+      reboot=true
+      ;;
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    *)
+      die "unknown argument: $1"
+      ;;
+  esac
+  shift
+done
+
+[[ "${EUID}" -eq 0 ]] || die "run as root: sudo switch-to-silverblue"
+command -v rpm-ostree >/dev/null 2>&1 || die "rpm-ostree is not installed"
+
+version="${version:-$(default_version)}"
+arch="${arch:-$(default_arch)}"
+target="fedora:fedora/${version}/${arch}/silverblue"
+
+if [[ "$tpm_luks" == true ]]; then
+  echo "Preparing TPM-backed LUKS unlock support for the Silverblue deployment:"
+  printf '  %s\n' "${tpm_luks_packages[@]}"
+  echo
+  # Stage these requests before the rebase so package failures happen before
+  # the Silverblue deployment is created.
+  rpm-ostree install --idempotent --allow-inactive "${tpm_luks_packages[@]}"
+  rpm-ostree initramfs --enable
+  echo
+fi
+
+echo "Rebasing to Fedora Silverblue:"
+echo "  $target"
+echo
+rpm-ostree rebase "$target"
+
+if [[ "$reboot" == true ]]; then
+  systemctl reboot
+else
+  echo
+  echo "Rebase staged. Reboot when ready to start Fedora Silverblue."
+  if [[ "$tpm_luks" == true ]]; then
+    echo "Keep a LUKS passphrase handy in case TPM measurements or firmware state changed."
+  fi
+fi
