@@ -1,0 +1,42 @@
+name: ips
+on: manual
+needs: ips-build
+execution:
+  shell: bash
+
+steps:
+  - name: Push IPS manifests
+    if: arch(host)
+    container: false
+    run: |
+      set -euo pipefail
+
+      namespace="${CI_IMAGE_NAMESPACE:-localhost:5000/noobping}"
+      tls_verify="${CI_REGISTRY_TLS_VERIFY:-false}"
+
+      run_podman() {
+        if command -v podman >/dev/null 2>&1; then
+          podman "$@"
+        elif command -v flatpak-spawn >/dev/null 2>&1; then
+          flatpak-spawn --host podman "$@"
+        else
+          echo "podman is required to create and push manifest lists" >&2
+          exit 1
+        fi
+      }
+
+      push_manifest() {
+        local tag="$1"
+        local suffix="$2"
+        local image="${namespace}/ips:${tag}"
+
+        run_podman manifest rm "$image" >/dev/null 2>&1 || true
+        run_podman manifest create "$image"
+        run_podman manifest add --tls-verify="$tls_verify" "$image" "docker://${namespace}/ips:amd64${suffix}"
+        run_podman manifest add --tls-verify="$tls_verify" "$image" "docker://${namespace}/ips:arm64${suffix}"
+        run_podman manifest push --all --tls-verify="$tls_verify" "$image" "docker://$image"
+        run_podman manifest rm "$image" >/dev/null 2>&1 || true
+      }
+
+      push_manifest latest ""
+      push_manifest next "-next"

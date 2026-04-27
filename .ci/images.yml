@@ -1,0 +1,16 @@
+name: images
+on: manual
+needs:
+  - nas
+  - workstation
+execution:
+  shell: bash
+
+steps:
+  - name: Done
+    if: arch(host)
+    container: false
+    run: |
+      set -euo pipefail
+      namespace="${CI_IMAGE_NAMESPACE:-localhost:5000/noobping}"
+      printf 'Images pushed to %s\n' "$namespace"

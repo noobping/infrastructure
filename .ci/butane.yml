@@ -1,0 +1,124 @@
+name: butane
+on: manual
+execution:
+  shell: bash
+container:
+  arch:
+    - x64
+    - arm64
+
+steps:
+  - name: Build installer ISOs
+    container: false
+    run: |
+      set -euo pipefail
+
+      namespace="${CI_IMAGE_NAMESPACE:-localhost:5000/noobping}"
+
+      case "$CI_ARCH" in
+        x64)
+          coreos_arch="x86_64"
+          ;;
+        arm64)
+          coreos_arch="aarch64"
+          ;;
+        *)
+          echo "unsupported CI_ARCH: $CI_ARCH" >&2
+          exit 1
+          ;;
+      esac
+
+      run_podman() {
+        if command -v podman >/dev/null 2>&1; then
+          podman "$@"
+        elif command -v flatpak-spawn >/dev/null 2>&1; then
+          flatpak-spawn --host podman "$@"
+        else
+          echo "podman is required to build installer ISOs" >&2
+          exit 1
+        fi
+      }
+
+      run_yq() {
+        if command -v yq >/dev/null 2>&1; then
+          yq "$@"
+        elif command -v flatpak-spawn >/dev/null 2>&1 \
+          && flatpak-spawn --host sh -lc 'command -v yq >/dev/null 2>&1'; then
+          flatpak-spawn --host yq "$@"
+        else
+          run_podman run --rm -v "$PWD:/work:Z" -w /work docker.io/mikefarah/yq:4.45.1 "$@"
+        fi
+      }
+
+      render_butane() {
+        local input="$1"
+        local output="$2"
+
+        sed \
+          -e "s#__CI_IMAGE_NAMESPACE__#${namespace}#g" \
+          -e "s#ghcr.io/noobping#${namespace}#g" \
+          "$input" > "$output"
+      }
+
+      mkdir -p dist/ign dist/iso
+
+      run_yq ea '. as $item ireduce ({}; . *+ $item)' \
+        butane/base.yml \
+        butane/setup.yml \
+        > butane/setup.bu
+
+      render_butane butane/setup.bu butane/setup.rendered.bu
+
+      run_podman run --rm \
+        -v "$PWD:/work:Z" -w /work \
+        quay.io/coreos/butane:release \
+        --pretty --strict --files-dir . butane/setup.rendered.bu \
+        > dist/ign/setup.ign
+
+      for profile in nas workstation; do
+        run_yq ea '. as $item ireduce ({}; . *+ $item)' \
+          butane/base.yml \
+          butane/updates.yml \
+          "butane/${profile}.yml" \
+          > "butane/${profile}.bu"
+
+        render_butane "butane/${profile}.bu" "butane/${profile}.rendered.bu"
+
+        run_podman run --rm \
+          -v "$PWD:/work:Z" -w /work \
+          quay.io/coreos/butane:release \
+          --pretty --strict --files-dir . "butane/${profile}.rendered.bu" \
+          > "dist/ign/${profile}.ign"
+      done
+
+      if ! ls -1 fedora-coreos-*-live-iso."${coreos_arch}".iso >/dev/null 2>&1; then
+        run_podman run --rm \
+          --userns=keep-id \
+          --user "$(id -u):$(id -g)" \
+          -v "$PWD:/work:Z" -w /work \
+          quay.io/coreos/coreos-installer:release \
+          download -s stable -a "$coreos_arch" -p metal -f iso -C /work --decompress
+      fi
+
+      base_iso="$(ls -1 fedora-coreos-*-live-iso."${coreos_arch}".iso | tail -n1)"
+
+      for profile in nas workstation; do
+        out_iso="dist/iso/${profile}-${coreos_arch}.iso"
+        tmp_iso="${out_iso}.tmp"
+        rm -f "$tmp_iso"
+
+        run_podman run --rm \
+          --userns=keep-id \
+          --user "$(id -u):$(id -g)" \
+          -v "$PWD:/work:Z" -w /work \
+          quay.io/coreos/coreos-installer:release \
+          iso customize \
+            --live-ignition dist/ign/setup.ign \
+            --dest-ignition "dist/ign/${profile}.ign" \
+            --pre-install butane/detect-device.sh \
+            -o "$tmp_iso" \
+            "$base_iso"
+
+        mv -f "$tmp_iso" "$out_iso"
+        sha256sum "$out_iso" | tee "${out_iso}.sha256"
+      done

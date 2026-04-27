@@ -1,0 +1,99 @@
+name: ips-build
+on: manual
+execution:
+  shell: bash
+container:
+  arch:
+    - x64
+    - arm64
+
+steps:
+  - name: Build and push IPS arch images
+    container: false
+    working-directory: ips
+    run: |
+      set -euo pipefail
+
+      namespace="${CI_IMAGE_NAMESPACE:-localhost:5000/noobping}"
+      tls_verify="${CI_REGISTRY_TLS_VERIFY:-false}"
+      uid="${CI_UID:-1000}"
+      gid="${CI_GID:-1000}"
+      isolation="${BUILDAH_ISOLATION:-chroot}"
+      tmpdir="${TMPDIR:-/tmp}"
+      source_url="$(git -C "$CI_REPO" config --get remote.origin.url || printf '%s' "$CI_REPO")"
+
+      case "$CI_ARCH" in
+        x64)
+          image_arch="amd64"
+          ;;
+        arm64)
+          image_arch="arm64"
+          ;;
+        *)
+          echo "unsupported CI_ARCH: $CI_ARCH" >&2
+          exit 1
+          ;;
+      esac
+
+      run_buildah() {
+        if command -v buildah >/dev/null 2>&1; then
+          TMPDIR="$tmpdir" buildah "$@"
+        elif command -v flatpak-spawn >/dev/null 2>&1; then
+          flatpak-spawn --host env TMPDIR="$tmpdir" buildah "$@"
+        else
+          echo "buildah is required to build and push images" >&2
+          exit 1
+        fi
+      }
+
+      run_cosign() {
+        if command -v cosign >/dev/null 2>&1; then
+          cosign "$@"
+        elif command -v flatpak-spawn >/dev/null 2>&1; then
+          flatpak-spawn --host cosign "$@"
+        else
+          echo "CI_SIGN_IMAGES=1 but cosign is not installed" >&2
+          exit 1
+        fi
+      }
+
+      sign_image() {
+        local image="$1"
+        local digest_file="$2"
+
+        if [[ "${CI_SIGN_IMAGES:-}" != "1" ]]; then
+          return 0
+        fi
+
+        run_cosign sign --yes --allow-insecure-registry "${image}@$(cat "$digest_file")"
+      }
+
+      build_stream() {
+        local name="$1"
+        local fcos_stream="$2"
+        local suffix="$3"
+        local image="${namespace}/ips:${image_arch}${suffix}"
+        local digest_file="digest-${name}-${image_arch}.txt"
+
+        run_buildah bud \
+          --pull=always \
+          --arch "$image_arch" \
+          --isolation="$isolation" \
+          --layers=false \
+          --rm \
+          -f Containerfile \
+          -t "$image" \
+          --label "org.opencontainers.image.source=${source_url}" \
+          --build-arg "FCOS_STREAM=${fcos_stream}" \
+          --build-arg "UID=${uid}" \
+          --build-arg "GID=${gid}" \
+          .
+
+        run_buildah push --tls-verify="$tls_verify" --digestfile "$digest_file" "$image" "docker://$image"
+        sign_image "$image" "$digest_file"
+        run_buildah rmi "$image" >/dev/null 2>&1 || true
+        run_buildah prune -f >/dev/null 2>&1 || true
+      }
+
+      build_stream stable stable ""
+      build_stream next next "-next"

@@ -1,0 +1,34 @@
+name: nas
+on: manual
+needs: nas-build
+execution:
+  shell: bash
+
+steps:
+  - name: Push NAS manifest
+    if: arch(host)
+    container: false
+    run: |
+      set -euo pipefail
+
+      namespace="${CI_IMAGE_NAMESPACE:-localhost:5000/noobping}"
+      tls_verify="${CI_REGISTRY_TLS_VERIFY:-false}"
+      image="${namespace}/nas:latest"
+
+      run_podman() {
+        if command -v podman >/dev/null 2>&1; then
+          podman "$@"
+        elif command -v flatpak-spawn >/dev/null 2>&1; then
+          flatpak-spawn --host podman "$@"
+        else
+          echo "podman is required to create and push manifest lists" >&2
+          exit 1
+        fi
+      }
+
+      run_podman manifest rm "$image" >/dev/null 2>&1 || true
+      run_podman manifest create "$image"
+      run_podman manifest add --tls-verify="$tls_verify" "$image" "docker://${namespace}/nas:amd64"
+      run_podman manifest add --tls-verify="$tls_verify" "$image" "docker://${namespace}/nas:arm64"
+      run_podman manifest push --all --tls-verify="$tls_verify" "$image" "docker://$image"
+      run_podman manifest rm "$image" >/dev/null 2>&1 || true
