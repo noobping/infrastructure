@@ -15,5 +15,3 @@ ci butane
 Set `CI_REGISTRY_TLS_VERIFY=true` for a TLS registry. The default is `false` for an insecure local registry.
 
 Set `CI_SIGN_IMAGES=1` to run `cosign sign` after each arch image push. By default these local builds are pushed unsigned.
-
-The workflows call `podman` and `buildah` directly when they are on `PATH`; if they are being run from a Flatpak-style shell, they fall back to `flatpak-spawn --host`.

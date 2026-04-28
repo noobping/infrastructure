@@ -9,6 +9,7 @@ container:
 
 steps:
   - name: Build installer ISOs
+    use: podman
     container: false
     run: |
       set -euo pipefail
@@ -28,17 +29,6 @@ steps:
           ;;
       esac
 
-      run_podman() {
-        if command -v podman >/dev/null 2>&1; then
-          podman "$@"
-        elif command -v flatpak-spawn >/dev/null 2>&1; then
-          flatpak-spawn --host podman "$@"
-        else
-          echo "podman is required to build installer ISOs" >&2
-          exit 1
-        fi
-      }
-
       run_yq() {
         if command -v yq >/dev/null 2>&1; then
           yq "$@"
@@ -46,7 +36,7 @@ steps:
           && flatpak-spawn --host sh -lc 'command -v yq >/dev/null 2>&1'; then
           flatpak-spawn --host yq "$@"
         else
-          run_podman run --rm -v "$PWD:/work:Z" -w /work docker.io/mikefarah/yq:4.45.1 "$@"
+          podman run --rm -v "$PWD:/work:Z" -w /work docker.io/mikefarah/yq:4.45.1 "$@"
         fi
       }
 
@@ -69,7 +59,7 @@ steps:
 
       render_butane butane/setup.bu butane/setup.rendered.bu
 
-      run_podman run --rm \
+      podman run --rm \
         -v "$PWD:/work:Z" -w /work \
         quay.io/coreos/butane:release \
         --pretty --strict --files-dir . butane/setup.rendered.bu \
@@ -84,7 +74,7 @@ steps:
 
         render_butane "butane/${profile}.bu" "butane/${profile}.rendered.bu"
 
-        run_podman run --rm \
+        podman run --rm \
           -v "$PWD:/work:Z" -w /work \
           quay.io/coreos/butane:release \
           --pretty --strict --files-dir . "butane/${profile}.rendered.bu" \
@@ -92,7 +82,7 @@ steps:
       done
 
       if ! ls -1 fedora-coreos-*-live-iso."${coreos_arch}".iso >/dev/null 2>&1; then
-        run_podman run --rm \
+        podman run --rm \
           --userns=keep-id \
           --user "$(id -u):$(id -g)" \
           -v "$PWD:/work:Z" -w /work \
@@ -107,7 +97,7 @@ steps:
         tmp_iso="${out_iso}.tmp"
         rm -f "$tmp_iso"
 
-        run_podman run --rm \
+        podman run --rm \
           --userns=keep-id \
           --user "$(id -u):$(id -g)" \
           -v "$PWD:/work:Z" -w /work \
