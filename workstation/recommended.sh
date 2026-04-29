@@ -103,6 +103,8 @@ if [ ! -f "$DONE_FILE" ]; then
   copy_skel_files
   enable_gnome_extensions
 
+  git config --global pull.rebase false
+
   notify-send "Done" "Applied desktop defaults" || true
 
   touch "$DONE_FILE"
