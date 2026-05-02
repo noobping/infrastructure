@@ -85,6 +85,7 @@ if [ ! -f "$DONE_FILE" ]; then
   gsettings set org.gnome.desktop.background picture-options 'zoom'
   gsettings set org.gnome.desktop.screensaver picture-uri "$WALLPAPER_URI"
   gsettings set org.gnome.desktop.interface accent-color 'green'
+  gsettings set org.gnome.desktop.interface gtk-enable-primary-paste true
   gsettings set org.gnome.system.locale region "$PROFILE_LANGUAGE"
   set_profile_icon || true
   set_profile_language || true
