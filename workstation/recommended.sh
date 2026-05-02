@@ -7,15 +7,7 @@ LOG_FILE="$LOG_DIR/recommended.log"
 WALLPAPER_URI="file:///usr/share/backgrounds/wallpaper.png"
 PROFILE_ICON="/usr/share/pixmaps/faces/noobping.png"
 PROFILE_LANGUAGE="nl_NL.UTF-8"
-GNOME_EXTENSIONS=(
-  appindicatorsupport@rgcjonas.gmail.com
-  auto-activities@CleoMenezesJr.github.io
-  category-sorted-app-grid@noobping.dev
-  draw-on-gnome@daveprowse.github.io
-  hotedge@jonathan.jdoda.ca
-  in-picture@filiprund.cz
-  reboottouefi@ubaygd.com
-)
+GNOME_EXTENSIONS_DIR="$HOME/.local/share/gnome-shell/extensions"
 
 mkdir -p "$HOME/.config" "$LOG_DIR"
 exec >>"$LOG_FILE" 2>&1
@@ -61,17 +53,24 @@ set_profile_language() {
 
 copy_skel_files() {
   [ -d /etc/skel ] || return 0
-
   cp -rn /etc/skel/. "$HOME"/
 }
 
 enable_gnome_extensions() {
   local extension
+  local extension_id
   local extensions_list="["
 
-  for extension in "${GNOME_EXTENSIONS[@]}"; do
-    extensions_list="${extensions_list}'${extension}', "
+  [ -d "$GNOME_EXTENSIONS_DIR" ] || return 0
+
+  shopt -s nullglob
+  for extension in "$GNOME_EXTENSIONS_DIR"/*; do
+    [ -d "$extension" ] || continue
+    extension_id="${extension##*/}"
+    extensions_list="${extensions_list}'${extension_id}', "
   done
+  shopt -u nullglob
+
   extensions_list="${extensions_list%, }]"
 
   gsettings set org.gnome.shell enabled-extensions "$extensions_list" || true
@@ -101,10 +100,10 @@ if [ ! -f "$DONE_FILE" ]; then
   fi
 
   gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop', 'io.github.kolunmi.Bazaar.desktop', 'com.mattjakeman.ExtensionManager.desktop', 'org.gnome.Epiphany.desktop']"
-  copy_skel_files
-  enable_gnome_extensions
-
   git config --global pull.rebase false
+
+  copy_skel_files
+  enable_gnome_extensions || true
 
   notify-send "Done" "Applied desktop defaults" || true
 
