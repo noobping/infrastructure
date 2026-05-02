@@ -268,7 +268,6 @@ steps:
           --live-ignition dist/ign/setup.ign \
           --dest-ignition dist/ign/workstation.ign \
           --pre-install butane/detect-device.sh \
-          --post-install butane/cache-bootc-image.sh \
           -o "$custom_iso_container" \
           "$base_iso"
 

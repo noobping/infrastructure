@@ -2,9 +2,10 @@
 *.bu
 *.ign
 *.iso
-*.qcow2
-out/
-*.iso.*
 *.iso
+*.iso.*
+*.qcow2
 digest*.txt
+dist/
+out/
 report.txt
