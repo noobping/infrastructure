@@ -194,6 +194,7 @@ steps:
         --build-arg "GID=${gid}"
 
       build_image workstation workstation/Containerfile "${namespace}/workstation:${image_arch}" \
+        --tls-verify="$tls_verify" \
         --build-arg "IMAGE_NAMESPACE=${namespace}" \
         --build-arg "TAG=${image_arch}" \
         --build-arg "UID=${uid}" \

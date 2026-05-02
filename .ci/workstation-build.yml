@@ -78,6 +78,7 @@ steps:
 
         run_buildah bud \
           --pull=always \
+          --tls-verify="$tls_verify" \
           --arch "$image_arch" \
           --isolation="$isolation" \
           --layers=false \
