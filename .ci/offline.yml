@@ -8,6 +8,7 @@ container:
 
 steps:
   - name: Build offline Workstation ISO
+    use: podman
     container: false
     run: |
       set -euo pipefail
@@ -47,17 +48,6 @@ steps:
       registry_container="${CI_LOCAL_REGISTRY_CONTAINER:-ci-registry}"
       registry_volume="${CI_LOCAL_REGISTRY_VOLUME:-ci-registry}"
 
-      run_podman() {
-        if command -v podman >/dev/null 2>&1; then
-          podman "$@"
-        elif command -v flatpak-spawn >/dev/null 2>&1; then
-          flatpak-spawn --host podman "$@"
-        else
-          echo "podman is required to run the local registry and build the ISO" >&2
-          exit 1
-        fi
-      }
-
       run_buildah() {
         if command -v buildah >/dev/null 2>&1; then
           TMPDIR="$tmpdir" buildah "$@"
@@ -76,7 +66,7 @@ steps:
           && flatpak-spawn --host sh -lc 'command -v yq >/dev/null 2>&1'; then
           flatpak-spawn --host yq "$@"
         else
-          run_podman run --rm -v "$repo:/work:Z" -w /work docker.io/mikefarah/yq:4.45.1 "$@"
+          podman run --rm -v "$repo:/work:Z" -w /work docker.io/mikefarah/yq:4.45.1 "$@"
         fi
       }
 
@@ -102,7 +92,7 @@ steps:
             -boot_image any replay \
             -map "$archive_host" /bootc
         else
-          run_podman run --rm \
+          podman run --rm \
             -v "$repo:/work:Z" -w /work \
             -v "$work_dir:/work-tmp:Z" \
             registry.fedoraproject.org/fedora:latest \
@@ -135,12 +125,12 @@ steps:
           return 0
         fi
 
-        if run_podman container exists "$registry_container"; then
-          run_podman start "$registry_container" >/dev/null
+        if podman container exists "$registry_container"; then
+          podman start "$registry_container" >/dev/null
         else
-          run_podman volume exists "$registry_volume" >/dev/null 2>&1 \
-            || run_podman volume create "$registry_volume" >/dev/null
-          run_podman run -d \
+          podman volume exists "$registry_volume" >/dev/null 2>&1 \
+            || podman volume create "$registry_volume" >/dev/null
+          podman run -d \
             --name "$registry_container" \
             -p "${registry_port}:5000" \
             -v "${registry_volume}:/var/lib/registry:Z" \
@@ -156,7 +146,7 @@ steps:
         done
 
         echo "local registry did not become ready at $registry" >&2
-        run_podman logs "$registry_container" >&2 || true
+        podman logs "$registry_container" >&2 || true
         exit 1
       }
 
@@ -209,9 +199,9 @@ steps:
         --build-arg "UID=${uid}" \
         --build-arg "GID=${gid}"
 
-      run_podman pull --tls-verify="$tls_verify" "${namespace}/workstation:${image_arch}"
-      run_podman tag "${namespace}/workstation:${image_arch}" "${namespace}/workstation:latest"
-      run_podman push --tls-verify="$tls_verify" "${namespace}/workstation:latest" "docker://${namespace}/workstation:latest"
+      podman pull --tls-verify="$tls_verify" "${namespace}/workstation:${image_arch}"
+      podman tag "${namespace}/workstation:${image_arch}" "${namespace}/workstation:latest"
+      podman push --tls-verify="$tls_verify" "${namespace}/workstation:latest" "docker://${namespace}/workstation:latest"
 
       work_dir="$(mktemp -d "${tmpdir%/}/offline.XXXXXX")"
       trap 'rm -rf "$work_dir"' EXIT
@@ -221,7 +211,7 @@ steps:
       mkdir -p "$archive_dir"
       archive="$archive_dir/workstation.ociarchive"
 
-      run_podman save --format oci-archive -o "$archive" "${namespace}/workstation:latest"
+      podman save --format oci-archive -o "$archive" "${namespace}/workstation:latest"
       sha256sum "$archive" | tee "${archive}.sha256"
 
       run_yq ea '. as $item ireduce ({}; . *+ $item)' \
@@ -231,7 +221,7 @@ steps:
 
       render_butane butane/setup.bu butane/setup.rendered.bu
 
-      run_podman run --rm \
+      podman run --rm \
         -v "$repo:/work:Z" -w /work \
         quay.io/coreos/butane:release \
         --pretty --strict --files-dir . butane/setup.rendered.bu \
@@ -245,14 +235,14 @@ steps:
 
       render_butane butane/workstation.bu butane/workstation.rendered.bu
 
-      run_podman run --rm \
+      podman run --rm \
         -v "$repo:/work:Z" -w /work \
         quay.io/coreos/butane:release \
         --pretty --strict --files-dir . butane/workstation.rendered.bu \
         > dist/ign/workstation.ign
 
       if ! ls -1 fedora-coreos-*-live-iso."${coreos_arch}".iso >/dev/null 2>&1; then
-        run_podman run --rm \
+        podman run --rm \
           --userns=keep-id \
           --user "$(id -u):$(id -g)" \
           -v "$repo:/work:Z" -w /work \
@@ -267,7 +257,7 @@ steps:
       custom_iso_container="/work-tmp/workstation-custom.iso"
       rm -f "$out_iso" "${out_iso}.sha256"
 
-      run_podman run --rm \
+      podman run --rm \
         --userns=keep-id \
         --user "$(id -u):$(id -g)" \
         -v "$repo:/work:Z" -w /work \
