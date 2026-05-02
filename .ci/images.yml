@@ -2,6 +2,7 @@ name: images
 on: manual
 needs:
   - nas
+  - opa
   - workstation
 execution:
   shell: bash

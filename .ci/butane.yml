@@ -65,7 +65,7 @@ steps:
         --pretty --strict --files-dir . butane/setup.rendered.bu \
         > dist/ign/setup.ign
 
-      for profile in nas workstation; do
+      for profile in nas workstation opa; do
         run_yq ea '. as $item ireduce ({}; . *+ $item)' \
           butane/base.yml \
           butane/updates.yml \
@@ -92,7 +92,7 @@ steps:
 
       base_iso="$(ls -1 fedora-coreos-*-live-iso."${coreos_arch}".iso | tail -n1)"
 
-      for profile in nas workstation; do
+      for profile in nas workstation opa; do
         out_iso="dist/iso/${profile}-${coreos_arch}.iso"
         tmp_iso="${out_iso}.tmp"
         rm -f "$tmp_iso"

@@ -1,0 +1,15 @@
+[Unit]
+Description=Update system Flatpaks
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=0
+ConditionPathExists=/usr/bin/flatpak
+
+[Service]
+Type=oneshot
+Restart=on-failure
+RestartSec=30s
+ExecStart=/usr/bin/flatpak update --system --noninteractive
+
+[Install]
+WantedBy=multi-user.target

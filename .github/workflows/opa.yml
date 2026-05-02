@@ -1,0 +1,181 @@
+name: OPA
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "opa/**"
+      - ".github/workflows/opa.yml"
+
+  workflow_run:
+    workflows:
+      - IPS
+    types:
+      - completed
+    branches:
+      - main
+      - master
+
+  workflow_dispatch: {}
+
+env:
+  IMAGE_NAME: ghcr.io/noobping/opa
+
+concurrency:
+  group: opa
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: >
+      github.event_name != 'workflow_run'
+      || github.event.workflow_run.conclusion == 'success'
+    name: Build ${{ matrix.stream.name }} ${{ matrix.arch.name }}
+    continue-on-error: ${{ matrix.stream.name == 'next' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - name: amd64
+            runs_on: ubuntu-latest
+          - name: arm64
+            runs_on: ubuntu-24.04-arm
+        stream:
+          - name: stable
+            tag: latest
+            suffix: ""
+          - name: next
+            tag: next
+            suffix: "-next"
+
+    runs-on: ${{ matrix.arch.runs_on }}
+
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+      - uses: sigstore/cosign-installer@v3
+
+      - uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Build tools
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ca-certificates curl git jq \
+            podman buildah skopeo \
+            fuse-overlayfs uidmap slirp4netns
+          sudo update-ca-certificates
+
+          buildah --version
+          podman --version
+          skopeo --version
+
+      - name: Storage
+        run: |
+          sudo mkdir -p /mnt/containers /mnt/runcontainers /mnt/tmp
+          sudo chown -R "$USER:$USER" /mnt/containers /mnt/runcontainers /mnt/tmp
+
+          mkdir -p ~/.config/containers
+          cat > ~/.config/containers/storage.conf <<'EOF'
+          [storage]
+          driver = "overlay"
+          runroot = "/mnt/runcontainers/storage"
+          graphroot = "/mnt/containers/storage"
+
+          [storage.options]
+          mount_program = "/usr/bin/fuse-overlayfs"
+          EOF
+
+          buildah info
+
+      - name: Repository
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | cosign login ghcr.io -u "${{ github.actor }}" --password-stdin
+          echo "${{ secrets.GITHUB_TOKEN }}" | buildah login -u "${{ github.actor }}" --password-stdin ghcr.io
+
+      - name: Build
+        working-directory: opa
+        env:
+          BUILDAH_ISOLATION: chroot
+          TMPDIR: /mnt/tmp
+        run: |
+          IMAGE="${IMAGE_NAME}:${{ matrix.arch.name }}${{ matrix.stream.suffix }}"
+
+          buildah bud \
+            --pull-always \
+            --isolation=chroot \
+            --layers=false \
+            --rm \
+            -f Containerfile \
+            -t "$IMAGE" \
+            --label org.opencontainers.image.source="${{ github.repositoryUrl }}" \
+            --build-arg TAG=${{ matrix.stream.tag }} \
+            --build-arg UID=1000 \
+            --build-arg GID=1000 \
+            .
+
+          buildah push --digestfile digest.txt "$IMAGE" "docker://$IMAGE"
+
+          DIGEST="$(cat digest.txt)"
+          echo "Digest: $DIGEST"
+          cosign sign --yes "$IMAGE@$DIGEST"
+
+          buildah rmi "$IMAGE" || true
+          buildah prune -f || true
+
+  manifest:
+    if: >
+      github.event_name != 'workflow_run'
+      || github.event.workflow_run.conclusion == 'success'
+    name: Manifest ${{ matrix.stream.name }}
+    continue-on-error: ${{ matrix.stream.name == 'next' }}
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        stream:
+          - name: stable
+            tag: latest
+            suffix: ""
+          - name: next
+            tag: next
+            suffix: "-next"
+
+    permissions:
+      packages: write
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Repository
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push
+        run: |
+          docker buildx imagetools create \
+            -t "${IMAGE_NAME}:${{ matrix.stream.tag }}" \
+            "${IMAGE_NAME}:amd64${{ matrix.stream.suffix }}" \
+            "${IMAGE_NAME}:arm64${{ matrix.stream.suffix }}"

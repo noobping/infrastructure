@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily system Flatpak update timer
+ConditionPathExists=/usr/bin/flatpak
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=1h
+
+[Install]
+WantedBy=timers.target
