@@ -44,15 +44,17 @@ resolve_image_ref() {
 }
 
 iso_devices() {
-    if command -v lsblk >/dev/null 2>&1; then
-        lsblk -Ppno PATH,FSTYPE 2>/dev/null | awk -F'"' '/FSTYPE="(iso9660|udf)"/ { print $2 }'
-    fi
-
-    for dev in /dev/sr* /dev/disk/by-label/*; do
-        if [[ -e "$dev" ]]; then
-            readlink -f "$dev"
+    {
+        if command -v lsblk >/dev/null 2>&1; then
+            lsblk -Ppno PATH,FSTYPE 2>/dev/null | awk -F'"' '/FSTYPE="(iso9660|udf)"/ { print $2 }'
         fi
-    done | awk '!seen[$0]++'
+
+        for dev in /dev/sr* /dev/disk/by-label/*; do
+            if [[ -e "$dev" ]]; then
+                readlink -f "$dev"
+            fi
+        done
+    } | awk '!seen[$0]++'
 }
 
 find_archive() {
@@ -74,14 +76,14 @@ find_archive() {
 
         echo "Trying ISO device: $dev"
         mkdir -p "$iso_mount"
-        if mount -t iso9660 -o ro "$dev" "$iso_mount" \
-            || mount -t udf -o ro "$dev" "$iso_mount" \
-            || mount -o ro "$dev" "$iso_mount"; then
+        if mount -o ro "$dev" "$iso_mount"; then
             mounted_iso=1
             if [[ -f "$iso_mount/bootc/$name" ]]; then
                 archive="$iso_mount/bootc/$name"
                 return 0
             fi
+
+            echo "$name not found on $dev" >&2
             cleanup
             mounted_iso=
         fi
@@ -131,9 +133,4 @@ archive_ref="ostree-unverified-image:oci-archive:${archive}"
 echo "Remote rebase failed; using ISO archive: $archive_ref"
 
 mount -o remount,rw /sysroot 2>/dev/null || true
-if ostree container image deploy --sysroot=/ --stateroot=fedora-coreos \
-    --imgref="$archive_ref" --target-imgref="$remote_ref"; then
-    exit 0
-fi
-
 rpm-ostree rebase "$archive_ref"
