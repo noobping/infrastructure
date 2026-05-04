@@ -174,7 +174,7 @@ for_window [app_id="firefox"] border pixel 0
 bar {
     position top
     font pango:Noto Sans 10
-    status_command i3status-rs ~/.config/sway/i3rs-config.toml
+    status_command i3status -c ~/.config/sway/i3status.conf
     tray_output primary
 
     colors {
