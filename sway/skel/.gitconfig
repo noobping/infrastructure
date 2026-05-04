@@ -1,0 +1,7 @@
+[user]
+	name = nick
+	email = noobping@users.noreply.github.com
+[init]
+defaultBranch=main
+[pull]
+	rebase = false

@@ -44,10 +44,7 @@ RUN set -euxo pipefail; \
 
 COPY apply-skel /usr/libexec/infrastructure/apply-skel
 COPY apply-skel.service /etc/systemd/system/apply-skel.service
-COPY config env i3status.conf *.sh /etc/skel/.config/sway/
-COPY mako-config /etc/skel/.config/mako/config
-COPY wofi-config /etc/skel/.config/wofi/config
-COPY wofi-style.css /etc/skel/.config/wofi/style.css
+COPY skel /etc/skel
 
 RUN set -euxo pipefail; \
   chmod 0644 \
@@ -56,8 +53,8 @@ RUN set -euxo pipefail; \
     /etc/skel/.config/sway/env \
     /etc/skel/.config/sway/i3status.conf \
     /etc/skel/.config/wofi/config \
-    /etc/skel/.config/wofi/style.css; \
-  chmod 0644 /etc/systemd/system/apply-skel.service; \
+    /etc/skel/.config/wofi/style.css \
+    /etc/systemd/system/apply-skel.service; \
   chmod 0755 /usr/libexec/infrastructure/apply-skel; \
   find /etc/skel/.config/sway -type f -name '*.sh' -exec chmod 0755 '{}' +; \
   ln -sf /etc/systemd/system/apply-skel.service \
