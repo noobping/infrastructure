@@ -1,12 +1,19 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 # List passwords
 password_store=${PASSWORD_STORE_DIR:-$HOME/.password-store}
-passwords=$(find "$password_store" -iname "*.gpg" -print | sed -e "s@${password_store}/@@g" -e 's@\.gpg@@g' | wofi --show=dmenu --insensitive --prompt='Select a password')
+
+if [[ ! -d "$password_store" ]]; then
+  notify-send "Password store not found" "$password_store"
+  exit 0
+fi
+
+passwords=$(find "$password_store" -iname "*.gpg" -print 2>/dev/null | sed -e "s@${password_store}/@@g" -e 's@\.gpg@@g' | wofi --show=dmenu --insensitive --prompt='Passwords')
 
 # Exit if no password is selected
-[ -z "$passwords" ] && exit 1
+[[ -z "$passwords" ]] && exit 0
 
 # Retrieve and copy password to clipboard
 message=$(pass "$passwords" -c)
-notify-send $message
+notify-send "$message"

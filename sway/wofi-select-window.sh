@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-swaymsg -t get_tree | jq -r '
+selection=$(
+  swaymsg -t get_tree | jq -r '
         # descend to workspace or scratchpad
         .nodes[].nodes[]
         # save workspace name as .w
@@ -19,7 +21,12 @@ swaymsg -t get_tree | jq -r '
         # remove markup and index from workspace name, replace scratch with "[S]"
         + (.w | gsub("^[^:]*:|<[^>]*>"; "") | sub("__i3_scratch"; "[S]"))
         + "\t " +  .name)
-        ' | wofi --show dmenu --prompt='Focus a window' | {
-    read -r id name
-    swaymsg "[con_id=$id]" focus
-}
+        ' | wofi --show=dmenu --prompt='Focus a window' --insensitive
+)
+
+if [[ -z "$selection" ]]; then
+  exit 0
+fi
+
+id="${selection%%[[:space:]]*}"
+swaymsg "[con_id=$id]" focus

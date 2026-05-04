@@ -1,16 +1,40 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-# List available Wi-Fi networks
-networks=$(nmcli -t -f SSID dev wifi | sort | uniq | awk 'NF' | wofi --show=dmenu --prompt="Select a Wi-Fi network")
+choice=$(
+  {
+    printf '%s\n' "Disconnect" "Rescan"
+    nmcli -t -f SSID dev wifi list --rescan yes 2>/dev/null || true
+  } | awk 'NF' | sort -u | wofi --show=dmenu --prompt="Wi-Fi" --insensitive
+)
 
-# Exit if no network is chosen
-[ -z "$networks" ] && exit 1
+if [[ -z "$choice" ]]; then
+  exit 0
+fi
 
-# Prompt for password
-password=$(wofi --show=dmenu --lines=1 --password --prompt="Enter password for $networks:")
+case "$choice" in
+  "Disconnect")
+    device="$({ nmcli -t -f DEVICE,TYPE,STATE dev 2>/dev/null || true; } | awk -F: '$2=="wifi" && $3=="connected" { print $1; exit }')"
+    if [[ -n "$device" ]]; then
+      nmcli dev disconnect "$device"
+    fi
+    exit 0
+    ;;
+  "Rescan")
+    nmcli dev wifi rescan
+    exec "$0"
+    ;;
+esac
 
-# Exit if no password is entered
-[ -z "$password" ] && exit 1
+if { nmcli -t -f NAME connection show 2>/dev/null || true; } | grep -Fxq "$choice"; then
+  nmcli connection up id "$choice"
+  exit 0
+fi
 
-# Attempt to connect
-nmcli dev wifi connect "$networks" password "$password"
+password=$(wofi --show=dmenu --lines=1 --password --prompt="Password for $choice")
+
+if [[ -z "$password" ]]; then
+  exit 0
+fi
+
+nmcli dev wifi connect "$choice" password "$password"

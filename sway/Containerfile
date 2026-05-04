@@ -13,6 +13,7 @@ RUN set -euxo pipefail; \
     dmenu \
     fontawesome-6-free-fonts \
     foot \
+    grim \
     i3status \
     jq \
     libnotify \
@@ -23,27 +24,36 @@ RUN set -euxo pipefail; \
     playerctl \
     pulseaudio-utils \
     qt5ct \
+    slurp \
     sway \
     swayidle \
     swaylock \
     wl-clipboard \
     wofi \
+    xdg-user-dirs \
+    xdg-utils \
     xdg-desktop-portal-wlr; \
   if ! rpm-ostree install -y i3status-rust; then \
     printf '%s\n' '#!/usr/bin/env bash' 'exec /usr/bin/i3status' > /usr/local/bin/i3status-rs; \
     chmod 0755 /usr/local/bin/i3status-rs; \
   fi; \
   rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
-  mkdir -p /etc/skel/.config/sway; \
+  mkdir -p /etc/skel/.config/mako /etc/skel/.config/sway /etc/skel/.config/wofi; \
   ostree container commit
 
 COPY config env i3rs-config.toml *.sh /etc/skel/.config/sway/
+COPY mako-config /etc/skel/.config/mako/config
+COPY wofi-config /etc/skel/.config/wofi/config
+COPY wofi-style.css /etc/skel/.config/wofi/style.css
 
 RUN set -euxo pipefail; \
   chmod 0644 \
+    /etc/skel/.config/mako/config \
     /etc/skel/.config/sway/config \
     /etc/skel/.config/sway/env \
-    /etc/skel/.config/sway/i3rs-config.toml; \
+    /etc/skel/.config/sway/i3rs-config.toml \
+    /etc/skel/.config/wofi/config \
+    /etc/skel/.config/wofi/style.css; \
   find /etc/skel/.config/sway -type f -name '*.sh' -exec chmod 0755 '{}' +; \
   if grep -q '^XSession=' /var/lib/AccountsService/default; then \
     sed -i 's/^XSession=.*/XSession=sway/' /var/lib/AccountsService/default; \

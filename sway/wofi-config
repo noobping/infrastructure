@@ -1,0 +1,8 @@
+width=720
+height=480
+location=center
+allow_images=true
+insensitive=true
+matching=fuzzy
+term=foot
+prompt=Search

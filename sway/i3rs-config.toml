@@ -3,6 +3,8 @@ theme = "native"
 
 [[block]]
 block = "cpu"
+interval = 5
+format = " $icon $utilization.eng(w:2) "
 
 [[block]]
 block = "memory"
@@ -17,6 +19,7 @@ alert_unit = "GB"
 interval = 20
 warning = 20.0
 alert = 10.0
+format = " $icon $available.eng(w:3) "
 
 [[block]]
 block = "sound"
@@ -28,4 +31,3 @@ cmd = "pavucontrol"
 block = "time"
 interval = 5
 format = " $timestamp.datetime(f:'%a %d/%m %R') "
-

@@ -1,0 +1,36 @@
+* {
+  font-family: "Noto Sans", sans-serif;
+  font-size: 14px;
+}
+
+window {
+  margin: 0;
+  border: 2px solid #7aa2f7;
+  background-color: rgba(17, 19, 24, 0.96);
+}
+
+#input {
+  margin: 10px;
+  padding: 10px 12px;
+  border: 1px solid #414868;
+  color: #e6edf3;
+  background-color: #1f2335;
+}
+
+#inner-box {
+  margin: 0 10px 10px;
+}
+
+#entry {
+  padding: 8px 10px;
+  color: #e6edf3;
+}
+
+#entry:selected {
+  color: #111318;
+  background-color: #7aa2f7;
+}
+
+#text {
+  color: inherit;
+}
