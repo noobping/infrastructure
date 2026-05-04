@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+skel=/etc/skel
+
+if [[ ! -d "$skel" ]]; then
+  exit 0
+fi
+
+getent passwd | while IFS=: read -r user _ uid gid _ home shell; do
+  case "$uid" in
+    ""|*[!0-9]*)
+      continue
+      ;;
+  esac
+
+  if (( uid < 1000 || uid >= 60000 )); then
+    continue
+  fi
+
+  case "$home" in
+    /home/*|/var/home/*)
+      ;;
+    *)
+      continue
+      ;;
+  esac
+
+  case "$shell" in
+    */false|*/nologin)
+      continue
+      ;;
+  esac
+
+  if [[ ! -d "$home" ]]; then
+    continue
+  fi
+
+  state_dir="$home/.local/state/infrastructure"
+  marker="$state_dir/sway-skel-applied"
+
+  if [[ -e "$marker" ]]; then
+    continue
+  fi
+
+  cp -an "$skel"/. "$home"/
+
+  for entry in "$skel"/.[!.]* "$skel"/..?* "$skel"/*; do
+    if [[ ! -e "$entry" ]]; then
+      continue
+    fi
+
+    target="$home/$(basename "$entry")"
+    if [[ -e "$target" ]]; then
+      chown -R "$uid:$gid" "$target"
+    fi
+  done
+
+  install -d -m 0700 -o "$uid" -g "$gid" "$state_dir"
+  : > "$marker"
+  chown "$uid:$gid" "$marker"
+done
