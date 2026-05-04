@@ -43,12 +43,20 @@ steps:
       render_butane() {
         local input="$1"
         local output="$2"
+        local bootc_image="${3:-workstation}"
 
         sed \
           -e "s#__CI_IMAGE_NAMESPACE__#${namespace}#g" \
+          -e "s#__CI_BOOTC_IMAGE__#${bootc_image}#g" \
           -e "s#ghcr.io/noobping#${namespace}#g" \
           "$input" > "$output"
       }
+
+      profiles=(
+        "nas:nas:nas"
+        "workstation:workstation:workstation"
+        "sway:workstation:sway"
+      )
 
       mkdir -p dist/ign dist/iso
 
@@ -65,14 +73,16 @@ steps:
         --pretty --strict --files-dir . butane/setup.rendered.bu \
         > dist/ign/setup.ign
 
-      for profile in nas workstation; do
+      for profile_spec in "${profiles[@]}"; do
+        IFS=: read -r profile butane_profile bootc_image <<< "$profile_spec"
+
         run_yq ea '. as $item ireduce ({}; . *+ $item)' \
           butane/base.yml \
           butane/updates.yml \
-          "butane/${profile}.yml" \
+          "butane/${butane_profile}.yml" \
           > "butane/${profile}.bu"
 
-        render_butane "butane/${profile}.bu" "butane/${profile}.rendered.bu"
+        render_butane "butane/${profile}.bu" "butane/${profile}.rendered.bu" "$bootc_image"
 
         podman run --rm \
           -v "$PWD:/work:Z" -w /work \
@@ -92,7 +102,9 @@ steps:
 
       base_iso="$(ls -1 fedora-coreos-*-live-iso."${coreos_arch}".iso | tail -n1)"
 
-      for profile in nas workstation; do
+      for profile_spec in "${profiles[@]}"; do
+        IFS=: read -r profile butane_profile bootc_image <<< "$profile_spec"
+
         out_iso="dist/iso/${profile}-${coreos_arch}.iso"
         tmp_iso="${out_iso}.tmp"
         rm -f "$tmp_iso"

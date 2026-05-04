@@ -3,6 +3,7 @@ on: manual
 needs:
   - nas
   - workstation
+  - sway
 execution:
   shell: bash
 

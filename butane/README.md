@@ -6,15 +6,41 @@ Build the butane files:
 ```sh
 yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/setup.yml > butane/setup.bu
 yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/updates.yml butane/workstation.yml > butane/workstation.bu
+yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/updates.yml butane/workstation.yml > butane/sway.bu
 yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/updates.yml butane/nas.yml > butane/nas.bu
+```
+
+The Sway profile reuses `butane/workstation.yml`; render `__CI_BOOTC_IMAGE__` as `sway` for `sway.ign` and as `workstation` for `workstation.ign`.
+
+Render placeholders:
+
+```sh
+CI_IMAGE_NAMESPACE=ghcr.io/noobping
+
+render_butane() {
+    input="$1"
+    output="$2"
+    bootc_image="$3"
+
+    sed \
+        -e "s#__CI_IMAGE_NAMESPACE__#${CI_IMAGE_NAMESPACE}#g" \
+        -e "s#__CI_BOOTC_IMAGE__#${bootc_image}#g" \
+        "$input" > "$output"
+}
+
+render_butane butane/setup.bu butane/setup.rendered.bu workstation
+render_butane butane/workstation.bu butane/workstation.rendered.bu workstation
+render_butane butane/sway.bu butane/sway.rendered.bu sway
+render_butane butane/nas.bu butane/nas.rendered.bu nas
 ```
 
 Build ignition file:
 
 ```sh
-butane --pretty --strict --files-dir . butane/setup.bu > setup.ign
-butane --pretty --strict butane/workstation.bu > workstation.ign
-butane --pretty --strict butane/nas.bu > nas.ign
+butane --pretty --strict --files-dir . butane/setup.rendered.bu > setup.ign
+butane --pretty --strict --files-dir . butane/workstation.rendered.bu > workstation.ign
+butane --pretty --strict --files-dir . butane/sway.rendered.bu > sway.ign
+butane --pretty --strict --files-dir . butane/nas.rendered.bu > nas.ign
 ```
 
 Download live ISO

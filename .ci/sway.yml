@@ -1,0 +1,32 @@
+name: sway
+on: manual
+needs: sway-build
+execution:
+  shell: bash
+
+steps:
+  - name: Push Sway manifests
+    use: podman
+    if: arch(host)
+    container: false
+    run: |
+      set -euo pipefail
+
+      namespace="${CI_IMAGE_NAMESPACE:-localhost:5000/noobping}"
+      tls_verify="${CI_REGISTRY_TLS_VERIFY:-false}"
+
+      push_manifest() {
+        local tag="$1"
+        local suffix="$2"
+        local image="${namespace}/sway:${tag}"
+
+        podman manifest rm "$image" >/dev/null 2>&1 || true
+        podman manifest create "$image"
+        podman manifest add --tls-verify="$tls_verify" "$image" "docker://${namespace}/sway:amd64${suffix}"
+        podman manifest add --tls-verify="$tls_verify" "$image" "docker://${namespace}/sway:arm64${suffix}"
+        podman manifest push --all --tls-verify="$tls_verify" "$image" "docker://$image"
+        podman manifest rm "$image" >/dev/null 2>&1 || true
+      }
+
+      push_manifest latest ""
+      push_manifest next "-next"

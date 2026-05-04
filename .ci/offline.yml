@@ -153,9 +153,11 @@ steps:
       render_butane() {
         local input="$1"
         local output="$2"
+        local bootc_image="${3:-workstation}"
 
         sed \
           -e "s#__CI_IMAGE_NAMESPACE__#${namespace}#g" \
+          -e "s#__CI_BOOTC_IMAGE__#${bootc_image}#g" \
           -e "s#ghcr.io/noobping#${namespace}#g" \
           "$input" > "$output"
       }

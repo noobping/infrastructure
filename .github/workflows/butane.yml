@@ -20,7 +20,7 @@ env:
 
 jobs:
   build:
-    name: Build ${{ matrix.arch.name }} ${{ matrix.profile }}
+    name: Build ${{ matrix.arch.name }} ${{ matrix.profile.name }}
     strategy:
       matrix:
         arch:
@@ -28,7 +28,16 @@ jobs:
             runs_on: ubuntu-latest
           - name: arm64
             runs_on: ubuntu-24.04-arm
-        profile: [nas, workstation]
+        profile:
+          - name: nas
+            butane: nas
+            bootc_image: nas
+          - name: workstation
+            butane: workstation
+            bootc_image: workstation
+          - name: sway
+            butane: workstation
+            bootc_image: sway
 
     runs-on: ${{ matrix.arch.runs_on }}
 
@@ -54,9 +63,12 @@ jobs:
         run: |
           set -euxo pipefail
           yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/setup.yml > butane/setup.bu
-          yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/updates.yml butane/${{ matrix.profile }}.yml > butane/${{ matrix.profile }}.bu
+          yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/updates.yml butane/${{ matrix.profile.butane }}.yml > butane/${{ matrix.profile.name }}.bu
           sed "s#__CI_IMAGE_NAMESPACE__#${CI_IMAGE_NAMESPACE}#g" butane/setup.bu > butane/setup.rendered.bu
-          sed "s#__CI_IMAGE_NAMESPACE__#${CI_IMAGE_NAMESPACE}#g" butane/${{ matrix.profile }}.bu > butane/${{ matrix.profile }}.rendered.bu
+          sed \
+            -e "s#__CI_IMAGE_NAMESPACE__#${CI_IMAGE_NAMESPACE}#g" \
+            -e "s#__CI_BOOTC_IMAGE__#${{ matrix.profile.bootc_image }}#g" \
+            butane/${{ matrix.profile.name }}.bu > butane/${{ matrix.profile.name }}.rendered.bu
 
       - name: Build ignition files
         run: |
@@ -70,7 +82,7 @@ jobs:
           podman run --rm \
             -v "$PWD:/work:Z" -w /work \
             quay.io/coreos/butane:release \
-            --pretty --strict --files-dir . butane/${{ matrix.profile }}.rendered.bu > ${{ matrix.profile }}.ign
+            --pretty --strict --files-dir . butane/${{ matrix.profile.name }}.rendered.bu > ${{ matrix.profile.name }}.ign
 
       - name: Download stable release
         run: |
@@ -88,7 +100,7 @@ jobs:
           set -euxo pipefail
           arch="$(uname -m)"
           base_iso="$(ls -1 fedora-coreos-*-live-iso."$arch".iso | tail -n1)"
-          out_iso="${{ matrix.profile }}-${arch}.iso"
+          out_iso="${{ matrix.profile.name }}-${arch}.iso"
 
           podman run --rm \
             --userns=keep-id \
@@ -97,7 +109,7 @@ jobs:
             quay.io/coreos/coreos-installer:release \
             iso customize \
               --live-ignition setup.ign \
-              --dest-ignition ${{ matrix.profile }}.ign \
+              --dest-ignition ${{ matrix.profile.name }}.ign \
               --pre-install butane/detect-device.sh \
               -o "$out_iso" \
               "$base_iso"
@@ -107,19 +119,19 @@ jobs:
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.profile }}-${{ matrix.arch.name }}-release
+          name: ${{ matrix.profile.name }}-${{ matrix.arch.name }}-release
           compression-level: 0
           path: |
-            ${{ matrix.profile }}-*.iso
-            ${{ matrix.profile }}-*.iso.sha256
+            ${{ matrix.profile.name }}-*.iso
+            ${{ matrix.profile.name }}-*.iso.sha256
 
       - name: Upload ignition artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.profile }}-${{ matrix.arch.name }}-ignition
+          name: ${{ matrix.profile.name }}-${{ matrix.arch.name }}-ignition
           compression-level: 0
           path: |
-            ${{ matrix.profile }}.ign
+            ${{ matrix.profile.name }}.ign
             setup.ign
 
   release:
