@@ -73,6 +73,8 @@ RUN set -euxo pipefail; \
 RUN set -euxo pipefail; \
   mkdir -p \
     /etc/NetworkManager/system-connections \
+    /etc/dconf/db/local.d \
+    /etc/dconf/profile \
     /etc/firewalld/zones \
     /etc/polkit-1/rules.d \
     /etc/recommended \
@@ -94,6 +96,8 @@ COPY background.png /usr/share/backgrounds/wallpaper.png
 COPY background.xml /usr/share/gnome-background-properties/noobping.xml
 COPY cachefilesd.conf /etc/cachefilesd.conf
 COPY certs/ /etc/pki/ca-trust/source/anchors/
+COPY dconf-local-defaults /etc/dconf/db/local.d/00-workstation
+COPY dconf-profile-user /etc/dconf/profile/user
 COPY flathub.txt /etc/recommended/flathub
 COPY firewall.xml /etc/firewalld/zones/public.xml
 COPY suricata-direct.xml /etc/firewalld/direct.xml
@@ -105,8 +109,6 @@ COPY polkit-printers.rules /etc/polkit-1/rules.d/50-printer-access.rules
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY profile.conf /var/lib/AccountsService/default
 COPY profile.png /usr/share/pixmaps/faces/noobping.png
-COPY recommended.desktop /etc/xdg/autostart/
-COPY recommended.sh /usr/bin/recommended
 COPY apply-skel /usr/libexec/infrastructure/apply-skel
 COPY apply-skel.service /etc/systemd/system/apply-skel.service
 COPY skel /etc/skel
@@ -121,13 +123,13 @@ RUN set -euxo pipefail; \
   mkdir -p /etc/skel/.config; \
   chmod 0755 \
     /etc/profile.d/aliases.sh \
-    /etc/xdg/autostart/recommended.desktop \
-    /usr/bin/recommended \
     /usr/local/sbin/switch-to-silverblue \
     /usr/libexec/infrastructure/apply-skel \
     /usr/libexec/infrastructure/nut-netclient-configure \
     /usr/libexec/infrastructure/system-flatpaks; \
   chmod 0644 \
+    /etc/dconf/db/local.d/00-workstation \
+    /etc/dconf/profile/user \
     /etc/firewalld/direct.xml \
     /etc/polkit-1/rules.d/50-libvirt-access.rules \
     /etc/systemd/system/apply-skel.service \
@@ -135,6 +137,7 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/system-flatpaks.service \
     /etc/systemd/system/update-system-flatpaks.service \
     /etc/systemd/system/update-system-flatpaks.timer; \
+  dconf update; \
   rm -f /etc/resolv.conf; \
   ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf; \
   sed -i 's/tcp dport @allowed_tcp_dports accept/# &/' /etc/nftables/main.nft; \

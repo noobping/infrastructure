@@ -1,0 +1,26 @@
+[org/gnome/desktop/background]
+picture-uri='file:///usr/share/backgrounds/wallpaper.png'
+picture-uri-dark='file:///usr/share/backgrounds/wallpaper.png'
+picture-options='zoom'
+
+[org/gnome/desktop/screensaver]
+picture-uri='file:///usr/share/backgrounds/wallpaper.png'
+
+[org/gnome/desktop/interface]
+accent-color='green'
+gtk-enable-primary-paste=true
+
+[org/gnome/system/locale]
+region='nl_NL.UTF-8'
+
+[org/gnome/settings-daemon/plugins/media-keys]
+custom-keybindings=['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/']
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0]
+name='Terminal'
+command='ptyxis --new-window'
+binding='<Control><Alt>t'
+
+[org/gnome/shell]
+favorite-apps=['org.gnome.Nautilus.desktop', 'io.github.kolunmi.Bazaar.desktop', 'com.mattjakeman.ExtensionManager.desktop', 'org.gnome.Epiphany.desktop']
+enabled-extensions=['appindicatorsupport@rgcjonas.gmail.com', 'auto-activities@CleoMenezesJr.github.io', 'category-sorted-app-grid@noobping.dev', 'draw-on-gnome@daveprowse.github.io', 'hotedge@jonathan.jdoda.ca', 'in-picture@filiprund.cz', 'reboottouefi@ubaygd.com']
