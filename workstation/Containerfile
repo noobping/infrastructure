@@ -107,6 +107,8 @@ COPY profile.conf /var/lib/AccountsService/default
 COPY profile.png /usr/share/pixmaps/faces/noobping.png
 COPY recommended.desktop /etc/xdg/autostart/
 COPY recommended.sh /usr/bin/recommended
+COPY apply-skel /usr/libexec/infrastructure/apply-skel
+COPY apply-skel.service /etc/systemd/system/apply-skel.service
 COPY skel /etc/skel
 COPY switch-to-silverblue /usr/local/sbin/switch-to-silverblue
 COPY system-flatpaks /usr/libexec/infrastructure/system-flatpaks
@@ -123,11 +125,13 @@ RUN set -euxo pipefail; \
   chmod +x /etc/xdg/autostart/recommended.desktop; \
   chmod +x /usr/bin/recommended; \
   chmod +x /usr/local/sbin/switch-to-silverblue; \
+  chmod +x /usr/libexec/infrastructure/apply-skel; \
   chmod +x /usr/libexec/infrastructure/nut-netclient-configure; \
   chmod +x /usr/libexec/infrastructure/system-flatpaks; \
 
   chmod 0644 /etc/firewalld/direct.xml; \
   chmod 0644 /etc/polkit-1/rules.d/50-libvirt-access.rules; \
+  chmod 0644 /etc/systemd/system/apply-skel.service; \
 
   rm -f /etc/resolv.conf; \
   ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf; \
@@ -153,6 +157,8 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/multi-user.target.wants/firewalld.service; \
   ln -sf /etc/systemd/system/nut-netclient-configure.service \
     /etc/systemd/system/multi-user.target.wants/nut-netclient-configure.service; \
+  ln -sf /etc/systemd/system/apply-skel.service \
+    /etc/systemd/system/multi-user.target.wants/apply-skel.service; \
   ln -sf /etc/systemd/system/system-flatpaks.service \
     /etc/systemd/system/multi-user.target.wants/system-flatpaks.service; \
   ln -sf /etc/systemd/system/update-system-flatpaks.service \
