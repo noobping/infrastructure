@@ -118,27 +118,27 @@ COPY update-system-flatpaks.timer /etc/systemd/system/update-system-flatpaks.tim
 
 RUN set -euxo pipefail; \
   update-ca-trust; \
-
   mkdir -p /etc/skel/.config; \
-
-  chmod +x /etc/profile.d/aliases.sh; \
-  chmod +x /etc/xdg/autostart/recommended.desktop; \
-  chmod +x /usr/bin/recommended; \
-  chmod +x /usr/local/sbin/switch-to-silverblue; \
-  chmod +x /usr/libexec/infrastructure/apply-skel; \
-  chmod +x /usr/libexec/infrastructure/nut-netclient-configure; \
-  chmod +x /usr/libexec/infrastructure/system-flatpaks; \
-
-  chmod 0644 /etc/firewalld/direct.xml; \
-  chmod 0644 /etc/polkit-1/rules.d/50-libvirt-access.rules; \
-  chmod 0644 /etc/systemd/system/apply-skel.service; \
-
+  chmod 0755 \
+    /etc/profile.d/aliases.sh \
+    /etc/xdg/autostart/recommended.desktop \
+    /usr/bin/recommended \
+    /usr/local/sbin/switch-to-silverblue \
+    /usr/libexec/infrastructure/apply-skel \
+    /usr/libexec/infrastructure/nut-netclient-configure \
+    /usr/libexec/infrastructure/system-flatpaks; \
+  chmod 0644 \
+    /etc/firewalld/direct.xml \
+    /etc/polkit-1/rules.d/50-libvirt-access.rules \
+    /etc/systemd/system/apply-skel.service \
+    /etc/systemd/system/nut-netclient-configure.service \
+    /etc/systemd/system/system-flatpaks.service \
+    /etc/systemd/system/update-system-flatpaks.service \
+    /etc/systemd/system/update-system-flatpaks.timer; \
   rm -f /etc/resolv.conf; \
   ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf; \
-
   sed -i 's/tcp dport @allowed_tcp_dports accept/# &/' /etc/nftables/main.nft; \
   echo DefaultZone=public > /etc/firewalld/firewalld.conf; \
-
   ln -sf /usr/lib/systemd/system/gdm.service \
     /etc/systemd/system/graphical.target.wants/gdm.service; \
   ln -sf /usr/lib/systemd/system/gdm.service \
