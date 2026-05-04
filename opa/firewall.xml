@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<zone target="DROP">
-  <short>Public</short>
-  <description>Default policy</description>
-  <!-- Printer/scanner discovery -->
-  <port protocol="udp" port="5353"/>
-  <port protocol="udp" port="631"/>
-  <port protocol="udp" port="3702"/>
-</zone>
