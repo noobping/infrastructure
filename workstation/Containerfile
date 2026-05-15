@@ -19,7 +19,12 @@ RUN set -euxo pipefail; \
   if rpm -q nfs-utils-coreos >/dev/null 2>&1; then \
     rpm-ostree override remove nfs-utils-coreos; \
   fi; \
-  rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
+  rm -rf \
+    /etc/selinux/targeted/previous \
+    /etc/selinux/targeted/tmp \
+    /var/cache/rpm-ostree \
+    /var/lib/rpm-ostree/cache \
+    /var/cache/dnf; \
   ostree container commit
 
 RUN set -euxo pipefail; \
@@ -38,13 +43,19 @@ RUN set -euxo pipefail; \
     mesa-dri-drivers switcheroo-control virglrenderer \
     libhid hidapi openrgb-udev-rules \
     steam-devices; \
-  rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
+  rm -rf \
+    /etc/selinux/targeted/previous \
+    /etc/selinux/targeted/tmp \
+    /var/cache/rpm-ostree \
+    /var/lib/rpm-ostree/cache \
+    /var/cache/dnf; \
   ostree container commit
 
 RUN set -euxo pipefail; \
   rpm-ostree install -y \
     gdm ibus ibus-mozc \
-    glibc-all-langpacks google-noto-color-emoji-fonts google-noto-sans-cjk-fonts fontconfig \
+    glibc-langpack-en glibc-langpack-ja glibc-langpack-nl \
+    google-noto-color-emoji-fonts google-noto-sans-cjk-fonts fontconfig \
     gnome-backgrounds gnome-control-center gnome-disk-utility gnome-initial-setup \
     gnome-keyring gnome-menus gnome-session gnome-shell \
     xdg-desktop-portal xdg-desktop-portal-gtk \
@@ -53,7 +64,12 @@ RUN set -euxo pipefail; \
     python3 python3-pip python3-onnxruntime python3-pathvalidate \
     plymouth plymouth-theme-spinner \
     ptyxis; \
-  rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
+  rm -rf \
+    /etc/selinux/targeted/previous \
+    /etc/selinux/targeted/tmp \
+    /var/cache/rpm-ostree \
+    /var/lib/rpm-ostree/cache \
+    /var/cache/dnf; \
   ostree container commit
 
 RUN set -euxo pipefail; \
@@ -64,12 +80,22 @@ RUN set -euxo pipefail; \
     flatpak flatpak-spawn \
     fuse fuse-libs \
     tracker-miners ffmpegthumbnailer gstreamer1-libav gstreamer1-plugin-openh264; \
-  rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
+  rm -rf \
+    /etc/selinux/targeted/previous \
+    /etc/selinux/targeted/tmp \
+    /var/cache/rpm-ostree \
+    /var/lib/rpm-ostree/cache \
+    /var/cache/dnf; \
   ostree container commit
 
 RUN set -euxo pipefail; \
   rpm-ostree override remove gnome-tour; \
-  rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
+  rm -rf \
+    /etc/selinux/targeted/previous \
+    /etc/selinux/targeted/tmp \
+    /var/cache/rpm-ostree \
+    /var/lib/rpm-ostree/cache \
+    /var/cache/dnf; \
   ostree container commit
 
 RUN set -euxo pipefail; \
