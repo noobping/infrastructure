@@ -29,7 +29,7 @@ RUN set -euxo pipefail; \
     accountsservice \
     aemu libvirt qemu-kvm android-tools \
     gssproxy \
-    power-profiles-daemon upower nut \
+    power-profiles-daemon upower iio-sensor-proxy nut \
     avahi bluez cups cups-browsed cups-filters cups-filters-driverless cups-pk-helper \
     dconf dbus-daemon gutenprint-cups hplip ipp-usb nss-mdns samba-client \
     sane-airscan sane-backends sane-backends-drivers-scanners \
