@@ -48,7 +48,9 @@ RUN set -euxo pipefail; \
     gnome-backgrounds gnome-control-center gnome-disk-utility gnome-initial-setup \
     gnome-keyring gnome-menus gnome-session gnome-shell \
     xdg-desktop-portal xdg-desktop-portal-gtk \
-    pipewire wireplumber \
+    pipewire pipewire-utils wireplumber \
+    orca speech-dispatcher speech-dispatcher-espeak-ng speech-dispatcher-utils \
+    python3 python3-pip python3-onnxruntime python3-pathvalidate \
     plymouth plymouth-theme-spinner \
     ptyxis; \
   rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
@@ -71,6 +73,16 @@ RUN set -euxo pipefail; \
   ostree container commit
 
 RUN set -euxo pipefail; \
+  python3 -m venv --system-site-packages /opt/piper-tts; \
+  /opt/piper-tts/bin/python -m pip install --no-cache-dir --no-deps piper-tts==1.4.2; \
+  mkdir -p /usr/share/piper-voices; \
+  /opt/piper-tts/bin/python -m piper.download_voices --data-dir /usr/share/piper-voices \
+    nl_NL-ronnie-medium \
+    en_US-lessac-high; \
+  rm -rf /root/.cache/pip /root/.cache/piper; \
+  ostree container commit
+
+RUN set -euxo pipefail; \
   mkdir -p \
     /etc/NetworkManager/system-connections \
     /etc/dconf/db/local.d \
@@ -78,6 +90,7 @@ RUN set -euxo pipefail; \
     /etc/firewalld/zones \
     /etc/polkit-1/rules.d \
     /etc/recommended \
+    /etc/speech-dispatcher/modules \
     /etc/sysconfig \
     /etc/ups \
     /etc/systemd/system/graphical.target.wants \
@@ -88,6 +101,7 @@ RUN set -euxo pipefail; \
     /usr/local/sbin \
     /usr/libexec/infrastructure \
     /usr/share/gnome-background-properties \
+    /usr/share/piper-voices \
     /var/lib/AccountsService
 
 # COPY *.nmconnection /etc/NetworkManager/system-connections/
@@ -107,12 +121,14 @@ COPY nut-netclient-configure.service /etc/systemd/system/nut-netclient-configure
 COPY nut-netclient.env.example /etc/ups/netclient.env.example
 COPY polkit-printers.rules /etc/polkit-1/rules.d/50-printer-access.rules
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
+COPY piper-speech-dispatcher.conf /etc/speech-dispatcher/modules/piper.conf
 COPY profile.conf /var/lib/AccountsService/default
 COPY profile.png /usr/share/pixmaps/faces/noobping.png
 COPY apply-skel /usr/libexec/infrastructure/apply-skel
 COPY apply-skel.service /etc/systemd/system/apply-skel.service
 COPY skel /etc/skel
 COPY switch-to-silverblue /usr/local/sbin/switch-to-silverblue
+COPY speechd-piper.conf /usr/libexec/infrastructure/speechd-piper.conf
 COPY system-flatpaks /usr/libexec/infrastructure/system-flatpaks
 COPY system-flatpaks.service /etc/systemd/system/system-flatpaks.service
 COPY update-system-flatpaks.service /etc/systemd/system/update-system-flatpaks.service
@@ -132,12 +148,15 @@ RUN set -euxo pipefail; \
     /etc/dconf/profile/user \
     /etc/firewalld/direct.xml \
     /etc/polkit-1/rules.d/50-libvirt-access.rules \
+    /etc/speech-dispatcher/modules/piper.conf \
     /etc/systemd/system/apply-skel.service \
     /etc/systemd/system/nut-netclient-configure.service \
     /etc/systemd/system/system-flatpaks.service \
     /etc/systemd/system/update-system-flatpaks.service \
-    /etc/systemd/system/update-system-flatpaks.timer; \
+    /etc/systemd/system/update-system-flatpaks.timer \
+    /usr/libexec/infrastructure/speechd-piper.conf; \
   dconf update; \
+  cat /usr/libexec/infrastructure/speechd-piper.conf >> /etc/speech-dispatcher/speechd.conf; \
   rm -f /etc/resolv.conf; \
   ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf; \
   sed -i 's/tcp dport @allowed_tcp_dports accept/# &/' /etc/nftables/main.nft; \
