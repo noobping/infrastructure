@@ -14,7 +14,8 @@ LABEL org.opencontainers.image.title="Workstation"
 LABEL org.opencontainers.image.description="a bootable container"
 
 COPY --from=pkgs /tmp/firmware-packages.txt /tmp/firmware-packages.txt
-RUN xargs -r rpm-ostree install -y --noscripts < /tmp/firmware-packages.txt
+RUN xargs -r rpm-ostree install -y --noscripts < /tmp/firmware-packages.txt; \
+  semodule -R || true
 RUN set -euxo pipefail; \
   if rpm -q nfs-utils-coreos >/dev/null 2>&1; then \
     rpm-ostree override remove nfs-utils-coreos; \
@@ -38,6 +39,7 @@ RUN set -euxo pipefail; \
     mesa-dri-drivers switcheroo-control virglrenderer \
     libhid hidapi openrgb-udev-rules \
     steam-devices; \
+  semodule -R || true; \
   rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
   ostree container commit
 
@@ -53,6 +55,7 @@ RUN set -euxo pipefail; \
     python3 python3-pip python3-onnxruntime python3-pathvalidate \
     plymouth plymouth-theme-spinner \
     ptyxis; \
+  semodule -R || true; \
   rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
   ostree container commit
 
@@ -64,6 +67,7 @@ RUN set -euxo pipefail; \
     flatpak flatpak-spawn \
     fuse fuse-libs \
     tracker-miners ffmpegthumbnailer gstreamer1-libav gstreamer1-plugin-openh264; \
+  semodule -R || true; \
   rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
   ostree container commit
 
@@ -80,6 +84,7 @@ RUN set -euxo pipefail; \
     nl_NL-ronnie-medium \
     en_US-lessac-high; \
   rm -rf /root/.cache/pip /root/.cache/piper; \
+  semodule -R || true; \
   ostree container commit
 
 RUN set -euxo pipefail; \
