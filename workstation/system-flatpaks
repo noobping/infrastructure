@@ -1,9 +1,30 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 022
 
+SYSTEM_INSTALLATION=/var/lib/flatpak
 LIST_FILE="/etc/recommended/flathub"
 DONE_FILE="/var/lib/system-flatpaks.done"
 MODE="${SYSTEM_FLATPAKS_MODE:-init}"
+
+normalize_system_installation_permissions() {
+  [ -d "$SYSTEM_INSTALLATION" ] || return 0
+
+  chown -R root:root "$SYSTEM_INSTALLATION"
+  chmod -R u+rwX,go+rX,go-w "$SYSTEM_INSTALLATION"
+}
+
+sync_fapolicyd_flatpaks() {
+  if [ -x /usr/libexec/infrastructure/fapolicyd-flatpak-sync ]; then
+    /usr/libexec/infrastructure/fapolicyd-flatpak-sync
+  fi
+}
+
+if [ "$MODE" = "permissions" ]; then
+  normalize_system_installation_permissions
+  sync_fapolicyd_flatpaks
+  exit 0
+fi
 
 declare -A wanted=()
 declare -a refs=()
@@ -48,9 +69,8 @@ elif [ "$MODE" != "init" ]; then
   exit 1
 fi
 
-if [ -x /usr/libexec/infrastructure/fapolicyd-flatpak-sync ]; then
-  /usr/libexec/infrastructure/fapolicyd-flatpak-sync
-fi
+normalize_system_installation_permissions
+sync_fapolicyd_flatpaks
 
 if [ "$MODE" = "init" ]; then
   touch "$DONE_FILE"

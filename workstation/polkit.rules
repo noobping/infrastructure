@@ -3,10 +3,19 @@ polkit.addRule(function(action, subject) {
     return polkit.Result.NOT_HANDLED;
   }
 
-  var userAllowed = [
+  // Running an already-installed Flatpak app does not use polkit. These
+  // actions only cover updates to the system Flatpak installation.
+  var flatpakUserAllowed = [
     "org.freedesktop.Flatpak.app-update",
     "org.freedesktop.Flatpak.metadata-update",
-    "org.freedesktop.Flatpak.runtime-update",
+    "org.freedesktop.Flatpak.runtime-update"
+  ];
+
+  if (flatpakUserAllowed.indexOf(action.id) >= 0) {
+    return polkit.Result.YES;
+  }
+
+  var userAllowed = [
     "org.projectatomic.rpmostree1.repo-refresh",
     "org.projectatomic.rpmostree1.upgrade"
   ];

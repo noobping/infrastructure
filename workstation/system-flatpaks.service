@@ -8,6 +8,7 @@ ConditionPathExists=/usr/bin/flatpak
 ConditionPathExists=!/var/lib/system-flatpaks.done
 
 [Service]
+UMask=0022
 Type=oneshot
 Restart=on-failure
 RestartSec=30s

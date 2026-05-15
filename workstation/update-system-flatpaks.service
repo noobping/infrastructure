@@ -6,10 +6,12 @@ StartLimitIntervalSec=0
 ConditionPathExists=/usr/bin/flatpak
 
 [Service]
+UMask=0022
 Type=oneshot
 Restart=on-failure
 RestartSec=30s
 ExecStart=/usr/bin/flatpak update --system --noninteractive
+ExecStartPost=/usr/bin/env SYSTEM_FLATPAKS_MODE=permissions /usr/libexec/infrastructure/system-flatpaks
 
 [Install]
 WantedBy=multi-user.target

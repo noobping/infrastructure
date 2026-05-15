@@ -120,7 +120,7 @@ COPY nut-netclient-configure /usr/libexec/infrastructure/nut-netclient-configure
 COPY nut-netclient-configure.service /etc/systemd/system/nut-netclient-configure.service
 COPY nut-netclient.env.example /etc/ups/netclient.env.example
 COPY polkit-printers.rules /etc/polkit-1/rules.d/50-printer-access.rules
-COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
+COPY polkit.rules /etc/polkit-1/rules.d/50-workstation-access.rules
 COPY piper-speech-dispatcher.conf /etc/speech-dispatcher/modules/piper.conf
 COPY profile.conf /var/lib/AccountsService/default
 COPY profile.png /usr/share/pixmaps/faces/noobping.png
@@ -147,7 +147,7 @@ RUN set -euxo pipefail; \
     /etc/dconf/db/local.d/00-workstation \
     /etc/dconf/profile/user \
     /etc/firewalld/direct.xml \
-    /etc/polkit-1/rules.d/50-libvirt-access.rules \
+    /etc/polkit-1/rules.d/50-workstation-access.rules \
     /etc/speech-dispatcher/modules/piper.conf \
     /etc/systemd/system/apply-skel.service \
     /etc/systemd/system/nut-netclient-configure.service \
