@@ -14,7 +14,7 @@ LABEL org.opencontainers.image.title="Workstation"
 LABEL org.opencontainers.image.description="a bootable container"
 
 COPY --from=pkgs /tmp/firmware-packages.txt /tmp/firmware-packages.txt
-RUN xargs -r rpm-ostree install -y --noscripts < /tmp/firmware-packages.txt; \
+RUN xargs -r rpm-ostree install -y < /tmp/firmware-packages.txt; \
   semodule -R || true
 RUN set -euxo pipefail; \
   if rpm -q nfs-utils-coreos >/dev/null 2>&1; then \
@@ -24,7 +24,7 @@ RUN set -euxo pipefail; \
   ostree container commit
 
 RUN set -euxo pipefail; \
-  rpm-ostree install -y --noscripts \
+  rpm-ostree install -y \
     cachefilesd \
     NetworkManager-wifi NetworkManager-bluetooth NetworkManager-openvpn firewalld \
     accountsservice \
@@ -44,7 +44,7 @@ RUN set -euxo pipefail; \
   ostree container commit
 
 RUN set -euxo pipefail; \
-  rpm-ostree install -y --noscripts \
+  rpm-ostree install -y \
     gdm ibus ibus-mozc \
     glibc-all-langpacks google-noto-color-emoji-fonts google-noto-sans-cjk-fonts fontconfig \
     gnome-backgrounds gnome-control-center gnome-disk-utility gnome-initial-setup \
@@ -60,7 +60,7 @@ RUN set -euxo pipefail; \
   ostree container commit
 
 RUN set -euxo pipefail; \
-  rpm-ostree install -y --noscripts \
+  rpm-ostree install -y \
     nautilus nautilus-python python3-pygit2 nautilus-gsconnect sushi \
     seahorse-nautilus tnef-nautilus papers-nautilus \
     pcsc-lite pcsc-lite-ccid opensc gnupg2 gnupg2-scdaemon yubikey-manager \

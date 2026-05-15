@@ -11,7 +11,7 @@ RUN set -euxo pipefail; \
   rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
   ostree container commit
 
-RUN rpm-ostree install -y --noscripts \
+RUN rpm-ostree install -y \
     libvirt qemu-kvm pcp-zeroconf smartmontools \
     cockpit-system cockpit-ostree cockpit-podman cockpit-machines cockpit-storaged cockpit-files cockpit-networkmanager cockpit-sosreport cockpit-kdump cockpit-selinux \
     gssproxy \

@@ -6,7 +6,7 @@ LABEL org.opencontainers.image.title="Sway"
 LABEL org.opencontainers.image.description="a Sway desktop bootable container"
 
 RUN set -euxo pipefail; \
-  rpm-ostree install -y --noscripts \
+  rpm-ostree install -y \
     bemenu \
     brightnessctl \
     clipman \
