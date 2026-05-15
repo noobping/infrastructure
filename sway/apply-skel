@@ -48,4 +48,8 @@ getent passwd | while IFS=: read -r user _ uid gid _ home shell; do
       chown -R "$uid:$gid" "$target"
     fi
   done
+
+  if command -v restorecon >/dev/null 2>&1; then
+    restorecon -RF "$home"
+  fi
 done
