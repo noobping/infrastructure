@@ -2,7 +2,6 @@
 Description=Apply skeleton files to existing user homes
 After=local-fs.target
 Before=display-manager.service
-\\
 ConditionPathIsDirectory=/etc/skel
 
 [Service]
