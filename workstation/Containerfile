@@ -85,6 +85,7 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/sockets.target.wants \
     /etc/systemd/system/sysinit.target.wants \
     /etc/systemd/system/timers.target.wants \
+    /usr/lib/udev/rules.d \
     /usr/local/sbin \
     /usr/libexec/infrastructure \
     /usr/share/gnome-background-properties \
@@ -100,6 +101,7 @@ COPY dconf-local-defaults /etc/dconf/db/local.d/00-workstation
 COPY dconf-profile-user /etc/dconf/profile/user
 COPY flathub.txt /etc/recommended/flathub
 COPY firewall.xml /etc/firewalld/zones/public.xml
+COPY keychron-webhid.rules /usr/lib/udev/rules.d/70-keychron-webhid.rules
 COPY suricata-direct.xml /etc/firewalld/direct.xml
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
 COPY nut-netclient-configure /usr/libexec/infrastructure/nut-netclient-configure
@@ -141,7 +143,8 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/nut-netclient-configure.service \
     /etc/systemd/system/system-flatpaks.service \
     /etc/systemd/system/update-system-flatpaks.service \
-    /etc/systemd/system/update-system-flatpaks.timer; \
+    /etc/systemd/system/update-system-flatpaks.timer \
+    /usr/lib/udev/rules.d/70-keychron-webhid.rules; \
   dconf update; \
   rm -f /etc/resolv.conf; \
   ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf; \
