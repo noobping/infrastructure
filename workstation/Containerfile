@@ -26,7 +26,7 @@ RUN set -euxo pipefail; \
   rpm-ostree install -y \
     cachefilesd \
     NetworkManager-wifi NetworkManager-bluetooth NetworkManager-openvpn firewalld \
-    accountsservice \
+    accountsservice authselect fprintd fprintd-pam \
     aemu libvirt qemu-kvm android-tools \
     gssproxy \
     tuned tuned-ppd upower iio-sensor-proxy nut \
@@ -120,6 +120,11 @@ COPY update-system-flatpaks.timer /etc/systemd/system/update-system-flatpaks.tim
 
 RUN set -euxo pipefail; \
   update-ca-trust; \
+  authselect enable-feature with-fingerprint \
+    || authselect select @system-default with-fingerprint --force \
+    || authselect select sssd with-fingerprint --force; \
+  authselect check; \
+  authselect is-feature-enabled with-fingerprint; \
   mkdir -p /etc/skel/.config; \
   chmod 0755 \
     /etc/profile.d/aliases.sh \
