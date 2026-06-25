@@ -1,7 +1,8 @@
 [Unit]
 Description=Ensure local user home directory ownership and mode
-After=local-fs.target
-Before=apply-skel.service display-manager.service sshd.service
+After=local-fs.target systemd-sysusers.service systemd-tmpfiles-setup.service
+Before=systemd-user-sessions.service apply-skel.service display-manager.service sshd.service
+Wants=systemd-tmpfiles-setup.service
 
 [Service]
 Type=oneshot

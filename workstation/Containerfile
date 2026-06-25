@@ -104,6 +104,7 @@ COPY firewall.xml /etc/firewalld/zones/public.xml
 COPY keychron-webhid.rules /usr/lib/udev/rules.d/70-keychron-webhid.rules
 COPY home-ownership /usr/libexec/infrastructure/home-ownership
 COPY home-ownership.service /etc/systemd/system/home-ownership.service
+COPY home-ownership.timer /etc/systemd/system/home-ownership.timer
 COPY suricata-direct.xml /etc/firewalld/direct.xml
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
 COPY nut-netclient-configure /usr/libexec/infrastructure/nut-netclient-configure
@@ -144,6 +145,7 @@ RUN set -euxo pipefail; \
     /etc/polkit-1/rules.d/50-libvirt-access.rules \
     /etc/systemd/system/apply-skel.service \
     /etc/systemd/system/home-ownership.service \
+    /etc/systemd/system/home-ownership.timer \
     /etc/systemd/system/nut-netclient-configure.service \
     /etc/systemd/system/system-flatpaks.service \
     /etc/systemd/system/update-system-flatpaks.service \
@@ -174,6 +176,8 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/multi-user.target.wants/nut-netclient-configure.service; \
   ln -sf /etc/systemd/system/home-ownership.service \
     /etc/systemd/system/multi-user.target.wants/home-ownership.service; \
+  ln -sf /etc/systemd/system/home-ownership.timer \
+    /etc/systemd/system/timers.target.wants/home-ownership.timer; \
   ln -sf /etc/systemd/system/apply-skel.service \
     /etc/systemd/system/multi-user.target.wants/apply-skel.service; \
   ln -sf /etc/systemd/system/system-flatpaks.service \

@@ -1,24 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-getent passwd | while IFS=: read -r user _ uid gid _ home shell; do
-  case "$uid" in
-    ""|*[!0-9]*)
-      continue
-      ;;
-  esac
-
-  if (( uid < 1000 || uid >= 60000 )); then
-    continue
-  fi
-
-  case "$home" in
-    /home/*|/var/home/*|/var/srv/*|/var/lib/containers/*)
-      ;;
-    *)
-      continue
-      ;;
-  esac
+ensure_home() {
+  local user=$1 uid=$2 gid=$3 home=$4 shell=$5 mode real_home dir seen=""
 
   case "$shell" in
     */false|*/nologin)
@@ -29,11 +13,39 @@ getent passwd | while IFS=: read -r user _ uid gid _ home shell; do
       ;;
   esac
 
-  mkdir -p "$home"
-  chown "$uid:$gid" "$home"
-  chmod "$mode" "$home"
+  real_home=$(readlink -f "$home" 2>/dev/null || true)
 
-  if command -v restorecon >/dev/null 2>&1; then
-    restorecon -F "$home"
+  for dir in "$home" "$real_home"; do
+    [[ -n "$dir" && "$dir" != "$seen" ]] || continue
+    seen=$dir
+
+    case "$dir" in
+      /home/*|/var/home/*|/var/srv/*|/var/lib/containers/*)
+        ;;
+      *)
+        continue
+        ;;
+    esac
+
+    install -d -o "$uid" -g "$gid" -m "$mode" "$dir"
+    echo "ensured $user home $dir owner $uid:$gid mode $mode"
+
+    if command -v restorecon >/dev/null 2>&1; then
+      restorecon -F "$dir"
+    fi
+  done
+}
+
+getent passwd | while IFS=: read -r user _ uid gid _ home shell; do
+  case "$uid:$gid" in
+    *[!0-9:]*|:*|*:)
+      continue
+      ;;
+  esac
+
+  if (( uid < 1000 || uid >= 60000 )); then
+    continue
   fi
+
+  ensure_home "$user" "$uid" "$gid" "$home" "$shell"
 done
