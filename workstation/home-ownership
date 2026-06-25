@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+getent passwd | while IFS=: read -r user _ uid gid _ home shell; do
+  case "$uid" in
+    ""|*[!0-9]*)
+      continue
+      ;;
+  esac
+
+  if (( uid < 1000 || uid >= 60000 )); then
+    continue
+  fi
+
+  case "$home" in
+    /home/*|/var/home/*|/var/srv/*|/var/lib/containers/*)
+      ;;
+    *)
+      continue
+      ;;
+  esac
+
+  case "$shell" in
+    */false|*/nologin)
+      mode=0750
+      ;;
+    *)
+      mode=0700
+      ;;
+  esac
+
+  mkdir -p "$home"
+  chown "$uid:$gid" "$home"
+  chmod "$mode" "$home"
+
+  if command -v restorecon >/dev/null 2>&1; then
+    restorecon -F "$home"
+  fi
+done

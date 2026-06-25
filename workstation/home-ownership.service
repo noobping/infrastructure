@@ -1,0 +1,11 @@
+[Unit]
+Description=Ensure local user home directory ownership and mode
+After=local-fs.target
+Before=apply-skel.service display-manager.service sshd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/infrastructure/home-ownership
+
+[Install]
+WantedBy=multi-user.target
