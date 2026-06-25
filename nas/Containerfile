@@ -25,6 +25,7 @@ RUN rpm-ostree install -y \
   /etc/modules-load.d \
   /etc/polkit-1/rules.d \
   /etc/ups \
+  /etc/cockpit \
   /etc/systemd/system/multi-user.target.wants \
   /etc/systemd/system/timers.target.wants \
   /usr/libexec/infrastructure \
@@ -39,6 +40,7 @@ RUN rpm-ostree install -y \
 COPY fstab.txt /etc/fstab
 COPY todo.sh /usr/bin/todo
 COPY caddy.conf /etc/caddy.conf
+COPY cockpit.conf /etc/cockpit/cockpit.conf
 COPY containers /etc/containers/systemd
 COPY gogs-prepare /usr/libexec/infrastructure/gogs-prepare
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
@@ -59,6 +61,7 @@ RUN set -euxo pipefail; \
   chmod -R 0600 /etc/nftables/rules; \
   find /etc/containers/systemd -type f -name '*.container' -exec chmod 0644 '{}' ';'; \
   chmod 0755 /usr/libexec/infrastructure/gogs-prepare; \
+  chmod 0644 /etc/cockpit/cockpit.conf; \
   awk '/set allowed_tcp_dports[[:space:]]*\{/{flag=1} flag{print} /^\t*\}/{if(flag){exit}}' /etc/nftables/main.nft \
   | grep -q '\<http\>' \
   || sed -i '/set allowed_tcp_dports[[:space:]]*{/,/}/{/elements = {/ s/}/, http, https}/;}' /etc/nftables/main.nft; \

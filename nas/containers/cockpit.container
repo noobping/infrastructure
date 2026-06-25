@@ -4,7 +4,7 @@ Description=Podman - cockpit web service
 [Container]
 Image=quay.io/cockpit/ws:latest
 AutoUpdate=registry
-PodmanArgs=--privileged --pid=host --network=host -v /:/host
+PodmanArgs=--privileged --pid=host --network=host -v /etc/cockpit/cockpit.conf:/etc/cockpit/cockpit.conf:ro,Z -v /:/host
 
 [Service]
 Restart=always
