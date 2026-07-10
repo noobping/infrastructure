@@ -8,13 +8,20 @@ ConditionPathExists=/var/srv/books
 [Container]
 Image=ghcr.io/jellyfin/jellyfin:latest
 AutoUpdate=registry
+Memory=3G
+PidsLimit=2048
 SecurityLabelDisable=true
 PodmanArgs=-p 8096:8096 -p 8920:8920 -p 7359:7359/udp -p 1900:1900/udp -v /var/lib/containers/jellyfin:/config -v /var/lib/containers/jellyfin/cache:/cache -v /var/srv/music:/music -v /var/srv/books:/books
 
 [Service]
 User=music
 Restart=always
+RestartSec=10
 TimeoutStartSec=180
+MemoryHigh=3G
+MemoryMax=4G
+CPUQuota=300%
+IOWeight=50
 
 [Install]
 WantedBy=default.target
