@@ -9,12 +9,13 @@ ConditionPathExists=/var/srv/books
 Image=ghcr.io/jellyfin/jellyfin:latest
 AutoUpdate=registry
 Memory=3G
+User=1001
+Group=1001
 PidsLimit=2048
 SecurityLabelDisable=true
 PodmanArgs=-p 8096:8096 -p 8920:8920 -p 7359:7359/udp -p 1900:1900/udp -v /var/lib/containers/jellyfin:/config -v /var/lib/containers/jellyfin/cache:/cache -v /var/srv/music:/music -v /var/srv/books:/books
 
 [Service]
-User=music
 Restart=always
 RestartSec=10
 TimeoutStartSec=180
