@@ -6,6 +6,8 @@ ConditionPathExists=/var/lib/containers/uptime-kuma
 Image=docker.io/louislam/uptime-kuma:2
 ContainerName=uptime-kuma
 AutoUpdate=registry
+Memory=512M
+PidsLimit=512
 PodmanArgs=--network=host
 SecurityLabelDisable=true
 Volume=/var/lib/containers/uptime-kuma:/app/data
@@ -14,9 +16,13 @@ Volume=/usr/libexec/infrastructure/uptime-kuma-bootstrap.js:/bootstrap.js:ro
 Volume=/usr/share/infrastructure/uptime-kuma/config.json:/bootstrap-config.json:ro
 
 [Service]
-Restart=always
+RestartSec=5
 TimeoutStartSec=900
 TimeoutStopSec=180
+MemoryHigh=768M
+MemoryMax=1G
+CPUQuota=100%
+IOWeight=50
 
 [Install]
 WantedBy=multi-user.target

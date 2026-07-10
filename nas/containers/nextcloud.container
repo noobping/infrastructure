@@ -5,14 +5,21 @@ ConditionPathExists=/var/lib/containers/nextcloud
 [Container]
 Image=docker.io/library/nextcloud:apache
 Environment=SQLITE_DATABASE=nextcloud
+Memory=1G
+PidsLimit=512
 PublishPort=8081:80/tcp
 Volume=/var/lib/containers/nextcloud:/var/www/html:Z
 AutoUpdate=registry
 
 [Service]
 Restart=always
+RestartSec=5
 TimeoutStartSec=900
 TimeoutStopSec=180
+MemoryHigh=1536M
+MemoryMax=2G
+CPUQuota=200%
+IOWeight=50
 
 [Install]
 WantedBy=multi-user.target

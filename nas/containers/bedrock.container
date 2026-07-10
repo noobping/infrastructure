@@ -6,15 +6,23 @@ ConditionPathExists=/var/lib/containers/minecraft/bedrock
 Image=docker.io/itzg/minecraft-bedrock-server:latest
 Environment=EULA=TRUE
 Environment=TZ=Europe/Amsterdam
+Memory=2G
+User=1003
+Group=1003
+PidsLimit=1024
 PublishPort=19132:19132/udp
 Volume=/var/lib/containers/minecraft/bedrock:/data:z
 AutoUpdate=registry
 ShmSize=4g
 
 [Service]
-User=minecraft
 Restart=always
+RestartSec=10
 TimeoutStopSec=180
+MemoryHigh=2G
+MemoryMax=3G
+CPUQuota=200%
+IOWeight=50
 
 [Install]
 WantedBy=multi-user.target

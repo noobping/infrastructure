@@ -9,6 +9,10 @@ Environment=TZ=Europe/Amsterdam
 Environment=TYPE=PAPER
 Environment=MEMORY=4G
 Environment=ENABLE_RCON=TRUE
+Memory=5G
+User=1003
+Group=1003
+PidsLimit=1024
 PublishPort=25565:25565/tcp
 PublishPort=25575:25575/tcp
 Volume=/var/lib/containers/minecraft/java:/data:z
@@ -16,9 +20,13 @@ AutoUpdate=registry
 ShmSize=4g
 
 [Service]
-User=minecraft
 Restart=always
+RestartSec=10
 TimeoutStartSec=180
+MemoryHigh=5G
+MemoryMax=6G
+CPUQuota=400%
+IOWeight=50
 
 [Install]
 WantedBy=multi-user.target
