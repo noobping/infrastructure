@@ -8,6 +8,9 @@ RUN set -euxo pipefail; \
   if rpm -q nfs-utils-coreos >/dev/null 2>&1; then \
     rpm-ostree override remove nfs-utils-coreos; \
   fi; \
+  if rpm -q console-login-helper-messages-profile >/dev/null 2>&1; then \
+    rpm-ostree override remove console-login-helper-messages-profile; \
+  fi; \
   rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
   ostree container commit
 
