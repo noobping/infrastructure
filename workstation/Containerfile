@@ -29,7 +29,7 @@ RUN set -euxo pipefail; \
     accountsservice authselect fprintd fprintd-pam \
     aemu libvirt qemu-kvm android-tools \
     gssproxy \
-    tuned tuned-ppd upower iio-sensor-proxy nut \
+    tuned-ppd iio-sensor-proxy nut \
     avahi bluez cups cups-browsed cups-filters cups-filters-driverless cups-pk-helper \
     dconf dbus-daemon gutenprint-cups hplip ipp-usb nss-mdns samba-client \
     sane-airscan sane-backends sane-backends-drivers-scanners \
@@ -192,12 +192,8 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/multi-user.target.wants/ipp-usb.service; \
   ln -sf /usr/lib/systemd/system/switcheroo-control.service \
     /etc/systemd/system/graphical.target.wants/switcheroo-control.service; \
-  ln -sf /usr/lib/systemd/system/tuned.service \
-    /etc/systemd/system/multi-user.target.wants/tuned.service; \
   ln -sf /usr/lib/systemd/system/tuned-ppd.service \
     /etc/systemd/system/multi-user.target.wants/tuned-ppd.service; \
-  ln -sf /usr/lib/systemd/system/upower.service \
-    /etc/systemd/system/graphical.target.wants/upower.service; \
   ln -sf /usr/lib/systemd/system/pcscd.socket \
     /etc/systemd/system/sockets.target.wants/pcscd.socket; \
   ln -sf /usr/lib/systemd/system/cups.socket \

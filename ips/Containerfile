@@ -7,7 +7,8 @@ LABEL org.opencontainers.image.description="a inline IPS base image"
 RUN set -euxo pipefail; \
   rpm-ostree install -y \
     clamav clamav-data clamd clamav-freshclam \
-    suricata; \
+    suricata \
+    tuned upower; \
   rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
   mkdir -p \
     /etc/sysctl.d \
@@ -80,6 +81,10 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/multi-user.target.wants/clamav-clamonacc.service; \
   ln -sf /usr/lib/systemd/system/suricata.service \
     /etc/systemd/system/multi-user.target.wants/suricata.service; \
+  ln -sf /usr/lib/systemd/system/tuned.service \
+    /etc/systemd/system/multi-user.target.wants/tuned.service; \
+  ln -sf /usr/lib/systemd/system/upower.service \
+    /etc/systemd/system/multi-user.target.wants/upower.service; \
   ln -sf /etc/systemd/system/suricata-update.timer \
     /etc/systemd/system/timers.target.wants/suricata-update.timer; \
   ostree container commit

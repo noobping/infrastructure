@@ -15,7 +15,7 @@ RUN rpm-ostree install -y \
     libvirt qemu-kvm pcp-zeroconf smartmontools \
     cockpit-system cockpit-ostree cockpit-podman cockpit-machines cockpit-storaged cockpit-files cockpit-networkmanager cockpit-sosreport cockpit-kdump cockpit-selinux \
     gssproxy \
-    power-profiles-daemon upower nut \
+    nut \
     toolbox git; \
 
   ln -s /var/srv/git /git; \
@@ -72,10 +72,6 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/multi-user.target.wants/virtlockd.service; \
   ln -sf /usr/lib/systemd/system/virtlogd.service \
     /etc/systemd/system/multi-user.target.wants/virtlogd.service; \
-  ln -sf /usr/lib/systemd/system/power-profiles-daemon.service \
-    /etc/systemd/system/multi-user.target.wants/power-profiles-daemon.service; \
-  ln -sf /usr/lib/systemd/system/upower.service \
-    /etc/systemd/system/multi-user.target.wants/upower.service; \
   ln -sf /etc/systemd/system/nut-configure.service \
     /etc/systemd/system/multi-user.target.wants/nut-configure.service; \
   ln -sf /etc/systemd/system/uptime-kuma-bootstrap.service \
