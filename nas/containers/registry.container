@@ -7,7 +7,7 @@ Image=docker.io/library/registry:2
 Environment=REGISTRY_STORAGE_DELETE_ENABLED=true
 Memory=512M
 PidsLimit=256
-PublishPort=5000:5000/tcp
+PublishPort=127.0.0.1:5000:5000/tcp
 Volume=/var/lib/containers/registry:/var/lib/registry:Z
 AutoUpdate=registry
 

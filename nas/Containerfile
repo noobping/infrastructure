@@ -41,6 +41,8 @@ COPY btrfs-backup /usr/libexec/infrastructure/btrfs-backup
 COPY btrfs-backup.service /etc/systemd/system/btrfs-backup.service
 COPY btrfs-backup.timer /etc/systemd/system/btrfs-backup.timer
 COPY caddy.conf /etc/caddy.conf
+COPY caddy-prepare /usr/libexec/infrastructure/caddy-prepare
+COPY caddy-prepare.service /etc/systemd/system/caddy-prepare.service
 COPY containers /etc/containers/systemd
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
 COPY localhost-registry.conf /etc/containers/registries.conf.d/10-localhost-registry.conf
@@ -59,6 +61,7 @@ RUN set -euxo pipefail; \
   find /etc/containers/systemd -type f \( -name '*.container' -o -name '*.network' \) -exec chmod 0644 '{}' ';'; \
   chmod 0755 \
     /usr/libexec/infrastructure/btrfs-backup \
+    /usr/libexec/infrastructure/caddy-prepare \
     /usr/libexec/infrastructure/paperless-prepare; \
   awk '/set allowed_tcp_dports[[:space:]]*\{/{flag=1} flag{print} /^\t*\}/{if(flag){exit}}' /etc/nftables/main.nft \
   | grep -q '\<http\>' \

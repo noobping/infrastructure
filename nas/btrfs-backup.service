@@ -1,7 +1,8 @@
 [Unit]
 Description=Back up SSD Btrfs subvolumes to HDD
+Requires=caddy-prepare.service
 RequiresMountsFor=/var/srv/ssd /var/srv/hdd
-After=local-fs.target
+After=local-fs.target caddy-prepare.service
 
 [Service]
 Type=oneshot

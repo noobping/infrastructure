@@ -1,5 +1,7 @@
 [Unit]
 Description=Podman - caddy web service
+Requires=caddy-prepare.service
+After=caddy-prepare.service
 
 [Container]
 Image=docker.io/library/caddy:latest
@@ -7,7 +9,11 @@ AutoUpdate=registry
 Memory=256M
 PidsLimit=256
 ShmSize=7168b
-PodmanArgs=--network=host -v /etc/caddy.conf:/etc/caddy/Caddyfile:Z -v /var/www/git:/srv/web:Z
+PodmanArgs=--network=host
+Volume=/etc/caddy.conf:/etc/caddy/Caddyfile:ro,Z
+Volume=/var/www/git:/srv/web:ro,Z
+Volume=/var/srv/ssd/caddy/data:/data:Z
+Volume=/var/srv/ssd/caddy/config:/config:Z
 
 [Service]
 Restart=always

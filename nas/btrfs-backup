@@ -5,7 +5,7 @@ set -euo pipefail
 source_root=${BTRFS_BACKUP_SOURCE_ROOT:-/var/srv/ssd}
 snapshot_root=${BTRFS_BACKUP_SNAPSHOT_ROOT:-/var/srv/ssd/.backup-snapshots}
 destination_root=${BTRFS_BACKUP_DESTINATION_ROOT:-/var/srv/hdd/backups/ssd}
-subvolumes=${BTRFS_BACKUP_SUBVOLUMES:-apps books docs git music photos touhou videos}
+subvolumes=${BTRFS_BACKUP_SUBVOLUMES:-apps books caddy docs git music photos touhou videos}
 retention=${BTRFS_BACKUP_RETENTION:-3}
 
 if [[ ! $retention =~ ^[1-9][0-9]*$ ]]; then

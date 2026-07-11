@@ -15,6 +15,10 @@ Environment=PAPERLESS_DBUSER=paperless
 Environment=PAPERLESS_DBPASS_FILE=/run/secrets/db-password
 Environment=PAPERLESS_SECRET_KEY_FILE=/run/secrets/secret-key
 Environment=PAPERLESS_TIME_ZONE=Europe/Amsterdam
+Environment=PAPERLESS_URL=https://nas
+Environment=PAPERLESS_FORCE_SCRIPT_NAME=/paperless
+Environment=PAPERLESS_STATIC_URL=/paperless/static/
+Environment=PAPERLESS_PROXY_SSL_HEADER=[\"HTTP_X_FORWARDED_PROTO\",\"https\"]
 Environment=PAPERLESS_TIKA_ENABLED=1
 Environment=PAPERLESS_TIKA_GOTENBERG_ENDPOINT=http://gotenberg:3000
 Environment=PAPERLESS_TIKA_ENDPOINT=http://tika:9998
@@ -27,7 +31,7 @@ Environment=USERMAP_UID=1004
 Environment=USERMAP_GID=1004
 Memory=2G
 PidsLimit=1024
-PublishPort=8000:8000/tcp
+PublishPort=127.0.0.1:8000:8000/tcp
 Volume=/var/lib/containers/paperless/data:/usr/src/paperless/data:Z
 Volume=/var/srv/docs/paperless/media:/usr/src/paperless/media:Z
 Volume=/var/srv/docs/paperless/export:/usr/src/paperless/export:Z

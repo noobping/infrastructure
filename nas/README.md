@@ -1,8 +1,17 @@
 # NAS
 
+## HTTPS
+
+Caddy reverse-proxies Nextcloud, Paperless, and the container registry at
+`https://nas`. On its first start, Caddy creates a local certificate authority
+and stores its keys and certificates in the dedicated `/var/srv/ssd/caddy`
+Btrfs subvolume. Import the root certificate from
+`/var/srv/ssd/caddy/data/caddy/pki/authorities/local/root.crt` on each client
+that should trust the NAS.
+
 ## Uptime Kuma
 
-Open `http://nas:3001` or `http://nas/uptime` and create the administrator
+Open `http://nas:3001` or `https://nas/uptime` and create the administrator
 account with the first-run setup wizard. Uptime Kuma stores its account,
 monitors, and status pages in `/var/lib/containers/uptime-kuma`.
 
@@ -16,9 +25,11 @@ creates read-only snapshots of the SSD subvolumes and transfers them to
 snapshot is used as the parent for an incremental transfer. Three weekly
 snapshots are retained by default on both filesystems.
 
-The backed-up subvolumes are `apps`, `books`, `docs`, `git`, `music`, `photos`,
-`touhou`, and `videos`. `touhou` is listed separately because a Btrfs snapshot
-does not recursively snapshot nested subvolumes.
+The backed-up subvolumes are `apps`, `books`, `caddy`, `docs`, `git`, `music`,
+`photos`, `touhou`, and `videos`. `caddy` preserves the local certificate
+authority, including its private key, so access to the backup must remain
+restricted. `touhou` is listed separately because a Btrfs snapshot does not
+recursively snapshot nested subvolumes.
 
 Run a backup immediately or inspect the schedule with:
 
@@ -35,6 +46,8 @@ drop-in if the storage layout or retention policy changes.
 
 ## Nextcloud
 
+Open Nextcloud at `https://nas/nextcloud/`.
+
 The container exposes `/var/srv/docs/shared` at the same path. Before adding
 files, create the directory and grant Nextcloud's `www-data` user access:
 
@@ -49,8 +62,8 @@ administrator-managed **Local** storage named `/Shared` with configuration path
 ## Paperless
 
 The Paperless PostgreSQL and Redis backends run on a private container network.
-Open `http://nas:8000`, or use the `http://nas/paperless` shortcut. The first
-visit prompts you to create the superuser account. Port 8000 serves plain HTTP.
+Open `https://nas/paperless/`. The first visit prompts you to create the
+superuser account.
 
 Paperless watches `/var/srv/docs/paperless/consume` for new documents. Its
 document archive and exports are stored in:
