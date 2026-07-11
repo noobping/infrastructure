@@ -9,6 +9,8 @@ Environment=TZ=Europe/Amsterdam
 Environment=TYPE=PAPER
 Environment=MEMORY=4G
 Environment=ENABLE_RCON=TRUE
+Environment=ENABLE_WHITELIST=TRUE
+Environment=ENFORCE_WHITELIST=TRUE
 Memory=5G
 User=1003
 Group=1003
