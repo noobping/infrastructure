@@ -28,7 +28,6 @@ RUN rpm-ostree install -y \
   /etc/systemd/system/multi-user.target.wants \
   /etc/systemd/system/timers.target.wants \
   /usr/libexec/infrastructure \
-  /usr/share/infrastructure/uptime-kuma \
   /var/lib/suricata \
   /var/log/suricata \
   /var/www; \
@@ -56,10 +55,6 @@ COPY paperless-prepare.service /etc/systemd/system/paperless-prepare.service
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY nftables /etc/nftables/rules
 COPY suricata.nft /etc/nftables/suricata.nft
-COPY uptime/config.json /usr/share/infrastructure/uptime-kuma/
-COPY uptime/bootstrap /usr/libexec/infrastructure/uptime-kuma-bootstrap
-COPY uptime/bootstrap.js /usr/libexec/infrastructure/uptime-kuma-bootstrap.js
-COPY uptime/bootstrap.service /etc/systemd/system/uptime-kuma-bootstrap.service
 
 RUN set -euxo pipefail; \
   chmod -R 0600 /etc/nftables/rules; \
@@ -87,8 +82,6 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/multi-user.target.wants/nut-configure.service; \
   ln -sf /etc/systemd/system/paperless-prepare.service \
     /etc/systemd/system/multi-user.target.wants/paperless-prepare.service; \
-  ln -sf /etc/systemd/system/uptime-kuma-bootstrap.service \
-    /etc/systemd/system/multi-user.target.wants/uptime-kuma-bootstrap.service; \
   ln -sf /etc/systemd/system/btrfs-backup.timer \
     /etc/systemd/system/timers.target.wants/btrfs-backup.timer; \
   ostree container commit

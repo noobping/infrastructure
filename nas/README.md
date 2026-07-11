@@ -1,8 +1,10 @@
 # NAS
 
-Create `/var/lib/containers/secrets/admin-password` before expecting the Uptime Kuma bootstrap to finish.
+## Uptime Kuma
 
-You can also set `/var/lib/containers/secrets/admin-username`; it defaults to `admin`.
+Open `http://nas:3001` or `http://nas/uptime` and create the administrator
+account with the first-run setup wizard. Uptime Kuma stores its account,
+monitors, and status pages in `/var/lib/containers/uptime-kuma`.
 
 This image no longer provisions FreeIPA, FreeRADIUS, or any other domain-controller services.
 
