@@ -9,6 +9,7 @@ Memory=1G
 PidsLimit=512
 PublishPort=8081:80/tcp
 Volume=/var/lib/containers/nextcloud:/var/www/html:Z
+Volume=/var/srv/docs/shared:/var/srv/docs/shared:rw,Z,nodev,nosuid,noexec
 AutoUpdate=registry
 
 [Service]

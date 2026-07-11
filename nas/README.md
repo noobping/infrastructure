@@ -6,6 +6,19 @@ You can also set `/var/lib/containers/secrets/admin-username`; it defaults to `a
 
 This image no longer provisions FreeIPA, FreeRADIUS, or any other domain-controller services.
 
+## Nextcloud
+
+The container exposes `/var/srv/docs/shared` at the same path. Before adding
+files, create the directory and grant Nextcloud's `www-data` user access:
+
+```sh
+sudo install -d -m 2770 -o docs -g docs /var/srv/docs/shared && sudo setfacl -m 'u:33:rwx,m::rwx,d:u::rwx,d:u:33:rwx,d:g::rwx,d:m::rwx,d:o::---' /var/srv/docs/shared
+```
+
+Then enable the bundled **External storage support** app and add an
+administrator-managed **Local** storage named `/Shared` with configuration path
+`/var/srv/docs/shared`.
+
 ## Paperless
 
 The Paperless PostgreSQL and Redis backends run on a private container network.
