@@ -8,6 +8,7 @@ on:
     paths:
       - "sway/**"
       - ".github/workflows/sway.yml"
+      - "!**/*.md"
 
   workflow_run:
     workflows:

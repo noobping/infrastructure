@@ -8,6 +8,7 @@ on:
     paths:
       - "ips/**"
       - ".github/workflows/ips.yml"
+      - "!**/*.md"
 
   schedule:
     - cron: "59 00 * * *"

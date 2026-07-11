@@ -8,6 +8,7 @@ on:
     paths:
       - "butane/**"
       - ".github/workflows/butane.yml"
+      - "!**/*.md"
 
   workflow_dispatch: {}
 

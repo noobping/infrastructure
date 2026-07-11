@@ -8,6 +8,7 @@ on:
     paths:
       - "workstation/**"
       - ".github/workflows/workstation.yml"
+      - "!**/*.md"
 
   workflow_run:
     workflows:

@@ -8,6 +8,7 @@ on:
     paths:
       - "nas/**"
       - ".github/workflows/nas.yml"
+      - "!**/*.md"
 
   workflow_run:
     workflows:
