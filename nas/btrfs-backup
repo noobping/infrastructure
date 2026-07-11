@@ -1,0 +1,82 @@
+#!/usr/bin/bash
+
+set -euo pipefail
+
+source_root=${BTRFS_BACKUP_SOURCE_ROOT:-/var/srv/ssd}
+snapshot_root=${BTRFS_BACKUP_SNAPSHOT_ROOT:-/var/srv/ssd/.backup-snapshots}
+destination_root=${BTRFS_BACKUP_DESTINATION_ROOT:-/var/srv/hdd/backups/ssd}
+subvolumes=${BTRFS_BACKUP_SUBVOLUMES:-apps books docs git music photos touhou videos}
+retention=${BTRFS_BACKUP_RETENTION:-3}
+
+if [[ ! $retention =~ ^[1-9][0-9]*$ ]]; then
+  echo "BTRFS_BACKUP_RETENTION must be a positive integer" >&2
+  exit 2
+fi
+
+timestamp=$(date --utc +%Y%m%dT%H%M%SZ)
+current_source=
+current_destination=
+
+cleanup_failed_transfer() {
+  if [[ -n $current_destination ]] && btrfs subvolume show "$current_destination" >/dev/null 2>&1; then
+    btrfs subvolume delete "$current_destination"
+  fi
+  if [[ -n $current_source ]] && btrfs subvolume show "$current_source" >/dev/null 2>&1; then
+    btrfs subvolume delete "$current_source"
+  fi
+}
+
+trap cleanup_failed_transfer ERR
+
+prune_snapshots() {
+  local directory=$1
+
+  find "$directory" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' \
+    | sort --reverse \
+    | tail --lines=+$((retention + 1)) \
+    | while IFS= read -r snapshot; do
+        [[ -n $snapshot ]] && btrfs subvolume delete "$directory/$snapshot"
+      done
+}
+
+install -d -m 0700 "$snapshot_root" "$destination_root"
+
+for name in $subvolumes; do
+  source_subvolume="$source_root/$name"
+  source_directory="$snapshot_root/$name"
+  destination_directory="$destination_root/$name"
+  current_source="$source_directory/$timestamp"
+  current_destination="$destination_directory/$timestamp"
+
+  btrfs subvolume show "$source_subvolume" >/dev/null
+  install -d -m 0700 "$source_directory" "$destination_directory"
+
+  if [[ -e $current_source || -e $current_destination ]]; then
+    echo "Backup snapshot $timestamp already exists for $name" >&2
+    exit 1
+  fi
+
+  btrfs subvolume snapshot -r "$source_subvolume" "$current_source"
+
+  parent=
+  while IFS= read -r candidate; do
+    [[ $candidate == "$timestamp" ]] && continue
+    if btrfs subvolume show "$destination_directory/$candidate" >/dev/null 2>&1; then
+      parent="$source_directory/$candidate"
+      break
+    fi
+  done < <(find "$source_directory" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort --reverse)
+
+  if [[ -n $parent ]]; then
+    btrfs send -p "$parent" "$current_source" | btrfs receive "$destination_directory"
+  else
+    btrfs send "$current_source" | btrfs receive "$destination_directory"
+  fi
+
+  # The transfer is complete. Keep this snapshot even if pruning an older one fails.
+  current_source=
+  current_destination=
+
+  prune_snapshots "$source_directory"
+  prune_snapshots "$destination_directory"
+done

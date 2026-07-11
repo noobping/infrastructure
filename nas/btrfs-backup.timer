@@ -1,0 +1,11 @@
+[Unit]
+Description=Weekly SSD Btrfs backup to HDD
+
+[Timer]
+OnCalendar=weekly
+Persistent=true
+RandomizedDelaySec=1h
+Unit=btrfs-backup.service
+
+[Install]
+WantedBy=timers.target

@@ -38,6 +38,9 @@ RUN rpm-ostree install -y \
 
 COPY fstab.txt /etc/fstab
 COPY todo.sh /usr/bin/todo
+COPY btrfs-backup /usr/libexec/infrastructure/btrfs-backup
+COPY btrfs-backup.service /etc/systemd/system/btrfs-backup.service
+COPY btrfs-backup.timer /etc/systemd/system/btrfs-backup.timer
 COPY caddy.conf /etc/caddy.conf
 COPY containers /etc/containers/systemd
 COPY gogs-prepare /usr/libexec/infrastructure/gogs-prepare
@@ -62,6 +65,7 @@ RUN set -euxo pipefail; \
   chmod -R 0600 /etc/nftables/rules; \
   find /etc/containers/systemd -type f \( -name '*.container' -o -name '*.network' \) -exec chmod 0644 '{}' ';'; \
   chmod 0755 \
+    /usr/libexec/infrastructure/btrfs-backup \
     /usr/libexec/infrastructure/gogs-prepare \
     /usr/libexec/infrastructure/paperless-prepare; \
   awk '/set allowed_tcp_dports[[:space:]]*\{/{flag=1} flag{print} /^\t*\}/{if(flag){exit}}' /etc/nftables/main.nft \
@@ -85,4 +89,6 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/multi-user.target.wants/paperless-prepare.service; \
   ln -sf /etc/systemd/system/uptime-kuma-bootstrap.service \
     /etc/systemd/system/multi-user.target.wants/uptime-kuma-bootstrap.service; \
+  ln -sf /etc/systemd/system/btrfs-backup.timer \
+    /etc/systemd/system/timers.target.wants/btrfs-backup.timer; \
   ostree container commit
