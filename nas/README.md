@@ -8,16 +8,12 @@ This image no longer provisions FreeIPA, FreeRADIUS, or any other domain-control
 
 ## Minecraft
 
-Enter Bedrock
+## Bedrock
+
+Enter server console
 
 ```sh
 sudo podman exec -it systemd-bedrock /bin/bash
-```
-
-Enter Minecraft
-
-```sh
-sudo podman exec -it systemd-minecraft rcon-cli
 ```
 
 Show allowlist
@@ -36,4 +32,30 @@ OP player
 
 ```sh
 send-command op "YourGamertag"
+```
+
+### Java
+
+Enter server console
+
+```sh
+sudo podman exec -it systemd-minecraft rcon-cli
+```
+
+Show allowlist
+
+```sh
+whitelist list
+```
+
+Allow player
+
+```sh
+whitelist add "YourUsername"
+```
+
+OP player
+
+```sh
+op "YourUsername"
 ```
