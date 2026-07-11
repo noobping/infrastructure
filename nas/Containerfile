@@ -48,6 +48,8 @@ COPY mdadm.conf /etc/mdadm.conf
 COPY nut-configure /usr/libexec/infrastructure/nut-configure
 COPY nut-configure.service /etc/systemd/system/nut-configure.service
 COPY nut.env.example /etc/ups/nut.env.example
+COPY paperless-prepare /usr/libexec/infrastructure/paperless-prepare
+COPY paperless-prepare.service /etc/systemd/system/paperless-prepare.service
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY nftables /etc/nftables/rules
 COPY suricata.nft /etc/nftables/suricata.nft
@@ -58,8 +60,10 @@ COPY uptime/bootstrap.service /etc/systemd/system/uptime-kuma-bootstrap.service
 
 RUN set -euxo pipefail; \
   chmod -R 0600 /etc/nftables/rules; \
-  find /etc/containers/systemd -type f -name '*.container' -exec chmod 0644 '{}' ';'; \
-  chmod 0755 /usr/libexec/infrastructure/gogs-prepare; \
+  find /etc/containers/systemd -type f \( -name '*.container' -o -name '*.network' \) -exec chmod 0644 '{}' ';'; \
+  chmod 0755 \
+    /usr/libexec/infrastructure/gogs-prepare \
+    /usr/libexec/infrastructure/paperless-prepare; \
   awk '/set allowed_tcp_dports[[:space:]]*\{/{flag=1} flag{print} /^\t*\}/{if(flag){exit}}' /etc/nftables/main.nft \
   | grep -q '\<http\>' \
   || sed -i '/set allowed_tcp_dports[[:space:]]*{/,/}/{/elements = {/ s/}/, http, https}/;}' /etc/nftables/main.nft; \
@@ -77,6 +81,8 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/multi-user.target.wants/gogs-user-setup.service; \
   ln -sf /etc/systemd/system/nut-configure.service \
     /etc/systemd/system/multi-user.target.wants/nut-configure.service; \
+  ln -sf /etc/systemd/system/paperless-prepare.service \
+    /etc/systemd/system/multi-user.target.wants/paperless-prepare.service; \
   ln -sf /etc/systemd/system/uptime-kuma-bootstrap.service \
     /etc/systemd/system/multi-user.target.wants/uptime-kuma-bootstrap.service; \
   ostree container commit

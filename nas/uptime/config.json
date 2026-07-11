@@ -33,6 +33,16 @@
       }
     },
     {
+      "name": "Paperless",
+      "monitor": {
+        "type": "http",
+        "url": "http://127.0.0.1:8000",
+        "accepted_statuscodes": [
+          "200-399"
+        ]
+      }
+    },
+    {
       "name": "Git",
       "monitor": {
         "type": "http",

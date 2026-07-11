@@ -1,0 +1,12 @@
+[Unit]
+Description=Prepare persistent storage and secrets for Paperless-ngx
+RequiresMountsFor=/var/lib/containers /var/srv/docs
+Before=paperless-db.service paperless-redis.service paperless.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/infrastructure/paperless-prepare
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

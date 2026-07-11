@@ -6,6 +6,38 @@ You can also set `/var/lib/containers/secrets/admin-username`; it defaults to `a
 
 This image no longer provisions FreeIPA, FreeRADIUS, or any other domain-controller services.
 
+## Paperless
+
+The Paperless PostgreSQL and Redis backends run on a private container network.
+Open `http://nas:8000`, or use the `http://nas/paperless` shortcut. The first
+visit prompts you to create the superuser account. Port 8000 serves plain HTTP.
+
+Paperless watches `/var/srv/docs/paperless/consume` for new documents. Its
+document archive and exports are stored in:
+
+- `/var/srv/docs/paperless/media`
+- `/var/srv/docs/paperless/export`
+
+Application state and database data live below
+`/var/lib/containers/paperless`. The prepare service creates these directories
+and stable random secrets automatically. Create a consistent application export
+before a backup with:
+
+```sh
+sudo podman exec paperless document_exporter ../export
+```
+
+Back up `/var/srv/docs/paperless` and
+`/var/lib/containers/secrets/paperless`. The documents in `media` are stored
+unencrypted. See the [official administration documentation](https://docs.paperless-ngx.com/administration/).
+
+Check the complete stack after an image update with:
+
+```sh
+sudo systemctl status paperless.service paperless-db.service paperless-redis.service
+sudo journalctl -b -u paperless.service -u paperless-db.service -u paperless-redis.service
+```
+
 ## Minecraft
 
 ## Bedrock

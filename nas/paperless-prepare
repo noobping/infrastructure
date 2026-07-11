@@ -1,0 +1,39 @@
+#!/bin/sh
+set -eu
+
+paperless_uid=1004
+paperless_gid=1004
+state_dir=/var/lib/containers/paperless
+secret_dir=/var/lib/containers/secrets/paperless
+document_dir=/var/srv/docs/paperless
+
+install -d -m 0750 "${state_dir}"
+install -d -m 0750 "${state_dir}/postgres" "${state_dir}/redis"
+install -d -m 0750 -o "${paperless_uid}" -g "${paperless_gid}" \
+  "${state_dir}/data"
+
+install -d -m 2770 -o "${paperless_uid}" -g "${paperless_gid}" \
+  "${document_dir}" \
+  "${document_dir}/consume" \
+  "${document_dir}/export" \
+  "${document_dir}/media"
+
+install -d -m 0750 -o 0 -g "${paperless_gid}" "${secret_dir}"
+
+generate_secret() {
+  secret_path=$1
+  secret_length=$2
+
+  if [ ! -s "${secret_path}" ]; then
+    temporary_secret=$(mktemp "${secret_path}.XXXXXX")
+    tr -dc 'A-Za-z0-9' </dev/urandom | head -c "${secret_length}" > "${temporary_secret}"
+    printf '\n' >> "${temporary_secret}"
+    mv -f "${temporary_secret}" "${secret_path}"
+  fi
+
+  chown 0:"${paperless_gid}" "${secret_path}"
+  chmod 0640 "${secret_path}"
+}
+
+generate_secret "${secret_dir}/db-password" 48
+generate_secret "${secret_dir}/secret-key" 64

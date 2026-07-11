@@ -1,0 +1,27 @@
+[Unit]
+Description=Paperless-ngx Redis broker
+Requires=paperless-prepare.service
+After=paperless-prepare.service
+
+[Container]
+Image=docker.io/library/redis:8
+ContainerName=paperless-redis
+Network=paperless.network
+NetworkAlias=broker
+Memory=256M
+PidsLimit=256
+Volume=/var/lib/containers/paperless/redis:/data:Z
+AutoUpdate=registry
+
+[Service]
+Restart=always
+RestartSec=5
+TimeoutStartSec=300
+TimeoutStopSec=60
+MemoryHigh=256M
+MemoryMax=384M
+CPUQuota=100%
+IOWeight=50
+
+[Install]
+WantedBy=multi-user.target
