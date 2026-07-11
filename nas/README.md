@@ -8,35 +8,13 @@ This image no longer provisions FreeIPA, FreeRADIUS, or any other domain-control
 
 ## Minecraft
 
-### Bedrock
-
-Enter console
+Enter Bedrock
 
 ```sh
 sudo podman exec -it systemd-bedrock /bin/bash
 ```
 
-Show allowlist
-
-```sh
-sudo podman exec systemd-bedrock send-command allowlist list
-```
-
-Allow player
-
-```sh
-sudo podman exec systemd-bedrock send-command allowlist add "YourGamertag"
-```
-
-OP player
-
-```sh
-sudo podman exec systemd-bedrock send-command op "YourGamertag"
-```
-
-### Java
-
-Enter console
+Enter Minecraft
 
 ```sh
 sudo podman exec -it systemd-minecraft /bin/bash
@@ -45,17 +23,17 @@ sudo podman exec -it systemd-minecraft /bin/bash
 Show allowlist
 
 ```sh
-sudo podman exec systemd-minecraft send-command allowlist list
+send-command allowlist list
 ```
 
 Allow player
 
 ```sh
-sudo podman exec systemd-minecraft send-command allowlist add "YourGamertag"
+send-command allowlist add "YourGamertag"
 ```
 
 OP player
 
 ```sh
-sudo podman exec systemd-minecraft send-command op "YourGamertag"
+send-command op "YourGamertag"
 ```
