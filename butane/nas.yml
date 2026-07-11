@@ -116,24 +116,6 @@ storage:
       mode: 0755
     - path: /var/lib/containers/nextcloud
       mode: 0755
-    - path: /var/lib/containers/gogs
-      mode: 0750
-      user:
-        name: git
-      group:
-        name: git
-    - path: /var/lib/containers/gogs/data
-      mode: 0750
-      user:
-        name: git
-      group:
-        name: git
-    - path: /var/lib/containers/gogs/conf
-      mode: 0750
-      user:
-        name: git
-      group:
-        name: git
     - path: /var/lib/containers/secrets
       mode: 0700
     - path: /var/lib/containers/registry

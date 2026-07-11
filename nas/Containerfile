@@ -42,8 +42,6 @@ COPY btrfs-backup.service /etc/systemd/system/btrfs-backup.service
 COPY btrfs-backup.timer /etc/systemd/system/btrfs-backup.timer
 COPY caddy.conf /etc/caddy.conf
 COPY containers /etc/containers/systemd
-COPY gogs-prepare /usr/libexec/infrastructure/gogs-prepare
-COPY gogs-user-setup.service /etc/systemd/system/gogs-user-setup.service
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
 COPY localhost-registry.conf /etc/containers/registries.conf.d/10-localhost-registry.conf
 COPY mdadm.conf /etc/mdadm.conf
@@ -61,7 +59,6 @@ RUN set -euxo pipefail; \
   find /etc/containers/systemd -type f \( -name '*.container' -o -name '*.network' \) -exec chmod 0644 '{}' ';'; \
   chmod 0755 \
     /usr/libexec/infrastructure/btrfs-backup \
-    /usr/libexec/infrastructure/gogs-prepare \
     /usr/libexec/infrastructure/paperless-prepare; \
   awk '/set allowed_tcp_dports[[:space:]]*\{/{flag=1} flag{print} /^\t*\}/{if(flag){exit}}' /etc/nftables/main.nft \
   | grep -q '\<http\>' \
@@ -76,8 +73,6 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/multi-user.target.wants/virtlockd.service; \
   ln -sf /usr/lib/systemd/system/virtlogd.service \
     /etc/systemd/system/multi-user.target.wants/virtlogd.service; \
-  ln -sf /etc/systemd/system/gogs-user-setup.service \
-    /etc/systemd/system/multi-user.target.wants/gogs-user-setup.service; \
   ln -sf /etc/systemd/system/nut-configure.service \
     /etc/systemd/system/multi-user.target.wants/nut-configure.service; \
   ln -sf /etc/systemd/system/paperless-prepare.service \
