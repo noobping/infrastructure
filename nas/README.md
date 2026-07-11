@@ -17,7 +17,7 @@ sudo podman exec -it systemd-bedrock /bin/bash
 Enter Minecraft
 
 ```sh
-sudo podman exec -it systemd-minecraft /bin/bash
+sudo podman exec -it systemd-minecraft rcon-cli
 ```
 
 Show allowlist
