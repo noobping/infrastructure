@@ -18,6 +18,10 @@ document archive and exports are stored in:
 - `/var/srv/docs/paperless/media`
 - `/var/srv/docs/paperless/export`
 
+Apache Tika and Gotenberg add consumption support for Word, Excel, PowerPoint,
+OpenDocument (`.odt`, `.ods`, `.odp`), and email (`.eml`) files. These converter
+services are internal and stateless, so they add no backup directories.
+
 Application state and database data live below
 `/var/lib/containers/paperless`. The prepare service creates these directories
 and stable random secrets automatically. Create a consistent application export
@@ -34,8 +38,13 @@ unencrypted. See the [official administration documentation](https://docs.paperl
 Check the complete stack after an image update with:
 
 ```sh
-sudo systemctl status paperless.service paperless-db.service paperless-redis.service
-sudo journalctl -b -u paperless.service -u paperless-db.service -u paperless-redis.service
+sudo systemctl status \
+  paperless.service paperless-db.service paperless-redis.service \
+  paperless-gotenberg.service paperless-tika.service
+
+sudo journalctl -b \
+  -u paperless.service -u paperless-db.service -u paperless-redis.service \
+  -u paperless-gotenberg.service -u paperless-tika.service
 ```
 
 ## Minecraft

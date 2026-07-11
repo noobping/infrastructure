@@ -1,0 +1,25 @@
+[Unit]
+Description=Paperless-ngx Gotenberg document converter
+
+[Container]
+Image=docker.io/gotenberg/gotenberg:8.25
+ContainerName=paperless-gotenberg
+Network=paperless.network
+NetworkAlias=gotenberg
+Exec=gotenberg --chromium-disable-javascript=true --chromium-allow-list=file:///tmp/.*
+Memory=1G
+PidsLimit=512
+AutoUpdate=registry
+
+[Service]
+Restart=always
+RestartSec=5
+TimeoutStartSec=900
+TimeoutStopSec=120
+MemoryHigh=1G
+MemoryMax=1536M
+CPUQuota=200%
+IOWeight=50
+
+[Install]
+WantedBy=multi-user.target
