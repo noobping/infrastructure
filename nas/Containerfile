@@ -16,7 +16,7 @@ RUN rpm-ostree install -y \
     cockpit-system cockpit-ostree cockpit-podman cockpit-machines cockpit-storaged cockpit-files cockpit-networkmanager cockpit-sosreport cockpit-kdump cockpit-selinux \
     gssproxy \
     nut \
-    toolbox git; \
+    toolbox git tmux; \
 
   ln -s /var/srv/git /git; \
   rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
