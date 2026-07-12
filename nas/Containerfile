@@ -47,6 +47,7 @@ COPY containers /etc/containers/systemd
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
 COPY localhost-registry.conf /etc/containers/registries.conf.d/10-localhost-registry.conf
 COPY mdadm.conf /etc/mdadm.conf
+COPY nextcloud-wildcard.config.php /etc/nextcloud-wildcard.config.php
 COPY nut-configure /usr/libexec/infrastructure/nut-configure
 COPY nut-configure.service /etc/systemd/system/nut-configure.service
 COPY nut.env.example /etc/ups/nut.env.example

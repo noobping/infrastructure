@@ -2,8 +2,7 @@
 
 ## HTTPS
 
-Caddy reverse-proxies Nextcloud, Paperless, and the container registry at
-`https://nas`. On its first start, Caddy creates a local certificate authority
+Caddy reverse-proxies Nextcloud, Paperless, and the container registry. On its first start, Caddy creates a local certificate authority
 and stores its keys and certificates in the dedicated `/var/srv/ssd/caddy`
 Btrfs subvolume. Import the root certificate from
 `/var/srv/ssd/caddy/data/caddy/pki/authorities/local/root.crt` on each client
@@ -11,7 +10,7 @@ that should trust the NAS.
 
 ## Uptime Kuma
 
-Open `http://nas:3001` or `https://nas/uptime` and create the administrator
+Open `http://<nas-address>:3001` or `https://<nas-address>/uptime` and create the administrator
 account with the first-run setup wizard. Uptime Kuma stores its account,
 monitors, and status pages in `/var/lib/containers/uptime-kuma`.
 
@@ -46,7 +45,7 @@ drop-in if the storage layout or retention policy changes.
 
 ## Nextcloud
 
-Open Nextcloud at `https://nas/nextcloud/`.
+Open Nextcloud at `https://<nas-address>/nextcloud/`.
 
 The container exposes `/var/srv/docs/shared` at the same path. Before adding
 files, create the directory and grant Nextcloud's `www-data` user access:
@@ -62,7 +61,7 @@ administrator-managed **Local** storage named `/Shared` with configuration path
 ## Paperless
 
 The Paperless PostgreSQL and Redis backends run on a private container network.
-Open `https://nas/paperless/`. The first visit prompts you to create the
+Open `https://<nas-address>/paperless/`. The first visit prompts you to create the
 superuser account.
 
 Paperless watches `/var/srv/docs/paperless/consume` for new documents. Its

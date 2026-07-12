@@ -5,14 +5,14 @@ ConditionPathExists=/var/lib/containers/nextcloud
 [Container]
 Image=docker.io/library/nextcloud:apache
 Environment=SQLITE_DATABASE=nextcloud
-Environment=NEXTCLOUD_TRUSTED_DOMAINS=nick.nas
+Environment=NEXTCLOUD_TRUSTED_DOMAINS=*
 Environment=OVERWRITEPROTOCOL=https
-Environment=OVERWRITECLIURL=https://nick.nas/nextcloud
 Environment=OVERWRITEWEBROOT=/nextcloud
 Memory=1G
 PidsLimit=512
 PublishPort=127.0.0.1:8081:80/tcp
 Volume=/var/lib/containers/nextcloud:/var/www/html:Z
+Volume=/etc/nextcloud-wildcard.config.php:/var/www/html/config/zz-wildcard-host.config.php:ro,Z
 Volume=/var/srv/docs/shared:/var/srv/docs/shared:rw,Z,nodev,nosuid,noexec
 AutoUpdate=registry
 
