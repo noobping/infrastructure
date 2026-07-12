@@ -17,6 +17,8 @@ systemd:
         [Service]
         Type=oneshot
         ExecStart=/usr/bin/rpm-ostree upgrade
+        Restart=on-failure
+        RestartSec=30
 
         [Install]
         WantedBy=multi-user.target
