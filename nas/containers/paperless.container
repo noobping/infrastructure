@@ -15,7 +15,7 @@ Environment=PAPERLESS_DBUSER=paperless
 Environment=PAPERLESS_DBPASS_FILE=/run/secrets/db-password
 Environment=PAPERLESS_SECRET_KEY_FILE=/run/secrets/secret-key
 Environment=PAPERLESS_TIME_ZONE=Europe/Amsterdam
-Environment=PAPERLESS_URL=https://nas
+Environment=PAPERLESS_URL=https://nick.nas
 Environment=PAPERLESS_FORCE_SCRIPT_NAME=/paperless
 Environment=PAPERLESS_STATIC_URL=/paperless/static/
 Environment=PAPERLESS_PROXY_SSL_HEADER=[\"HTTP_X_FORWARDED_PROTO\",\"https\"]

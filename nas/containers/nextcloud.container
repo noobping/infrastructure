@@ -5,9 +5,9 @@ ConditionPathExists=/var/lib/containers/nextcloud
 [Container]
 Image=docker.io/library/nextcloud:apache
 Environment=SQLITE_DATABASE=nextcloud
-Environment=NEXTCLOUD_TRUSTED_DOMAINS=nas
+Environment=NEXTCLOUD_TRUSTED_DOMAINS=nick.nas
 Environment=OVERWRITEPROTOCOL=https
-Environment=OVERWRITECLIURL=https://nas/nextcloud
+Environment=OVERWRITECLIURL=https://nick.nas/nextcloud
 Environment=OVERWRITEWEBROOT=/nextcloud
 Memory=1G
 PidsLimit=512
