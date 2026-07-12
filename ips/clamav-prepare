@@ -4,6 +4,7 @@ set -eu
 install -d -o clamupdate -g virusgroup -m 0755 /var/lib/clamav
 install -d -o clamupdate -g virusgroup -m 0775 /var/log/clamav
 install -d -o clamscan -g virusgroup -m 0755 /run/clamd.scan
+install -d -o clamscan -g virusgroup -m 0700 /run/clamd.scan/tmp
 
 install -d -m 0755 \
   /run/media \
@@ -31,4 +32,8 @@ find /var/log/clamav -type f -exec chmod 0664 '{}' ';'
 
 if command -v restorecon >/dev/null 2>&1; then
   restorecon -RF /var/lib/clamav /var/log/clamav /run/clamd.scan || true
+fi
+
+if command -v selinuxenabled >/dev/null 2>&1 && selinuxenabled; then
+  setsebool antivirus_can_scan_system on
 fi
