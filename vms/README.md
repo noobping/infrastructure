@@ -37,9 +37,9 @@ Create these local records:
 | Record | Reserved address |
 |---|---|
 | `nas.vm` | Physical NAS |
-| `k3s.vm`, `apps.vm`, `nextcloud.vm`, `office.vm`, `paperless.vm`, `status.vm`, `registry.vm`, `music.vm` | K3s VM |
+| `k3s.vm`, `apps.vm`, `nextcloud.vm`, `office.vm`, `paperless.vm`, `status.vm`, `registry.vm` | K3s VM |
 | `minecraft.vm` | Minecraft VM |
-| `jellyfin.vm` | Jellyfin VM |
+| `jellyfin.vm`, `music.vm` | Jellyfin VM |
 
 The NFS service resolves `k3s.vm` and `jellyfin.vm` when it builds its
 firewall rule. It intentionally fails closed until both reservations resolve.
