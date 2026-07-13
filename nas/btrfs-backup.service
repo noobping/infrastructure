@@ -1,12 +1,12 @@
 [Unit]
 Description=Back up SSD Btrfs subvolumes to HDD
-Requires=caddy-prepare.service
+Requires=vm-storage-prepare.service
 RequiresMountsFor=/var/srv/ssd /var/srv/hdd
-After=local-fs.target caddy-prepare.service
+After=local-fs.target vm-storage-prepare.service
 
 [Service]
 Type=oneshot
 ExecStart=/usr/libexec/infrastructure/btrfs-backup
+TimeoutStartSec=0
 Nice=19
 IOSchedulingClass=idle
-

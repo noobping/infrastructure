@@ -1,0 +1,7 @@
+# Replace this recipient before creating the first encrypted Secret. Keep the
+# matching AGE-SECRET-KEY outside Git and install it as flux-system/sops-age.
+creation_rules:
+  - path_regex: secrets/.*\.sops\.ya?ml$
+    encrypted_regex: ^(data|stringData)$
+    age: age1REPLACE_WITH_YOUR_PUBLIC_RECIPIENT
+

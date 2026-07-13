@@ -1,0 +1,52 @@
+name: vm
+on: manual
+needs: vm-build
+execution:
+  shell: bash
+
+steps:
+  - name: Publish VM manifests
+    use: podman
+    if: arch(host)
+    container: false
+    run: |
+      set -euo pipefail
+
+      namespace="${CI_IMAGE_NAMESPACE:-localhost:5000/noobping}"
+      tls_verify="${CI_REGISTRY_TLS_VERIFY:-false}"
+      revision="$(git -C "$CI_REPO" rev-parse --short=12 HEAD)"
+
+      for role in vm minecraft jellyfin k3s; do
+        image="${namespace}/${role}"
+        candidate="${image}:candidate-${revision}"
+        podman manifest rm "$candidate" >/dev/null 2>&1 || true
+        podman manifest create "$candidate"
+        podman manifest add --tls-verify="$tls_verify" "$candidate" "docker://${image}:amd64"
+        podman manifest add --tls-verify="$tls_verify" "$candidate" "docker://${image}:arm64"
+        podman manifest push --all --tls-verify="$tls_verify" "$candidate" "docker://$candidate"
+
+        if command -v skopeo >/dev/null 2>&1; then
+          digest="$(skopeo inspect --tls-verify="$tls_verify" --format '{{.Digest}}' "docker://$candidate")"
+          content="${digest#sha256:}"
+          immutable="git-${revision}-img-${content:0:12}"
+          skopeo copy --all --src-tls-verify="$tls_verify" --dest-tls-verify="$tls_verify" "docker://$candidate" "docker://${image}:${immutable}"
+          skopeo copy --all --src-tls-verify="$tls_verify" --dest-tls-verify="$tls_verify" "docker://$candidate" "docker://${image}:latest"
+
+          if [[ "${CI_SIGN_IMAGES:-}" == "1" ]]; then
+            if command -v cosign >/dev/null 2>&1; then
+              cosign sign --yes --allow-insecure-registry "${image}@${digest}"
+            elif command -v flatpak-spawn >/dev/null 2>&1; then
+              flatpak-spawn --host cosign sign --yes --allow-insecure-registry "${image}@${digest}"
+            else
+              echo "CI_SIGN_IMAGES=1 but cosign is not installed" >&2
+              exit 1
+            fi
+          fi
+
+          printf '%s -> %s (%s)\n' "$role" "$immutable" "$digest"
+        else
+          echo "skopeo is required to publish immutable VM tags" >&2
+          exit 1
+        fi
+        podman manifest rm "$candidate" >/dev/null 2>&1 || true
+      done

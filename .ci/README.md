@@ -6,15 +6,13 @@ Common commands from the `public-infrastructure` repository:
 ci images
 ci ips
 ci nas
+ci vm
 ci workstation
 ci sway
-ci offline
 ci butane
 ```
 
-`images` builds and pushes IPS, NAS, Workstation, and Sway arch tags, then pushes manifest tags. `butane` only builds installer ISOs and checksums under `dist/iso`.
-`offline` builds a x64-only Workstation ISO with the bootc image embedded under
-`dist/iso/workstation-offline-x86_64.iso`; it starts `localhost:5000` when the local registry is not already responding.
+`images` builds and pushes IPS, NAS, VM role, Workstation, and Sway arch tags, then pushes manifest tags. `butane` builds installer ISOs and guest Ignition configs under `dist/`.
 
 Set `CI_REGISTRY_TLS_VERIFY=true` for a TLS registry. The default is `false` for an insecure local registry.
 

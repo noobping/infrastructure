@@ -1,0 +1,13 @@
+ARG IMAGE_NAMESPACE=ghcr.io/noobping
+ARG TAG=latest
+FROM ${IMAGE_NAMESPACE}/vm:${TAG}
+
+LABEL org.opencontainers.image.title="Jellyfin VM"
+LABEL org.opencontainers.image.description="KVM guest for Jellyfin music and books"
+
+COPY containers /etc/containers/systemd
+COPY jellyfin.nft /etc/nftables/rules/20-jellyfin.nft
+COPY --chmod=0755 backup-prepare /usr/libexec/infrastructure/backup-prepare
+COPY --chmod=0755 backup-finish /usr/libexec/infrastructure/backup-finish
+
+RUN ostree container commit

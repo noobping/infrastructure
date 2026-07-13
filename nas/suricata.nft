@@ -2,7 +2,6 @@ table inet suricata {
   chain input {
     type filter hook input priority filter - 10; policy accept;
 
-    ct state established,related return
     iifname "lo" return
     iifname { "virbr*", "vnet*", "podman*", "cni*" } return
     meta mark & 0x1 == 0x1 return
@@ -12,7 +11,6 @@ table inet suricata {
   chain output {
     type filter hook output priority filter - 10; policy accept;
 
-    ct state established,related return
     oifname "lo" return
     oifname { "virbr*", "vnet*", "podman*", "cni*" } return
     meta mark & 0x1 == 0x1 return
@@ -22,7 +20,6 @@ table inet suricata {
   chain forward {
     type filter hook forward priority filter - 10; policy accept;
 
-    ct state established,related return
     iifname { "lo", "virbr*", "vnet*", "podman*", "cni*" } return
     oifname { "lo", "virbr*", "vnet*", "podman*", "cni*" } return
     meta mark & 0x1 == 0x1 return

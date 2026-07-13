@@ -1,0 +1,98 @@
+#!/bin/sh
+set -eu
+umask 077
+
+state_root=/var/lib/rancher/k3s
+backup_root="$state_root/backups"
+kubeconfig=/etc/rancher/k3s/k3s.yaml
+quiesce_hook=/usr/libexec/infrastructure/backup-quiesce
+finish_hook=/usr/libexec/infrastructure/backup-finish
+quiesced=
+staging=
+
+cleanup() {
+  status=$?
+  trap - EXIT INT TERM
+  if [ -n "$quiesced" ]; then
+    "$finish_hook" || status=1
+  fi
+  [ -z "$staging" ] || rm -rf "$staging"
+  exit "$status"
+}
+trap cleanup EXIT INT TERM
+
+kubectl() {
+  /usr/bin/k3s kubectl --kubeconfig "$kubeconfig" "$@"
+}
+
+running_pod() {
+  namespace=$1
+  label=$2
+  pod="$(kubectl -n "$namespace" get pods \
+    --selector "$label" \
+    --field-selector status.phase=Running \
+    --output jsonpath='{.items[0].metadata.name}')"
+  [ -n "$pod" ]
+  printf '%s\n' "$pod"
+}
+
+dump_postgresql() {
+  namespace=$1
+  label=$2
+  database=$3
+  user=$4
+  output=$5
+  pod="$(running_pod "$namespace" "$label")"
+
+  kubectl -n "$namespace" exec "$pod" -c postgresql -- \
+    pg_dump --username "$user" --dbname "$database" \
+      --format custom --no-owner --no-acl > "$output"
+  [ -s "$output" ]
+}
+
+
+[ -r "$kubeconfig" ]
+kubectl get --raw=/readyz >/dev/null
+
+install -d -o root -g root -m 0700 "$backup_root"
+staging="$(mktemp -d "$backup_root/.prepare.XXXXXX")"
+
+quiesced=1
+"$quiesce_hook" "$staging"
+
+dump_postgresql \
+  nextcloud 'app.kubernetes.io/name=nextcloud-postgresql' \
+  nextcloud nextcloud "$staging/nextcloud-postgresql.dump"
+dump_postgresql \
+  paperless 'app.kubernetes.io/name=paperless-postgresql' \
+  paperless paperless "$staging/paperless-postgresql.dump"
+
+kubectl -n flux-system get secret sops-age --output yaml \
+  > "$staging/flux-system-sops-age.yaml"
+
+[ -s "$staging/caddy-local-ca.tar" ]
+
+sqlite_database="$state_root/server/db/state.db"
+[ -r "$sqlite_database" ]
+sqlite3 "$sqlite_database" \
+  ".timeout 10000" \
+  ".backup '$staging/k3s-state.db'"
+[ -s "$staging/k3s-state.db" ]
+[ "$(sqlite3 "$staging/k3s-state.db" 'pragma integrity_check;')" = ok ]
+
+install -m 0600 "$state_root/server/token" "$staging/k3s-server-token"
+install -m 0600 /etc/rancher/k3s/config.yaml "$staging/k3s-config.yaml"
+install -m 0600 "$kubeconfig" "$staging/k3s-kubeconfig.yaml"
+
+previous="$backup_root/previous"
+current="$backup_root/current"
+rm -rf "$previous"
+if [ -d "$current" ]; then
+  mv "$current" "$previous"
+fi
+mv "$staging" "$current"
+staging=
+rm -rf "$previous"
+sync -f "$state_root"
+
+trap - EXIT INT TERM

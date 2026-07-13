@@ -20,32 +20,86 @@ storage:
         inline: |
           include "/etc/nftables/main.nft"
 
-    - path: /etc/bootc-image-namespace
+    - path: /etc/bootc-image-ref
       mode: 0644
       overwrite: true
       contents:
         inline: |
-          __CI_IMAGE_NAMESPACE__
+          __CI_IMAGE_NAMESPACE__/__CI_BOOTC_IMAGE__:latest
 
-    - path: /usr/local/sbin/rebase-to-image
+    - path: /usr/local/libexec/infrastructure/bootc-verified-update
       mode: 0755
       overwrite: true
       contents:
-        local: ./butane/rebase-to-image.sh
+        local: ./vm/bootc-verified-update
+    - path: /usr/local/libexec/infrastructure/install-cosign
+      mode: 0755
+      overwrite: true
+      contents:
+        local: ./vm/install-cosign
 
+    - path: /usr/local/libexec/infrastructure/verify-bootc-image
+      mode: 0755
+      overwrite: true
+      contents:
+        local: ./vm/verify-bootc-image
 systemd:
   units:
+    - name: zincati.service
+      enabled: false
+
     - name: nftables.service
       enabled: true
 
-    - name: rpm-ostreed.service
+    - name: rebase-to-image.service
       enabled: true
+      contents: |
+        [Unit]
+        Description=Switch Fedora CoreOS to the verified bootc image
+        Wants=network-online.target
+        After=network-online.target
+        Before=rpm-ostree-upgrade.service
+        ConditionFirstBoot=yes
+        StartLimitIntervalSec=0
 
-    - name: podman.socket
-      enabled: true
+        [Service]
+        Type=oneshot
+        TimeoutStartSec=0
+        Restart=on-failure
+        RestartSec=30s
+        ExecStart=/usr/local/libexec/infrastructure/bootc-verified-update
+        ExecStart=/usr/bin/systemctl --no-block reboot
 
-    - name: podman-auto-update.timer
-      enabled: true
+        [Install]
+        WantedBy=multi-user.target
 
-    - name: systemd-timesyncd.service
+    - name: rpm-ostree-upgrade.service
+      contents: |
+        [Unit]
+        Description=Verify and stage bootc image updates
+        Wants=network-online.target
+        After=network-online.target
+        ConditionFirstBoot=no
+        StartLimitIntervalSec=0
+
+        [Service]
+        Type=oneshot
+        TimeoutStartSec=0
+        ExecStart=/usr/local/libexec/infrastructure/bootc-verified-update
+        Restart=on-failure
+        RestartSec=30s
+
+    - name: rpm-ostree-upgrade.timer
       enabled: true
+      contents: |
+        [Unit]
+        Description=Daily verified bootc image update staging
+
+        [Timer]
+        OnBootSec=20min
+        OnCalendar=daily
+        Persistent=true
+        RandomizedDelaySec=1h
+
+        [Install]
+        WantedBy=timers.target

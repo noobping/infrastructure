@@ -1,0 +1,148 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: euro-office-data
+  labels:
+    app.kubernetes.io/name: euro-office
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: local-path
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: euro-office-config
+  labels:
+    app.kubernetes.io/name: euro-office
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 2Gi
+  storageClassName: local-path
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: euro-office-logs
+  labels:
+    app.kubernetes.io/name: euro-office
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: local-path
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: euro-office
+  labels:
+    app.kubernetes.io/name: euro-office
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: euro-office
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: euro-office
+    spec:
+      automountServiceAccountToken: false
+      initContainers:
+        # A blank mount over /etc/euro-office would hide the image defaults.
+        # Seed the persistent config before the main container mounts it there.
+        - name: seed-persistent-directories
+          image: ghcr.io/euro-office/documentserver:v9.3.2@sha256:5a1a8b7083856b309f09a5b06aa96f80182cbdfccddcae6c082ecf7a2b3cbf2b
+          imagePullPolicy: IfNotPresent
+          command: [/bin/sh, -ec]
+          args:
+            - |
+              if [ ! -e /persist/config/local.json ]; then
+                cp -a /etc/euro-office/documentserver/. /persist/config/
+              fi
+              mkdir -p /persist/data /persist/logs
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {cpu: "1", memory: 512Mi}
+          volumeMounts:
+            - {name: data, mountPath: /persist/data}
+            - {name: config, mountPath: /persist/config}
+            - {name: logs, mountPath: /persist/logs}
+      containers:
+        - name: documentserver
+          image: ghcr.io/euro-office/documentserver:v9.3.2@sha256:5a1a8b7083856b309f09a5b06aa96f80182cbdfccddcae6c082ecf7a2b3cbf2b
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: JWT_ENABLED, value: "true"}
+            - {name: JWT_HEADER, value: "AuthorizationJWT"}
+            # The connector's StorageUrl is the private Nextcloud ClusterIP.
+            - {name: ALLOW_PRIVATE_IP_ADDRESS, value: "true"}
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: euro-office-secrets
+                  key: jwt-secret
+          lifecycle:
+            preStop:
+              exec:
+                # The explicit backup drain is fatal. Ordinary pod shutdowns
+                # repeat it best-effort so a second invocation stays harmless.
+                command:
+                  - /bin/sh
+                  - -c
+                  - /usr/bin/documentserver-prepare4shutdown.sh || true
+          ports:
+            - {name: http, containerPort: 80, protocol: TCP}
+          startupProbe:
+            httpGet: {path: /healthcheck, port: http}
+            failureThreshold: 90
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: {path: /healthcheck, port: http}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /healthcheck, port: http}
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests: {cpu: "1", memory: 4Gi}
+            limits: {cpu: "6", memory: 8Gi}
+          securityContext:
+            capabilities:
+              add: [MKNOD]
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/euro-office/documentserver}
+            - {name: config, mountPath: /etc/euro-office/documentserver}
+            - {name: logs, mountPath: /var/log/euro-office/documentserver}
+      # Document Server documents that disconnecting users can take 5 minutes.
+      terminationGracePeriodSeconds: 360
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: euro-office-data
+        - name: config
+          persistentVolumeClaim:
+            claimName: euro-office-config
+        - name: logs
+          persistentVolumeClaim:
+            claimName: euro-office-logs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: euro-office
+  labels:
+    app.kubernetes.io/name: euro-office
+spec:
+  selector:
+    app.kubernetes.io/name: euro-office
+  ports:
+    - {name: http, port: 80, targetPort: http}

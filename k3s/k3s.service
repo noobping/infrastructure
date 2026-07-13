@@ -1,0 +1,25 @@
+[Unit]
+Description=Lightweight Kubernetes
+Documentation=https://docs.k3s.io/
+Wants=network-online.target
+After=network-online.target
+RequiresMountsFor=/var/lib/rancher/k3s
+ConditionPathIsMountPoint=/var/lib/rancher/k3s
+
+[Service]
+Type=notify
+KillMode=process
+Delegate=yes
+LimitNOFILE=1048576
+LimitNPROC=infinity
+LimitCORE=infinity
+TasksMax=infinity
+TimeoutStartSec=0
+Restart=always
+RestartSec=5s
+ExecStartPre=/usr/bin/install -d -m 0755 /var/lib/cni /var/lib/kubelet /var/lib/rancher/k3s
+ExecStartPre=/usr/sbin/restorecon -RF /var/lib/cni /var/lib/kubelet /var/lib/rancher
+ExecStart=/usr/bin/k3s server
+
+[Install]
+WantedBy=multi-user.target

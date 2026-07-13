@@ -1,0 +1,7 @@
+# NFSv4 exports for the VM DHCP reservations. Keep root squashing enabled.
+/var/srv/music jellyfin.vm(ro,crossmnt)
+/var/srv/books jellyfin.vm(ro)
+/var/srv/docs/shared k3s.vm(rw)
+/var/srv/docs/paperless/consume k3s.vm(rw)
+/var/srv/docs/paperless/media k3s.vm(rw)
+/var/srv/docs/paperless/export k3s.vm(rw)

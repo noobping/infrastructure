@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - master
     paths:
       - "ips/**"
       - ".github/workflows/ips.yml"
@@ -17,6 +16,7 @@ on:
 
 env:
   IMAGE_NAME: ghcr.io/noobping/ips
+  REVISION: ${{ github.sha }}
 
 concurrency:
   group: ips
@@ -24,6 +24,7 @@ concurrency:
 
 jobs:
   build:
+    if: github.ref == 'refs/heads/main'
     name: Build ${{ matrix.stream.name }} ${{ matrix.arch.name }}
     strategy:
       fail-fast: false
@@ -117,6 +118,7 @@ jobs:
             --rm \
             -f Containerfile \
             -t "$IMAGE" \
+            --label org.opencontainers.image.revision="${REVISION}" \
             --label org.opencontainers.image.source="${{ github.repositoryUrl }}" \
             --build-arg FCOS_STREAM="${{ matrix.stream.fcos_stream }}" \
             --build-arg UID=1000 \
@@ -160,9 +162,23 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push
+      - uses: sigstore/cosign-installer@v3
+      - name: Publish mutable and immutable tags
         run: |
+          set -euxo pipefail
+          candidate="${IMAGE_NAME}:candidate-${{ matrix.stream.name }}-${GITHUB_RUN_ID}"
           docker buildx imagetools create \
-            -t "${IMAGE_NAME}:${{ matrix.stream.tag }}" \
+            -t "$candidate" \
             "${IMAGE_NAME}:amd64${{ matrix.stream.suffix }}" \
             "${IMAGE_NAME}:arm64${{ matrix.stream.suffix }}"
+          digest="$(docker buildx imagetools inspect "$candidate" \
+            | awk '/^Digest:/ { print $2; exit }')"
+          test -n "$digest"
+          revision="$(printf '%s' "$REVISION" | cut -c1-12)"
+          content="${digest#sha256:}"
+          immutable_tag="git-${revision}-img-${content:0:12}"
+          docker buildx imagetools create \
+            -t "${IMAGE_NAME}:${{ matrix.stream.tag }}" \
+            -t "${IMAGE_NAME}:${immutable_tag}" \
+            "${candidate}@${digest}"
+          cosign sign --yes "${IMAGE_NAME}@${digest}"

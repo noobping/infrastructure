@@ -11,9 +11,9 @@ container:
 steps:
   - name: Build and push NAS arch image
     container: false
-    working-directory: nas
     run: |
       set -euo pipefail
+      cd "$CI_REPO"
 
       namespace="${CI_IMAGE_NAMESPACE:-localhost:5000/noobping}"
       tls_verify="${CI_REGISTRY_TLS_VERIFY:-false}"
@@ -21,6 +21,7 @@ steps:
       gid="${CI_GID:-1000}"
       isolation="${BUILDAH_ISOLATION:-chroot}"
       tmpdir="${TMPDIR:-/tmp}"
+      revision="$(git -C "$CI_REPO" rev-parse HEAD)"
       source_url="$(git -C "$CI_REPO" config --get remote.origin.url || printf '%s' "$CI_REPO")"
 
       case "$CI_ARCH" in
@@ -68,9 +69,10 @@ steps:
         --isolation="$isolation" \
         --layers=false \
         --rm \
-        -f Containerfile \
+        -f nas/Containerfile \
         -t "$image" \
         --label "org.opencontainers.image.source=${source_url}" \
+        --label "org.opencontainers.image.revision=${revision}" \
         --build-arg "IMAGE_NAMESPACE=${namespace}" \
         --build-arg "UID=${uid}" \
         --build-arg "GID=${gid}" \

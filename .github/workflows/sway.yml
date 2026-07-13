@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - master
     paths:
       - "sway/**"
       - ".github/workflows/sway.yml"
@@ -17,7 +16,6 @@ on:
       - completed
     branches:
       - main
-      - master
 
   workflow_dispatch: {}
 
@@ -31,8 +29,10 @@ concurrency:
 jobs:
   build:
     if: >
-      github.event_name != 'workflow_run'
-      || github.event.workflow_run.conclusion == 'success'
+      (github.event_name != 'workflow_run'
+      || github.event.workflow_run.conclusion == 'success')
+      && (github.event_name != 'workflow_dispatch'
+      || github.ref == 'refs/heads/main')
     name: Build ${{ matrix.stream.name }} ${{ matrix.arch.name }}
     continue-on-error: ${{ matrix.stream.name == 'next' }}
     strategy:
@@ -144,8 +144,10 @@ jobs:
 
   manifest:
     if: >
-      github.event_name != 'workflow_run'
-      || github.event.workflow_run.conclusion == 'success'
+      (github.event_name != 'workflow_run'
+      || github.event.workflow_run.conclusion == 'success')
+      && (github.event_name != 'workflow_dispatch'
+      || github.ref == 'refs/heads/main')
     name: Manifest ${{ matrix.stream.name }}
     continue-on-error: ${{ matrix.stream.name == 'next' }}
     needs: build

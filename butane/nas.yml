@@ -1,6 +1,3 @@
-variant: fcos
-version: 1.6.0
-
 boot_device:
   luks:
     tpm2: true
@@ -9,13 +6,14 @@ kernel_arguments:
   should_exist:
     - crashkernel=512M
     - libata.eh_timeout=240
+    - loglevel=3
     # - libata.force=noncq
     # - libata.noacpi=1
     # - ahci.mobile_lpm_policy=1
 
 passwd:
   groups:
-    - name: qemu
+    - name: libvirt
       system: true
   users:
     - name: data
@@ -38,27 +36,17 @@ passwd:
       uid: 1004
       home_dir: /var/srv/docs
       shell: /usr/bin/nologin
-    - name: minecraft
-      uid: 1003
-      home_dir: /var/lib/containers/minecraft
-      shell: /usr/bin/nologin
-    - name: steam
-      uid: 1002
-      home_dir: /var/lib/containers/steam
-      shell: /usr/bin/nologin
     - name: music
       uid: 1001
       home_dir: /var/srv/music
       shell: /usr/bin/nologin
     - name: nick
-      password_hash: $6$7fNbJeEeffQ7h36Y$u2tMk5CyjP/Q3pq.XFjFvDty0aKOUAhf4jsobML8rjlD2uBsGw44RTyG7qNcJhMr1GSXEdJ7ZHJGsZj2/Uyua1
+      password_hash: "!"
       uid: 1000
       groups:
         - wheel
-        - qemu
-        - minecraft
+        - libvirt
         - music
-        - steam
         - docs
         - photos
         - videos
@@ -76,89 +64,19 @@ storage:
         name: git
       group:
         name: git
-    - path: /var/www/git
-      mode: 0755
-      user:
-        name: git
-      group:
-        name: git
-    - path: /var/lib/containers/minecraft/java
-      mode: 0755
-      user:
-        name: minecraft
-      group:
-        name: minecraft
-    - path: /var/lib/containers/minecraft/bedrock
-      mode: 0755
-      user:
-        name: minecraft
-      group:
-        name: minecraft
-    - path: /var/lib/containers/steam/data
-      mode: 0755
-      user:
-        name: steam
-      group:
-        name: steam
-    - path: /var/lib/containers/steam/local
-      mode: 0755
-      user:
-        name: steam
-      group:
-        name: steam
     - path: /var/srv/music/touhou
-      mode: 0755
-      user:
-        name: music
-      group:
-        name: music
-    - path: /var/lib/containers
-      mode: 0755
-    - path: /var/lib/containers/nextcloud
-      mode: 0755
-    - path: /var/lib/containers/secrets
-      mode: 0700
-    - path: /var/lib/containers/registry
-      mode: 0755
-    - path: /var/lib/containers/uptime-kuma
-      mode: 0755
-    - path: /var/lib/containers/jellyfin
-      mode: 0755
-      user:
-        name: music
-      group:
-        name: music
-    - path: /var/lib/containers/jellyfin/cache
-      mode: 0755
       user:
         name: music
       group:
         name: music
     - path: /var/srv/books
-      mode: 0755
       user:
         name: music
       group:
         name: music
     - path: /var/srv/ssd
     - path: /var/srv/hdd
-    - path: /var/home/nick/.bashrc.d
-      mode: 0755
-      user:
-        name: nick
-      group:
-        name: nick
   files:
-    - path: /etc/ssh/sshd_config.d/40-disable-passwords.conf
-      mode: 0644
-      overwrite: true
-      contents:
-        inline: |
-          # Disable password logins by default.
-          # https://github.com/coreos/fedora-coreos-tracker/issues/138
-          # This file must sort before 50-redhat.conf, which enables
-          # PasswordAuthentication.
-          PasswordAuthentication yes
     - path: /etc/hostname
       mode: 0440
       overwrite: true
@@ -168,34 +86,6 @@ storage:
 
 systemd:
   units:
-    - name: sshd.service
-      enabled: true
-    - name: rebase-to-nas.service
-      enabled: true
-      contents: |
-        [Unit]
-        Description=Rebase FCOS to boot container image
-        Wants=network-online.target NetworkManager-wait-online.service
-        After=network-online.target NetworkManager-wait-online.service
-        ConditionPathExists=!/var/rebase.done
-
-        [Service]
-        Type=oneshot
-        Restart=on-failure
-        RestartSec=30s
-        StartLimitIntervalSec=0
-        StandardOutput=journal+console
-        StandardError=journal+console
-        Environment=LANG=C.UTF-8
-        Environment=LC_ALL=C.UTF-8
-        ExecStart=/usr/bin/rpm-ostree rebase ostree-image-signed:docker://ghcr.io/noobping/nas:latest
-        ExecStart=/usr/bin/rpm-ostree kargs --append=loglevel=3
-        ExecStart=/usr/bin/touch /var/rebase.done
-        ExecStart=/usr/bin/systemctl --no-block reboot
-
-        [Install]
-        WantedBy=multi-user.target
-
     - name: nightly-shutdown.service
       enabled: true
       contents: |

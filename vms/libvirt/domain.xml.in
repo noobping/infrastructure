@@ -1,0 +1,63 @@
+<domain type='kvm'>
+  <name>@NAME@</name>
+  <memory unit='MiB'>@MEMORY_MIB@</memory>
+  <vcpu placement='static'>@VCPUS@</vcpu>
+  <sysinfo type='fwcfg'>
+    <entry name='opt/com.coreos/config' file='@IGNITION@'/>
+  </sysinfo>
+  <os>
+    <type arch='x86_64'>hvm</type>
+  </os>
+  <features>
+    <acpi/>
+    <apic/>
+  </features>
+  <cpu mode='host-passthrough' check='none' migratable='off'/>
+  <clock offset='utc'>
+    <timer name='rtc' tickpolicy='catchup'/>
+    <timer name='pit' tickpolicy='delay'/>
+    <timer name='hpet' present='no'/>
+  </clock>
+  <on_poweroff>destroy</on_poweroff>
+  <on_reboot>restart</on_reboot>
+  <on_crash>restart</on_crash>
+  <pm>
+    <suspend-to-mem enabled='no'/>
+    <suspend-to-disk enabled='no'/>
+  </pm>
+  <devices>
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='qcow2' cache='none' io='native' discard='unmap' detect_zeroes='unmap'/>
+      <source file='@ROOT_DISK@'/>
+      <target dev='vda' bus='virtio'/>
+      <serial>@NAME@-root</serial>
+      <boot order='1'/>
+    </disk>
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='raw' cache='none' io='native' discard='unmap' detect_zeroes='unmap'/>
+      <source file='@DATA_DISK@'/>
+      <target dev='vdb' bus='virtio'/>
+      <serial>@DATA_SERIAL@</serial>
+    </disk>
+    <interface type='bridge'>
+      <mac address='@MAC@'/>
+      <source bridge='br0'/>
+      <model type='virtio'/>
+    </interface>
+    <serial type='pty'>
+      <target type='isa-serial' port='0'>
+        <model name='isa-serial'/>
+      </target>
+    </serial>
+    <console type='pty'>
+      <target type='serial' port='0'/>
+    </console>
+    <channel type='unix'>
+      <target type='virtio' name='org.qemu.guest_agent.0'/>
+    </channel>
+    <rng model='virtio'>
+      <backend model='random'>/dev/urandom</backend>
+    </rng>
+    <memballoon model='virtio'/>
+  </devices>
+</domain>

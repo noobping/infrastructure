@@ -1,0 +1,10 @@
+[Unit]
+Description=Permit QEMU Guest Agent filesystem freeze operations under SELinux
+Documentation=man:qemu-ga(8) man:setsebool(8)
+Before=qemu-guest-agent.service
+ConditionSecurity=selinux
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/setsebool -P virt_qemu_ga_read_nonsecurity_files on
+RemainAfterExit=yes

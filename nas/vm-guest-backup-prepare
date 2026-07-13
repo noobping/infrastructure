@@ -1,0 +1,80 @@
+#!/usr/bin/bash
+set -euo pipefail
+
+timeout=${VM_BACKUP_GUEST_HOOK_TIMEOUT:-3600}
+grace=${VM_BACKUP_GUEST_HOOK_GRACE:-120}
+
+if (( $# != 2 )); then
+  cat >&2 <<'USAGE'
+Usage: vm-guest-backup-prepare DOMAIN /absolute/guest-hook
+USAGE
+  exit 2
+fi
+
+domain=$1
+guest_hook=$2
+
+if [[ ! $timeout =~ ^[1-9][0-9]*$ ]]; then
+  echo "VM_BACKUP_GUEST_HOOK_TIMEOUT must be a positive integer" >&2
+  exit 2
+fi
+if [[ ! $grace =~ ^[1-9][0-9]*$ || $grace -lt 60 ]]; then
+  echo "VM_BACKUP_GUEST_HOOK_GRACE must be an integer of at least 60 seconds" >&2
+  exit 2
+fi
+case $guest_hook in
+  /*) ;;
+  *) echo "Guest backup hook must be an absolute path: $guest_hook" >&2; exit 2 ;;
+esac
+
+run_guest_hook() {
+  local domain=$1
+  local request response pid deadline status exit_code signal stdout stderr
+
+  request=$(jq --null-input --compact-output \
+    --arg duration "${timeout}s" --arg hook "$guest_hook" '
+    {execute:"guest-exec",arguments:{path:"/usr/bin/timeout",
+      arg:["--signal=TERM","--kill-after=60s",$duration,$hook],"capture-output":true}}')
+  response=$(virsh qemu-agent-command "$domain" "$request")
+  pid=$(jq --exit-status --raw-output '.return.pid' <<< "$response") || {
+    echo "Could not start $guest_hook in $domain: $response" >&2
+    return 1
+  }
+
+  deadline=$((SECONDS + timeout + grace))
+  while (( SECONDS < deadline )); do
+    request=$(jq --null-input --compact-output --argjson pid "$pid" \
+      '{execute:"guest-exec-status",arguments:{pid:$pid}}')
+    status=$(virsh qemu-agent-command "$domain" "$request")
+    if [[ $(jq --raw-output '.return.exited // false' <<< "$status") == true ]]; then
+      stdout=$(jq --raw-output '.return["out-data"] // empty' <<< "$status")
+      stderr=$(jq --raw-output '.return["err-data"] // empty' <<< "$status")
+      [[ -z $stdout ]] || base64 --decode <<< "$stdout"
+      [[ -z $stderr ]] || base64 --decode <<< "$stderr" >&2
+      if jq --exit-status '.return | has("signal")' <<< "$status" >/dev/null; then
+        signal=$(jq --raw-output '.return.signal' <<< "$status")
+        echo "$guest_hook was terminated by signal $signal in $domain" >&2
+        return 1
+      fi
+      if ! exit_code=$(jq --exit-status --raw-output \
+        '.return.exitcode | select(type == "number" and (. == floor))' \
+        <<< "$status"); then
+        echo "$guest_hook returned no numeric exit code in $domain: $status" >&2
+        return 1
+      fi
+      if (( exit_code != 0 )); then
+        echo "$guest_hook failed in $domain with exit code $exit_code" >&2
+        return 1
+      fi
+      return 0
+    fi
+    sleep 2
+  done
+
+  echo "$guest_hook did not exit in $domain after timeout(1)'s ${timeout}s limit" \
+    "and ${grace}s termination grace" >&2
+  return 1
+}
+
+echo "Running $guest_hook inside $domain"
+run_guest_hook "$domain"

@@ -4,9 +4,12 @@ on:
   push:
     branches:
       - main
-      - master
     paths:
+      - ".containerignore"
       - "nas/**"
+      - "vm/bootc-verified-update"
+      - "vm/install-cosign"
+      - "vm/verify-bootc-image"
       - ".github/workflows/nas.yml"
       - "!**/*.md"
 
@@ -17,19 +20,68 @@ on:
       - completed
     branches:
       - main
-      - master
 
   workflow_dispatch: {}
 
 env:
   IMAGE_NAME: ghcr.io/noobping/nas
+  REVISION: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
 concurrency:
   group: nas
   cancel-in-progress: true
 
 jobs:
+  resolve-ips:
+    if: >-
+      (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success') &&
+      (github.event_name == 'workflow_run' || github.ref == 'refs/heads/main')
+    name: Resolve verified IPS parent
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      digest: ${{ steps.verify.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.REVISION }}
+      - uses: sigstore/cosign-installer@v3
+
+      - id: verify
+        name: Verify IPS parent image
+        env:
+          IMAGE: ghcr.io/noobping/ips:latest
+        run: |
+          set -euo pipefail
+          verification="$(cosign verify --output=json \
+            --certificate-identity=https://github.com/noobping/infrastructure/.github/workflows/ips.yml@refs/heads/main \
+            --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
+            "$IMAGE")"
+          digest="$(printf '%s\n' "$verification" \
+            | jq -er '[.[].critical.image["docker-manifest-digest"] | select(type == "string" and test("^sha256:[0-9a-f]{64}$"))] | unique | if length == 1 then .[0] else error("expected exactly one verified digest") end')"
+          printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Test verified bootc update reference
+        run: |
+          set -euo pipefail
+          sh -n vm/verify-bootc-image vm/bootc-verified-update
+          sh vm/verify-bootc-image --self-test
+          sh vm/bootc-verified-update --self-test
+          sudo install -D -m 0755 \
+            vm/install-cosign \
+            /usr/local/libexec/infrastructure/install-cosign
+          verified_ref="$(sudo ./vm/verify-bootc-image "${IMAGE_NAME}:latest")"
+          if [[ ! "$verified_ref" =~ ^ghcr\.io/noobping/nas@sha256:[0-9a-f]{64}$ ]]; then
+            echo "verifier returned a non-canonical reference: $verified_ref" >&2
+            exit 1
+          fi
+
   build:
+    needs: resolve-ips
+    if: >-
+      (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success') &&
+      (github.event_name == 'workflow_run' || github.ref == 'refs/heads/main')
     name: Build ${{ matrix.arch }}
     strategy:
       fail-fast: false
@@ -50,7 +102,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ env.REVISION }}
       - uses: sigstore/cosign-installer@v3
 
       - uses: jlumbroso/free-disk-space@v1.3.1
@@ -102,10 +154,10 @@ jobs:
           echo "${{ secrets.GITHUB_TOKEN }}" | buildah login -u "${{ github.actor }}" --password-stdin ghcr.io
 
       - name: Build
-        working-directory: nas
         env:
           BUILDAH_ISOLATION: chroot
           TMPDIR: /mnt/tmp
+          IPS_DIGEST: ${{ needs.resolve-ips.outputs.digest }}
         run: |
           IMAGE="${IMAGE_NAME}:${{ matrix.arch }}"
 
@@ -114,9 +166,11 @@ jobs:
             --isolation=chroot \
             --layers=false \
             --rm \
-            -f Containerfile \
+            -f nas/Containerfile \
             -t "$IMAGE" \
             --label org.opencontainers.image.source="${{ github.repositoryUrl }}" \
+            --label org.opencontainers.image.revision="${REVISION}" \
+            --build-arg "TAG=latest@${IPS_DIGEST}" \
             --build-arg UID=1000 \
             --build-arg GID=1000 \
             .
@@ -131,7 +185,7 @@ jobs:
           buildah prune -f || true
 
   manifest:
-    name: Manifest
+    name: Publish signed manifests
     needs: build
     runs-on: ubuntu-latest
 
@@ -147,10 +201,24 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: sigstore/cosign-installer@v3
 
-      - name: Push
+      - name: Publish mutable and immutable tags
         run: |
+          set -euxo pipefail
+          candidate="${IMAGE_NAME}:candidate-${GITHUB_RUN_ID}"
           docker buildx imagetools create \
-            -t "${IMAGE_NAME}:latest" \
+            -t "$candidate" \
             "${IMAGE_NAME}:amd64" \
             "${IMAGE_NAME}:arm64"
+          digest="$(docker buildx imagetools inspect "$candidate" \
+            | awk '/^Digest:/ { print $2; exit }')"
+          test -n "$digest"
+          revision="$(printf '%s' "$REVISION" | cut -c1-12)"
+          content="${digest#sha256:}"
+          immutable_tag="git-${revision}-img-${content:0:12}"
+          docker buildx imagetools create \
+            -t "${IMAGE_NAME}:latest" \
+            -t "${IMAGE_NAME}:${immutable_tag}" \
+            "${candidate}@${digest}"
+          cosign sign --yes "${IMAGE_NAME}@${digest}"

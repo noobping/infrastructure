@@ -1,0 +1,82 @@
+#!/usr/bin/bash
+set -euo pipefail
+
+# Keep Cockpit running on the physical NAS. These are only the application
+# Quadlets whose writable state moves into the VMs/K3s cluster.
+units=(
+  bedrock.service
+  caddy.service
+  jellyfin.service
+  minecraft.service
+  nextcloud.service
+  paperless.service
+  paperless-db.service
+  paperless-gotenberg.service
+  paperless-redis.service
+  paperless-tika.service
+  registry.service
+  uptime-kuma.service
+)
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  sudo vms/bin/legacy-apps mask
+  sudo vms/bin/legacy-apps restore
+  vms/bin/legacy-apps status
+
+mask stops and masks every migrated NAS application so Quadlet cannot restart
+it during a nightly reboot. restore is valid only after rpm-ostree rollback and
+reboot into the previous NAS deployment; it unmasks and starts the legacy
+units for rollback. Cockpit is intentionally excluded.
+USAGE
+}
+
+require_root() {
+  if (( EUID != 0 )); then
+    echo "This operation must run as root" >&2
+    exit 1
+  fi
+}
+
+require_legacy_deployment() {
+  if [[ ! -f /etc/containers/systemd/nextcloud.container ]]; then
+    echo "Legacy Quadlets are absent; roll back and reboot into the previous" >&2
+    echo "NAS deployment before using this command" >&2
+    exit 1
+  fi
+}
+
+case ${1:-} in
+  mask)
+    (( $# == 1 )) || { usage >&2; exit 2; }
+    require_root
+    require_legacy_deployment
+    systemctl mask --now "${units[@]}"
+    ;;
+  restore)
+    (( $# == 1 )) || { usage >&2; exit 2; }
+    require_root
+    require_legacy_deployment
+    systemctl unmask "${units[@]}"
+    systemctl daemon-reload
+    systemctl start "${units[@]}"
+    ;;
+  status)
+    (( $# == 1 )) || { usage >&2; exit 2; }
+    for unit in "${units[@]}"; do
+      load_state=$(systemctl show --property=LoadState --value "$unit")
+      unit_file_state=$(systemctl show --property=UnitFileState --value "$unit")
+      active_state=$(systemctl show --property=ActiveState --value "$unit")
+      printf '%-36s load=%-10s file=%-10s active=%s\n' \
+        "$unit" "$load_state" "$unit_file_state" "$active_state"
+    done
+    ;;
+  --help|-h)
+    usage
+    ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac

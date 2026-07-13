@@ -1,0 +1,57 @@
+#!/usr/bin/bash
+set -euo pipefail
+
+storage_root=${VM_STORAGE_PARENT:-/var/srv/ssd}
+vm_root=${VM_STORAGE_ROOT:-${storage_root}/vms}
+pool_name=${VM_STORAGE_POOL:-infrastructure-vms}
+storage_virsh=(virsh --connect qemu:///system)
+
+mount_target=$(findmnt --noheadings --raw --output TARGET --target "$storage_root")
+filesystem=$(findmnt --noheadings --raw --output FSTYPE --target "$storage_root")
+
+if [[ $mount_target != "$storage_root" || $filesystem != btrfs ]]; then
+  echo "$storage_root must be a mounted Btrfs filesystem" >&2
+  exit 1
+fi
+
+if [[ -e $vm_root ]]; then
+  if ! btrfs subvolume show "$vm_root" >/dev/null 2>&1; then
+    echo "$vm_root exists but is not a Btrfs subvolume; refusing to replace it" >&2
+    exit 1
+  fi
+else
+  btrfs subvolume create "$vm_root"
+fi
+
+attributes=$(lsattr -d "$vm_root" | awk 'NR == 1 { print $1 }')
+if [[ $attributes != *C* ]]; then
+  if find "$vm_root" -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
+    echo "$vm_root contains files but does not have the NOCOW attribute" >&2
+    echo "Move the files away, set chattr +C on the empty subvolume, and retry" >&2
+    exit 1
+  fi
+  chattr +C "$vm_root"
+fi
+
+install -d -m 2770 -o root -g qemu \
+  "$vm_root/base" \
+  "$vm_root/config" \
+  "$vm_root/disks" \
+  "$vm_root/ignition"
+
+semanage fcontext -a -t virt_image_t "${vm_root}(/.*)?" 2>/dev/null \
+  || semanage fcontext -m -t virt_image_t "${vm_root}(/.*)?"
+restorecon -RF "$vm_root"
+
+if ! "${storage_virsh[@]}" pool-info "$pool_name" >/dev/null 2>&1; then
+  "${storage_virsh[@]}" pool-define-as "$pool_name" dir --target "$vm_root"
+fi
+
+"${storage_virsh[@]}" pool-autostart "$pool_name" >/dev/null
+pool_state=$(
+  "${storage_virsh[@]}" pool-info "$pool_name" \
+    | awk -F: '/^State:/ { gsub(/[[:space:]]/, "", $2); print $2 }'
+)
+if [[ $pool_state != running ]]; then
+  "${storage_virsh[@]}" pool-start "$pool_name" >/dev/null
+fi

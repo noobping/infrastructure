@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: caddy-data
+  labels:
+    app.kubernetes.io/name: caddy
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 2Gi
+  storageClassName: local-path
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: caddy-runtime-config
+  labels:
+    app.kubernetes.io/name: caddy
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: local-path
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: caddy
+  labels:
+    app.kubernetes.io/name: caddy
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: caddy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: caddy
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: caddy
+          image: docker.io/library/caddy:2.11.4@sha256:af5fdcd76f2db5e4e974ee92f96ee8c0fc3edb55bd4ba5032547cbf3f65e486d
+          imagePullPolicy: IfNotPresent
+          args: [caddy, run, --config, /etc/caddy/Caddyfile, --adapter, caddyfile]
+          ports:
+            - {name: http, containerPort: 80, protocol: TCP}
+            - {name: https, containerPort: 443, protocol: TCP}
+            - {name: https-udp, containerPort: 443, protocol: UDP}
+            - {name: admin, containerPort: 2019, protocol: TCP}
+          readinessProbe:
+            httpGet:
+              path: /config/
+              port: admin
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /config/
+              port: admin
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          volumeMounts:
+            - {name: caddyfile, mountPath: /etc/caddy/Caddyfile, subPath: Caddyfile, readOnly: true}
+            - {name: data, mountPath: /data}
+            - {name: runtime-config, mountPath: /config}
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: caddyfile
+          configMap:
+            name: caddy-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: caddy-data
+        - name: runtime-config
+          persistentVolumeClaim:
+            claimName: caddy-runtime-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: caddy
+  labels:
+    app.kubernetes.io/name: caddy
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  selector:
+    app.kubernetes.io/name: caddy
+  ports:
+    - {name: http, port: 80, targetPort: http, protocol: TCP}
+    - {name: https, port: 443, targetPort: https, protocol: TCP}
+    - {name: https-udp, port: 443, targetPort: https-udp, protocol: UDP}
+

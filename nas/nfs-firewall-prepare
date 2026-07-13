@@ -1,0 +1,98 @@
+#!/usr/bin/bash
+set -euo pipefail
+
+exports_file=${NFS_EXPORTS_FILE:-/etc/exports.d/vm-data.exports}
+rule_file=${NFS_RULE_FILE:-/etc/nftables/rules/nfs.nft}
+
+if [[ ! -r $exports_file ]]; then
+  echo "NFS exports are not readable: $exports_file" >&2
+  exit 1
+fi
+
+install -d -m 2770 -o docs -g docs \
+  /var/srv/docs/shared \
+  /var/srv/docs/paperless \
+  /var/srv/docs/paperless/consume \
+  /var/srv/docs/paperless/export \
+  /var/srv/docs/paperless/media
+
+setfacl -m \
+  'u:33:rwx,m::rwx,d:u::rwx,d:u:33:rwx,d:g::rwx,d:m::rwx,d:o::---' \
+  /var/srv/docs/shared
+
+declare -a addresses=()
+while IFS= read -r hostname; do
+  mapfile -t resolved < <(
+    getent ahostsv4 "$hostname" \
+      | awk '$1 ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}$/ { print $1 }' \
+      | sort -u
+  )
+  if (( ${#resolved[@]} == 0 )); then
+    echo "UniFi DNS does not resolve required NFS client: $hostname" >&2
+    exit 1
+  fi
+  addresses+=("${resolved[@]}")
+done < <(
+  awk '
+    !/^[[:space:]]*(#|$)/ {
+      for (field = 2; field <= NF; field++) {
+        sub(/\(.*/, "", $field)
+        print $field
+      }
+    }
+  ' "$exports_file" | sort -u
+)
+
+mapfile -t addresses < <(printf '%s\n' "${addresses[@]}" | sort -u)
+if (( ${#addresses[@]} == 0 )); then
+  echo "No NFS client addresses were configured" >&2
+  exit 1
+fi
+
+set_body=
+for address in "${addresses[@]}"; do
+  if [[ -n $set_body ]]; then
+    set_body+=", "
+  fi
+  set_body+="$address"
+done
+
+rule_directory=$(dirname "$rule_file")
+install -d -m 0700 "$rule_directory"
+
+systemctl is-active --quiet nftables.service || {
+  echo "nftables.service is not active; refusing to enable NFS" >&2
+  exit 1
+}
+
+temporary_rule=
+temporary_main=
+cleanup_temporary_files() {
+  [[ -z $temporary_rule ]] || rm -f -- "$temporary_rule"
+  [[ -z $temporary_main ]] || rm -f -- "$temporary_main"
+}
+trap cleanup_temporary_files EXIT
+
+temporary_rule=$(mktemp "$rule_file.XXXXXX")
+temporary_main=$(mktemp --tmpdir=/run nftables-main.XXXXXX)
+{
+  echo "# Generated from $exports_file; do not edit."
+  echo "ip saddr { $set_body } tcp dport 2049 accept"
+} > "$temporary_rule"
+chmod 0600 "$temporary_rule"
+
+awk -v rule="$temporary_rule" '
+  { print }
+  $0 ~ /include "\/etc\/nftables\/rules\/\*\.nft"/ {
+    printf "        include \"%s\"\n", rule
+    inserted=1
+  }
+  END { if (!inserted) exit 1 }
+' /etc/nftables/main.nft > "$temporary_main"
+nft --check --file "$temporary_main"
+
+mv -f -- "$temporary_rule" "$rule_file"
+temporary_rule=
+setsebool -P nfs_export_all_ro=1 nfs_export_all_rw=1
+
+systemctl reload-or-restart nftables.service

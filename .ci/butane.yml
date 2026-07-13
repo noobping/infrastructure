@@ -43,52 +43,59 @@ steps:
       render_butane() {
         local input="$1"
         local output="$2"
-        local bootc_image="${3:-workstation}"
+        local bootc_image="$3"
 
         sed \
           -e "s#__CI_IMAGE_NAMESPACE__#${namespace}#g" \
           -e "s#__CI_BOOTC_IMAGE__#${bootc_image}#g" \
-          -e "s#ghcr.io/noobping#${namespace}#g" \
           "$input" > "$output"
       }
 
       profiles=(
-        "nas:nas:nas"
-        "workstation:workstation:workstation"
-        "sway:workstation:sway"
+        "nas:nas"
+        "workstation:workstation"
+        "sway:workstation"
       )
 
       mkdir -p dist/ign dist/iso
 
-      run_yq ea '. as $item ireduce ({}; . *+ $item)' \
-        butane/base.yml \
-        butane/setup.yml \
-        > butane/setup.bu
-
-      render_butane butane/setup.bu butane/setup.rendered.bu
-
-      podman run --rm \
-        -v "$PWD:/work:Z" -w /work \
-        quay.io/coreos/butane:release \
-        --pretty --strict --files-dir . butane/setup.rendered.bu \
-        > dist/ign/setup.ign
-
       for profile_spec in "${profiles[@]}"; do
-        IFS=: read -r profile butane_profile bootc_image <<< "$profile_spec"
+        IFS=: read -r profile butane_profile <<< "$profile_spec"
 
         run_yq ea '. as $item ireduce ({}; . *+ $item)' \
           butane/base.yml \
-          butane/updates.yml \
           "butane/${butane_profile}.yml" \
           > "butane/${profile}.bu"
 
-        render_butane "butane/${profile}.bu" "butane/${profile}.rendered.bu" "$bootc_image"
+        render_butane "butane/${profile}.bu" "butane/${profile}.rendered.bu" "$profile"
 
         podman run --rm \
           -v "$PWD:/work:Z" -w /work \
           quay.io/coreos/butane:release \
           --pretty --strict --files-dir . "butane/${profile}.rendered.bu" \
           > "dist/ign/${profile}.ign"
+      done
+
+      guest_profiles=(
+        minecraft
+        jellyfin
+        k3s
+      )
+
+      for guest in "${guest_profiles[@]}"; do
+        run_yq ea '. as $item ireduce ({}; . *+ $item)' \
+          butane/base.yml \
+          butane/vm.yml \
+          "butane/${guest}.yml" \
+          > "butane/${guest}.bu"
+
+        render_butane "butane/${guest}.bu" "butane/${guest}.rendered.bu" "$guest"
+
+        podman run --rm \
+          -v "$PWD:/work:Z" -w /work \
+          quay.io/coreos/butane:release \
+          --pretty --strict --files-dir . "butane/${guest}.rendered.bu" \
+          > "dist/ign/${guest}.ign"
       done
 
       if ! ls -1 fedora-coreos-*-live-iso."${coreos_arch}".iso >/dev/null 2>&1; then
@@ -103,7 +110,7 @@ steps:
       base_iso="$(ls -1 fedora-coreos-*-live-iso."${coreos_arch}".iso | tail -n1)"
 
       for profile_spec in "${profiles[@]}"; do
-        IFS=: read -r profile butane_profile bootc_image <<< "$profile_spec"
+        profile=${profile_spec%%:*}
 
         out_iso="dist/iso/${profile}-${coreos_arch}.iso"
         tmp_iso="${out_iso}.tmp"
@@ -115,7 +122,6 @@ steps:
           -v "$PWD:/work:Z" -w /work \
           quay.io/coreos/coreos-installer:release \
           iso customize \
-            --live-ignition dist/ign/setup.ign \
             --dest-ignition "dist/ign/${profile}.ign" \
             --pre-install butane/detect-device.sh \
             -o "$tmp_iso" \

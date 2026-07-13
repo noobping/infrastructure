@@ -4,8 +4,10 @@ on:
   push:
     branches:
       - main
-      - master
     paths:
+      - "vm/bootc-verified-update"
+      - "vm/install-cosign"
+      - "vm/verify-bootc-image"
       - "butane/**"
       - ".github/workflows/butane.yml"
       - "!**/*.md"
@@ -21,6 +23,7 @@ env:
 
 jobs:
   build:
+    if: github.ref == 'refs/heads/main'
     name: Build ${{ matrix.arch.name }} ${{ matrix.profile.name }}
     strategy:
       matrix:
@@ -32,13 +35,10 @@ jobs:
         profile:
           - name: nas
             butane: nas
-            bootc_image: nas
           - name: workstation
             butane: workstation
-            bootc_image: workstation
           - name: sway
             butane: workstation
-            bootc_image: sway
 
     runs-on: ${{ matrix.arch.runs_on }}
 
@@ -50,6 +50,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: mikefarah/yq@v4.45.1
+
+      - name: Test bootc update scripts
+        run: |
+          sh -n vm/verify-bootc-image vm/bootc-verified-update
+          sh vm/verify-bootc-image --self-test
+          sh vm/bootc-verified-update --self-test
 
       - name: Install Podman
         run: |
@@ -63,23 +69,15 @@ jobs:
       - name: Merge butane files
         run: |
           set -euxo pipefail
-          yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/setup.yml > butane/setup.bu
-          yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/updates.yml butane/${{ matrix.profile.butane }}.yml > butane/${{ matrix.profile.name }}.bu
-          sed "s#__CI_IMAGE_NAMESPACE__#${CI_IMAGE_NAMESPACE}#g" butane/setup.bu > butane/setup.rendered.bu
+          yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/${{ matrix.profile.butane }}.yml > butane/${{ matrix.profile.name }}.bu
           sed \
             -e "s#__CI_IMAGE_NAMESPACE__#${CI_IMAGE_NAMESPACE}#g" \
-            -e "s#__CI_BOOTC_IMAGE__#${{ matrix.profile.bootc_image }}#g" \
+            -e "s#__CI_BOOTC_IMAGE__#${{ matrix.profile.name }}#g" \
             butane/${{ matrix.profile.name }}.bu > butane/${{ matrix.profile.name }}.rendered.bu
 
       - name: Build ignition files
         run: |
           set -euxo pipefail
-
-          podman run --rm \
-            -v "$PWD:/work:Z" -w /work \
-            quay.io/coreos/butane:release \
-            --pretty --strict --files-dir . butane/setup.rendered.bu > setup.ign
-
           podman run --rm \
             -v "$PWD:/work:Z" -w /work \
             quay.io/coreos/butane:release \
@@ -109,7 +107,6 @@ jobs:
             -v "$PWD:/work:Z" -w /work \
             quay.io/coreos/coreos-installer:release \
             iso customize \
-              --live-ignition setup.ign \
               --dest-ignition ${{ matrix.profile.name }}.ign \
               --pre-install butane/detect-device.sh \
               -o "$out_iso" \
@@ -133,11 +130,73 @@ jobs:
           compression-level: 0
           path: |
             ${{ matrix.profile.name }}.ign
-            setup.ign
+
+  guests:
+    if: github.ref == 'refs/heads/main'
+    name: Build guest Ignition configs
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mikefarah/yq@v4.45.1
+
+      - name: Install Podman
+        run: |
+          set -euxo pipefail
+          if ! command -v podman >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y podman
+          fi
+
+      - name: Build guest configs
+        run: |
+          set -euxo pipefail
+          mkdir -p dist/ign
+
+          for guest in minecraft jellyfin k3s; do
+            yq ea '. as $item ireduce ({}; . *+ $item)' \
+              butane/base.yml \
+              butane/vm.yml \
+              "butane/${guest}.yml" \
+              > "butane/${guest}.bu"
+
+            sed \
+              -e "s#__CI_IMAGE_NAMESPACE__#${CI_IMAGE_NAMESPACE}#g" \
+              -e "s#__CI_BOOTC_IMAGE__#${guest}#g" \
+              "butane/${guest}.bu" \
+              > "butane/${guest}.rendered.bu"
+
+            podman run --rm \
+              -v "$PWD:/work:Z" -w /work \
+              quay.io/coreos/butane:release \
+              --pretty --strict --files-dir . "butane/${guest}.rendered.bu" \
+              > "dist/ign/${guest}.ign"
+          done
+
+      - name: Validate Ignition configs
+        run: |
+          set -euxo pipefail
+          for config in dist/ign/minecraft.ign dist/ign/jellyfin.ign dist/ign/k3s.ign; do
+            podman run --rm -i quay.io/coreos/ignition-validate:release - < "$config"
+          done
+
+      - name: Upload guest configs
+        uses: actions/upload-artifact@v4
+        with:
+          name: vm-ignition
+          path: |
+            dist/ign/minecraft.ign
+            dist/ign/jellyfin.ign
+            dist/ign/k3s.ign
 
   release:
     name: Release
-    needs: build
+    needs:
+      - build
+      - guests
     runs-on: ubuntu-latest
 
     permissions:

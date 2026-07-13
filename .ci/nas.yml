@@ -14,11 +14,32 @@ steps:
 
       namespace="${CI_IMAGE_NAMESPACE:-localhost:5000/noobping}"
       tls_verify="${CI_REGISTRY_TLS_VERIFY:-false}"
-      image="${namespace}/nas:latest"
+      revision="$(git -C "$CI_REPO" rev-parse --short=12 HEAD)"
+      image="${namespace}/nas"
+      candidate="${image}:candidate-${revision}"
 
-      podman manifest rm "$image" >/dev/null 2>&1 || true
-      podman manifest create "$image"
-      podman manifest add --tls-verify="$tls_verify" "$image" "docker://${namespace}/nas:amd64"
-      podman manifest add --tls-verify="$tls_verify" "$image" "docker://${namespace}/nas:arm64"
-      podman manifest push --all --tls-verify="$tls_verify" "$image" "docker://$image"
-      podman manifest rm "$image" >/dev/null 2>&1 || true
+      podman manifest rm "$candidate" >/dev/null 2>&1 || true
+      podman manifest create "$candidate"
+      podman manifest add --tls-verify="$tls_verify" "$candidate" "docker://${image}:amd64"
+      podman manifest add --tls-verify="$tls_verify" "$candidate" "docker://${image}:arm64"
+      podman manifest push --all --tls-verify="$tls_verify" "$candidate" "docker://$candidate"
+
+      digest="$(skopeo inspect --tls-verify="$tls_verify" --format '{{.Digest}}' "docker://$candidate")"
+      content="${digest#sha256:}"
+      immutable="git-${revision}-img-${content:0:12}"
+      skopeo copy --all --src-tls-verify="$tls_verify" --dest-tls-verify="$tls_verify" "docker://$candidate" "docker://${image}:${immutable}"
+      skopeo copy --all --src-tls-verify="$tls_verify" --dest-tls-verify="$tls_verify" "docker://$candidate" "docker://${image}:latest"
+
+      if [[ "${CI_SIGN_IMAGES:-}" == "1" ]]; then
+        if command -v cosign >/dev/null 2>&1; then
+          cosign sign --yes --allow-insecure-registry "${image}@${digest}"
+        elif command -v flatpak-spawn >/dev/null 2>&1; then
+          flatpak-spawn --host cosign sign --yes --allow-insecure-registry "${image}@${digest}"
+        else
+          echo "CI_SIGN_IMAGES=1 but cosign is not installed" >&2
+          exit 1
+        fi
+      fi
+
+      printf 'nas -> %s (%s)\n' "$immutable" "$digest"
+      podman manifest rm "$candidate" >/dev/null 2>&1 || true

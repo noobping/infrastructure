@@ -21,6 +21,7 @@ steps:
       isolation="${BUILDAH_ISOLATION:-chroot}"
       tmpdir="${TMPDIR:-/tmp}"
       source_url="$(git -C "$CI_REPO" config --get remote.origin.url || printf '%s' "$CI_REPO")"
+      revision="$(git -C "$CI_REPO" rev-parse HEAD)"
 
       case "$CI_ARCH" in
         x64)
@@ -83,6 +84,7 @@ steps:
           --rm \
           -f Containerfile \
           -t "$image" \
+          --label "org.opencontainers.image.revision=${revision}" \
           --label "org.opencontainers.image.source=${source_url}" \
           --build-arg "FCOS_STREAM=${fcos_stream}" \
           --build-arg "UID=${uid}" \

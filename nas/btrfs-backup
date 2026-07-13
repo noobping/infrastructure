@@ -1,12 +1,17 @@
 #!/usr/bin/bash
-
 set -euo pipefail
+export LC_ALL=C
 
 source_root=${BTRFS_BACKUP_SOURCE_ROOT:-/var/srv/ssd}
 snapshot_root=${BTRFS_BACKUP_SNAPSHOT_ROOT:-/var/srv/ssd/.backup-snapshots}
 destination_root=${BTRFS_BACKUP_DESTINATION_ROOT:-/var/srv/hdd/backups/ssd}
-subvolumes=${BTRFS_BACKUP_SUBVOLUMES:-apps books caddy docs git music photos touhou videos}
+subvolumes=${BTRFS_BACKUP_SUBVOLUMES:-books docs git music photos touhou videos vms}
 retention=${BTRFS_BACKUP_RETENTION:-3}
+prepare_command=${BTRFS_BACKUP_PREPARE_COMMAND:-/usr/libexec/infrastructure/backup-prepare}
+domains=${BTRFS_BACKUP_VM_DOMAINS:-k3s minecraft jellyfin}
+guest_hook_runner=${VM_BACKUP_GUEST_RUNNER:-/usr/libexec/infrastructure/vm-guest-backup-prepare}
+guest_prepare_hook=${VM_BACKUP_GUEST_PREPARE_HOOK:-/usr/libexec/infrastructure/backup-prepare}
+guest_finish_hook=${VM_BACKUP_GUEST_FINISH_HOOK:-/usr/libexec/infrastructure/backup-finish}
 
 if [[ ! $retention =~ ^[1-9][0-9]*$ ]]; then
   echo "BTRFS_BACKUP_RETENTION must be a positive integer" >&2
@@ -16,17 +21,113 @@ fi
 timestamp=$(date --utc +%Y%m%dT%H%M%SZ)
 current_source=
 current_destination=
+declare -a names=()
+declare -a frozen_domains=()
+declare -a suspended_domains=()
+declare -a prepared_domains=()
+
+for name in $subvolumes; do
+  [[ $name =~ ^[A-Za-z0-9._-]+$ ]] || {
+    echo "Unsafe subvolume name: $name" >&2
+    exit 2
+  }
+  names+=("$name")
+done
+
+if (( ${#names[@]} == 0 )); then
+  echo "No backup subvolumes were configured" >&2
+  exit 2
+fi
+
+resume_workloads() {
+  local failed=0 index domain
+  local -a still_suspended=()
+  local -a still_frozen=()
+
+  for ((index=${#suspended_domains[@]} - 1; index >= 0; index--)); do
+    domain=${suspended_domains[index]}
+    if ! virsh resume "$domain" >/dev/null; then
+      echo "URGENT: failed to resume VM $domain" >&2
+      failed=1
+      still_suspended+=("$domain")
+    fi
+  done
+
+  for ((index=${#frozen_domains[@]} - 1; index >= 0; index--)); do
+    domain=${frozen_domains[index]}
+    if ! virsh domfsthaw "$domain" >/dev/null; then
+      echo "URGENT: failed to thaw filesystems in VM $domain" >&2
+      failed=1
+      still_frozen+=("$domain")
+    fi
+  done
+
+  suspended_domains=("${still_suspended[@]}")
+  frozen_domains=("${still_frozen[@]}")
+  return "$failed"
+}
+
+prepare_guest_backups() {
+  local domain
+
+  [[ -x $guest_hook_runner ]] || {
+    echo "Guest backup hook runner is not executable: $guest_hook_runner" >&2
+    return 1
+  }
+
+  for domain in $domains; do
+    if ! virsh dominfo "$domain" >/dev/null 2>&1; then
+      continue
+    fi
+    if [[ $(virsh domstate "$domain" | awk 'NR == 1 { print $1 }') != running ]]; then
+      continue
+    fi
+
+    # Record first so the EXIT trap runs finish even after a partial prepare.
+    prepared_domains+=("$domain")
+    "$guest_hook_runner" "$domain" "$guest_prepare_hook"
+  done
+}
+
+finish_guest_backups() {
+  local failed=0 index domain
+  local -a still_prepared=()
+
+  for ((index=${#prepared_domains[@]} - 1; index >= 0; index--)); do
+    domain=${prepared_domains[index]}
+    if ! "$guest_hook_runner" "$domain" "$guest_finish_hook"; then
+      echo "URGENT: failed to finish application backup in VM $domain" >&2
+      failed=1
+      still_prepared+=("$domain")
+    fi
+  done
+
+  prepared_domains=("${still_prepared[@]}")
+  return "$failed"
+}
 
 cleanup_failed_transfer() {
-  if [[ -n $current_destination ]] && btrfs subvolume show "$current_destination" >/dev/null 2>&1; then
+  if [[ -n $current_destination ]] \
+    && btrfs subvolume show "$current_destination" >/dev/null 2>&1; then
     btrfs subvolume delete "$current_destination"
   fi
-  if [[ -n $current_source ]] && btrfs subvolume show "$current_source" >/dev/null 2>&1; then
+  if [[ -n $current_source ]] \
+    && btrfs subvolume show "$current_source" >/dev/null 2>&1; then
     btrfs subvolume delete "$current_source"
   fi
 }
 
-trap cleanup_failed_transfer ERR
+on_exit() {
+  local status=$?
+  set +e
+  resume_workloads
+  finish_guest_backups
+  if (( status != 0 )); then
+    cleanup_failed_transfer
+  fi
+  exit "$status"
+}
+trap on_exit EXIT
 
 prune_snapshots() {
   local directory=$1
@@ -41,22 +142,54 @@ prune_snapshots() {
 
 install -d -m 0700 "$snapshot_root" "$destination_root"
 
-for name in $subvolumes; do
+for name in "${names[@]}"; do
   source_subvolume="$source_root/$name"
   source_directory="$snapshot_root/$name"
   destination_directory="$destination_root/$name"
-  current_source="$source_directory/$timestamp"
-  current_destination="$destination_directory/$timestamp"
 
   btrfs subvolume show "$source_subvolume" >/dev/null
   install -d -m 0700 "$source_directory" "$destination_directory"
 
-  if [[ -e $current_source || -e $current_destination ]]; then
+  if [[ -e $source_directory/$timestamp || -e $destination_directory/$timestamp ]]; then
     echo "Backup snapshot $timestamp already exists for $name" >&2
     exit 1
   fi
+done
 
-  btrfs subvolume snapshot -r "$source_subvolume" "$current_source"
+if [[ -x $prepare_command ]]; then
+  "$prepare_command"
+fi
+
+prepare_guest_backups
+
+for domain in $domains; do
+  if ! virsh dominfo "$domain" >/dev/null 2>&1; then
+    continue
+  fi
+  if [[ $(virsh domstate "$domain" | awk 'NR == 1 { print $1 }') != running ]]; then
+    continue
+  fi
+
+  virsh domfsfreeze "$domain" >/dev/null
+  frozen_domains+=("$domain")
+  virsh suspend "$domain" >/dev/null
+  suspended_domains+=("$domain")
+done
+
+for name in "${names[@]}"; do
+  current_source="$snapshot_root/$name/$timestamp"
+  btrfs subvolume snapshot -r "$source_root/$name" "$current_source"
+  current_source=
+done
+
+resume_workloads
+finish_guest_backups
+
+for name in "${names[@]}"; do
+  source_directory="$snapshot_root/$name"
+  destination_directory="$destination_root/$name"
+  current_source="$source_directory/$timestamp"
+  current_destination="$destination_directory/$timestamp"
 
   parent=
   while IFS= read -r candidate; do
@@ -65,7 +198,10 @@ for name in $subvolumes; do
       parent="$source_directory/$candidate"
       break
     fi
-  done < <(find "$source_directory" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort --reverse)
+  done < <(
+    find "$source_directory" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' \
+      | sort --reverse
+  )
 
   if [[ -n $parent ]]; then
     btrfs send -p "$parent" "$current_source" | btrfs receive "$destination_directory"
@@ -73,10 +209,11 @@ for name in $subvolumes; do
     btrfs send "$current_source" | btrfs receive "$destination_directory"
   fi
 
-  # The transfer is complete. Keep this snapshot even if pruning an older one fails.
   current_source=
   current_destination=
 
   prune_snapshots "$source_directory"
   prune_snapshots "$destination_directory"
 done
+
+trap - EXIT

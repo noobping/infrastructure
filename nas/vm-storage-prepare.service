@@ -1,0 +1,14 @@
+[Unit]
+Description=Prepare the SSD-backed libvirt storage pool
+Requires=libvirtd.socket
+After=libvirtd.socket local-fs.target
+Before=libvirt-guests.service
+RequiresMountsFor=/var/srv/ssd
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/libexec/infrastructure/vm-storage-prepare
+
+[Install]
+WantedBy=multi-user.target

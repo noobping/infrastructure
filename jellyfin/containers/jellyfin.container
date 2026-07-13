@@ -1,0 +1,30 @@
+[Unit]
+Description=Jellyfin streaming service
+Wants=network-online.target
+After=network-online.target
+RequiresMountsFor=/var/lib/containers/jellyfin /var/srv/music /var/srv/books
+ConditionPathIsMountPoint=/var/lib/containers/jellyfin
+ConditionPathIsMountPoint=/var/srv/music
+ConditionPathIsMountPoint=/var/srv/books
+
+[Container]
+Image=ghcr.io/jellyfin/jellyfin:10.11.11@sha256:45f648c382a0c8b552582fcea40e95cb17c5d475473a891cba0eb7523fb92112
+Memory=5G
+User=1001
+Group=1001
+PidsLimit=2048
+SecurityLabelDisable=true
+Network=host
+Volume=/var/lib/containers/jellyfin/config:/config
+Volume=/var/lib/containers/jellyfin/cache:/cache
+Volume=/var/srv/music:/music:ro
+Volume=/var/srv/books:/books:ro
+
+[Service]
+Restart=always
+RestartSec=10
+TimeoutStartSec=180
+CPUQuota=300%
+
+[Install]
+WantedBy=multi-user.target

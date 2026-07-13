@@ -2,6 +2,7 @@ name: images
 on: manual
 needs:
   - nas
+  - vm
   - workstation
   - sway
 execution:

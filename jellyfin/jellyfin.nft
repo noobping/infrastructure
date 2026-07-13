@@ -1,0 +1,2 @@
+tcp dport { 8096, 8920 } accept
+udp dport { 7359, 1900 } accept

@@ -1,0 +1,261 @@
+#!/usr/bin/bash
+set -euo pipefail
+export LC_ALL=C
+
+bridge_name=br0
+bridge_connection=nas-br0
+checkpoint_timeout=${BRIDGE_CHECKPOINT_TIMEOUT:-180}
+registry_url=${BRIDGE_HEALTH_REGISTRY_URL:-https://ghcr.io/v2/}
+dns_name=${BRIDGE_HEALTH_DNS_NAME:-ghcr.io}
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  nas-vm-bridge status
+  sudo nas-vm-bridge apply
+
+The apply command only accepts a single, DHCP-configured wired default route.
+NetworkManager takes a timed checkpoint, the script runs gateway, DNS,
+registry, and SSH health checks, and nmcli asks for confirmation. If SSH is
+lost or the change is not confirmed, NetworkManager rolls the checkpoint back.
+USAGE
+}
+
+require_root() {
+  if (( EUID != 0 )); then
+    echo "This operation must run as root" >&2
+    exit 1
+  fi
+}
+
+default_route() {
+  mapfile -t route_devices < <(
+    ip -4 -o route show default \
+      | awk '{ for (i = 1; i <= NF; i++) if ($i == "dev") print $(i + 1) }' \
+      | sort -u
+  )
+  mapfile -t route_gateways < <(
+    ip -4 -o route show default \
+      | awk '{ for (i = 1; i <= NF; i++) if ($i == "via") print $(i + 1) }' \
+      | sort -u
+  )
+
+  if (( ${#route_devices[@]} != 1 || ${#route_gateways[@]} != 1 )); then
+    echo "Expected exactly one IPv4 default-route device and gateway; refusing to guess" >&2
+    ip -4 route show default >&2
+    exit 1
+  fi
+
+  uplink=${route_devices[0]}
+  gateway=${route_gateways[0]}
+}
+
+health_checks() {
+  local actual_device http_code
+
+  actual_device=$(ip -4 -o route show default \
+    | awk '{ for (i = 1; i <= NF; i++) if ($i == "dev") { print $(i + 1); exit } }')
+  [[ $actual_device == "$bridge_name" ]] || {
+    echo "Default route did not move to $bridge_name" >&2
+    return 1
+  }
+
+  ping -c 2 -W 3 "$gateway" >/dev/null || {
+    echo "Gateway check failed: $gateway" >&2
+    return 1
+  }
+
+  getent ahostsv4 "$dns_name" >/dev/null || {
+    echo "DNS check failed: $dns_name" >&2
+    return 1
+  }
+
+  http_code=$(curl --connect-timeout 10 --max-time 20 \
+    --output /dev/null --silent --show-error --write-out '%{http_code}' \
+    "$registry_url")
+  case "$http_code" in
+    2??|401) ;;
+    *)
+      echo "Registry check failed: $registry_url returned HTTP $http_code" >&2
+      return 1
+      ;;
+  esac
+
+  systemctl is-active --quiet sshd.service || {
+    echo "sshd is not active" >&2
+    return 1
+  }
+  ss --listening --tcp --numeric 'sport = :22' | grep -q ':22' || {
+    echo "sshd is not listening on TCP port 22" >&2
+    return 1
+  }
+}
+
+apply_checkpointed() {
+  local uplink=$1
+  local gateway=$2
+  local original_connection=$3
+  local original_autoconnect=$4
+  local permanent_mac=$5
+  local ipv6_method=$6
+  local port_connection="nas-br0-port-$uplink"
+  local successful=
+
+  cleanup_failed_change() {
+    [[ -z $successful ]] || return 0
+    nmcli connection delete id "$port_connection" >/dev/null 2>&1 || true
+    nmcli connection delete id "$bridge_connection" >/dev/null 2>&1 || true
+    nmcli connection modify id "$original_connection" \
+      connection.autoconnect "$original_autoconnect" >/dev/null 2>&1 || true
+    nmcli connection up id "$original_connection" >/dev/null 2>&1 || true
+  }
+  trap cleanup_failed_change EXIT
+
+  if nmcli connection show id "$bridge_connection" >/dev/null 2>&1 \
+    || nmcli connection show id "$port_connection" >/dev/null 2>&1; then
+    echo "A $bridge_connection profile already exists; inspect it before retrying" >&2
+    exit 1
+  fi
+
+  nmcli connection add \
+    type bridge \
+    ifname "$bridge_name" \
+    con-name "$bridge_connection" \
+    connection.autoconnect no \
+    bridge.stp no \
+    ipv4.method auto \
+    ipv6.method "$ipv6_method"
+  nmcli connection modify id "$bridge_connection" \
+    802-3-ethernet.cloned-mac-address "$permanent_mac"
+
+  nmcli connection add \
+    type ethernet \
+    ifname "$uplink" \
+    con-name "$port_connection" \
+    connection.autoconnect no \
+    master "$bridge_connection" \
+    slave-type bridge
+
+  nmcli --wait 90 connection up id "$port_connection"
+  nm-online --quiet --timeout 90
+  health_checks
+
+  successful=1
+  trap - EXIT
+  echo "All bridge health checks passed."
+}
+
+status() {
+  default_route
+  if [[ $uplink == "$bridge_name" ]]; then
+    local type
+    type=$(nmcli --get-values GENERAL.TYPE device show "$bridge_name")
+    [[ $type == bridge ]] || {
+      echo "$bridge_name owns the default route but is not a NetworkManager bridge" >&2
+      exit 1
+    }
+    echo "$bridge_name is active and owns the IPv4 default route via $gateway"
+    return 0
+  fi
+
+  local type
+  type=$(nmcli --get-values GENERAL.TYPE device show "$uplink")
+  echo "Default route: $uplink ($type) via $gateway; bridge is not active"
+}
+
+apply() {
+  require_root
+  default_route
+
+  if [[ $uplink == "$bridge_name" ]]; then
+    status
+    return 0
+  fi
+
+  local type original_connection original_autoconnect permanent_mac ipv4_method ipv6_method
+  local port_connection="nas-br0-port-$uplink"
+  local successful=
+
+  type=$(nmcli --get-values GENERAL.TYPE device show "$uplink")
+  [[ $type == ethernet ]] || {
+    echo "Default-route device $uplink is $type, not a wired Ethernet uplink" >&2
+    exit 1
+  }
+
+  original_connection=$(nmcli --get-values GENERAL.CONNECTION device show "$uplink")
+  [[ -n $original_connection && $original_connection != -- ]] || {
+    echo "No active NetworkManager profile was found for $uplink" >&2
+    exit 1
+  }
+
+  ipv4_method=$(nmcli --get-values ipv4.method connection show id "$original_connection")
+  [[ $ipv4_method == auto ]] || {
+    echo "$original_connection uses IPv4 method $ipv4_method; only DHCP is automated" >&2
+    exit 1
+  }
+
+  ipv6_method=$(nmcli --get-values ipv6.method connection show id "$original_connection")
+  case "$ipv6_method" in
+    auto|disabled|link-local) ;;
+    *)
+      echo "Unsupported IPv6 method on $original_connection: $ipv6_method" >&2
+      exit 1
+      ;;
+  esac
+
+  original_autoconnect=$(nmcli --get-values connection.autoconnect connection show id "$original_connection")
+  permanent_mac=$(cat "/sys/class/net/$uplink/address")
+
+  echo "About to move DHCP from $uplink to $bridge_name using MAC $permanent_mac."
+  echo "NetworkManager will roll back after ${checkpoint_timeout}s without confirmation."
+
+  cleanup_uncommitted_change() {
+    [[ -z $successful ]] || return 0
+    nmcli connection delete id "$port_connection" >/dev/null 2>&1 || true
+    nmcli connection delete id "$bridge_connection" >/dev/null 2>&1 || true
+    nmcli connection modify id "$original_connection" \
+      connection.autoconnect "$original_autoconnect" >/dev/null 2>&1 || true
+    nmcli connection up id "$original_connection" >/dev/null 2>&1 || true
+  }
+  trap cleanup_uncommitted_change EXIT
+
+  # The parent cleanup also handles a declined/timed-out checkpoint: the
+  # checkpoint restores device state, then these non-autoconnect profiles are
+  # removed so a retry does not encounter stale bridge definitions.
+
+  nmcli device checkpoint --timeout "$checkpoint_timeout" -- \
+    "$0" __apply-checkpointed \
+      "$uplink" "$gateway" "$original_connection" "$original_autoconnect" \
+      "$permanent_mac" "$ipv6_method"
+
+  # A declined/timed-out checkpoint may still return after restoring the old
+  # route. Recheck the committed state before changing persistent autoconnect.
+  health_checks
+  nmcli connection modify id "$bridge_connection" connection.autoconnect yes
+  nmcli connection modify id "$port_connection" connection.autoconnect yes
+  nmcli connection modify id "$original_connection" connection.autoconnect no
+  successful=1
+  trap - EXIT
+  echo "$bridge_name is persistent; $original_connection remains available for rollback."
+}
+
+case ${1:-} in
+  status)
+    (( $# == 1 )) || { usage >&2; exit 2; }
+    status
+    ;;
+  apply)
+    (( $# == 1 )) || { usage >&2; exit 2; }
+    apply
+    ;;
+  __apply-checkpointed)
+    require_root
+    shift
+    (( $# == 6 )) || exit 2
+    apply_checkpointed "$@"
+    ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac

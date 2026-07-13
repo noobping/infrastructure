@@ -1,0 +1,177 @@
+#!/bin/sh
+set -eu
+umask 077
+
+if [ "$#" -ne 1 ]; then
+  echo "Usage: $0 STAGING_DIRECTORY" >&2
+  exit 2
+fi
+
+staging=$1
+state_root=/var/lib/rancher/k3s
+backup_root="$state_root/backups"
+quiesce_dir="$backup_root/quiesce"
+finish_hook=/usr/libexec/infrastructure/backup-finish
+kubeconfig=/etc/rancher/k3s/k3s.yaml
+
+kubectl() {
+  /usr/bin/k3s kubectl --kubeconfig "$kubeconfig" "$@"
+}
+
+running_pod() {
+  namespace=$1
+  label=$2
+  pod="$(kubectl -n "$namespace" get pods     --selector "$label"     --field-selector status.phase=Running     --output jsonpath='{.items[0].metadata.name}')"
+  [ -n "$pod" ]
+  printf '%s\n' "$pod"
+}
+
+record_deployment() {
+  namespace=$1
+  name=$2
+  replicas="$(kubectl -n "$namespace" get deployment "$name"     --output jsonpath='{.spec.replicas}')"
+  [ -n "$replicas" ] || replicas=1
+  case "$replicas" in
+    *[!0-9]*|'') return 1 ;;
+  esac
+  printf '%s %s %s\n' "$namespace" "$name" "$replicas"     >> "$quiesce_dir/deployments"
+}
+
+record_cronjob() {
+  namespace=$1
+  name=$2
+  suspend="$(kubectl -n "$namespace" get cronjob "$name"     --output jsonpath='{.spec.suspend}')"
+  [ -n "$suspend" ] || suspend=false
+  case "$suspend" in
+    true|false) ;;
+    *) return 1 ;;
+  esac
+  printf '%s %s %s\n' "$namespace" "$name" "$suspend"     >> "$quiesce_dir/cronjobs"
+}
+
+scale_zero() {
+  namespace=$1
+  name=$2
+  kubectl -n "$namespace" scale deployment "$name" --replicas=0 >/dev/null
+}
+
+wait_zero() {
+  namespace=$1
+  name=$2
+  timeout=${3:-180}
+  deadline=$(( $(date +%s) + timeout ))
+
+  while [ "$(date +%s)" -lt "$deadline" ]; do
+    replicas="$(kubectl -n "$namespace" get deployment "$name"       --output jsonpath='{.status.replicas}')"
+    available="$(kubectl -n "$namespace" get deployment "$name"       --output jsonpath='{.status.availableReplicas}')"
+    [ -n "$replicas" ] || replicas=0
+    [ -n "$available" ] || available=0
+    if [ "$replicas" = 0 ] && [ "$available" = 0 ]; then
+      return 0
+    fi
+    sleep 2
+  done
+
+  echo "Timed out quiescing deployment $namespace/$name" >&2
+  return 1
+}
+
+finish_on_error() {
+  status=$?
+  trap - EXIT INT TERM
+  if [ -d "$quiesce_dir" ]; then
+    "$finish_hook" || {
+      status=1
+      echo "URGENT: failed to restore K3s workloads after prepare error" >&2
+    }
+  fi
+  exit "$status"
+}
+trap finish_on_error EXIT INT TERM
+
+[ -r "$kubeconfig" ]
+[ -d "$staging" ]
+kubectl get --raw=/readyz >/dev/null
+
+# Recover from an interrupted prior backup before recording fresh state.
+if [ -d "$quiesce_dir" ]; then
+  "$finish_hook"
+fi
+
+install -d -o root -g root -m 0700 "$quiesce_dir"
+: > "$quiesce_dir/deployments"
+: > "$quiesce_dir/cronjobs"
+
+for item in   flux-system/kustomize-controller   ingress/caddy   nextcloud/nextcloud   office/euro-office   paperless/paperless   monitoring/uptime-kuma   registry/registry; do
+  namespace=${item%/*}
+  name=${item#*/}
+  record_deployment "$namespace" "$name"
+done
+
+record_cronjob nextcloud nextcloud-cron
+record_cronjob nextcloud nextcloud-office-configure
+
+flux_suspend="$(kubectl -n flux-system get kustomization infrastructure-cluster   --output jsonpath='{.spec.suspend}')"
+[ -n "$flux_suspend" ] || flux_suspend=false
+case "$flux_suspend" in
+  true|false) ;;
+  *) exit 1 ;;
+esac
+printf '%s\n' "$flux_suspend" > "$quiesce_dir/flux-suspend"
+scale_zero flux-system kustomize-controller
+wait_zero flux-system kustomize-controller
+
+# Prevent Flux and scheduled jobs from undoing the quiesce.
+kubectl -n flux-system patch kustomization infrastructure-cluster   --type merge --patch '{"spec":{"suspend":true}}' >/dev/null
+kubectl -n nextcloud patch cronjob nextcloud-cron   --type merge --patch '{"spec":{"suspend":true}}' >/dev/null
+kubectl -n nextcloud patch cronjob nextcloud-office-configure   --type merge --patch '{"spec":{"suspend":true}}' >/dev/null
+kubectl -n nextcloud delete jobs --all --ignore-not-found --wait=true --timeout=120s >/dev/null
+
+# Capture the CA while Caddy is still available, then close the ingress before
+# stopping application writers.
+caddy_pod="$(running_pod ingress 'app.kubernetes.io/name=caddy')"
+kubectl -n ingress exec "$caddy_pod" -c caddy --   tar -C /data -cf - caddy/pki/authorities/local   > "$staging/caddy-local-ca.tar"
+[ -s "$staging/caddy-local-ca.tar" ]
+chmod 0600 "$staging/caddy-local-ca.tar"
+
+scale_zero ingress caddy
+wait_zero ingress caddy
+
+# Document Server saves after editors disconnect and may need Nextcloud for the
+# final callback. Drain it with ingress closed but Nextcloud still running. The
+# Deployment preStop hook repeats this best-effort when scale-down terminates
+# the pod; the explicit drain remains fatal for an application-consistent
+# backup. Always complete the Office scale-down before acting on that status so
+# the EXIT recovery can create a fresh pod after a partial drain.
+running_pod nextcloud 'app.kubernetes.io/name=nextcloud' >/dev/null
+office_pod="$(running_pod office 'app.kubernetes.io/name=euro-office')"
+office_shutdown_status=0
+kubectl -n office exec "$office_pod" -c documentserver -- \
+  /usr/bin/documentserver-prepare4shutdown.sh \
+  || office_shutdown_status=$?
+scale_zero office euro-office
+wait_zero office euro-office 420
+if [ "$office_shutdown_status" -ne 0 ]; then
+  echo "Euro-Office failed to prepare for shutdown; aborting backup" >&2
+  exit 1
+fi
+
+# Paperless' supported exporter is supplementary to the PostgreSQL dump. Run it
+# with ingress closed, then stop its web/worker deployment before dumping.
+paperless_pod="$(running_pod paperless 'app.kubernetes.io/name=paperless')"
+kubectl -n paperless exec "$paperless_pod" -c paperless --   document_exporter ../export
+
+for item in   nextcloud/nextcloud   paperless/paperless   monitoring/uptime-kuma   registry/registry; do
+  namespace=${item%/*}
+  name=${item#*/}
+  scale_zero "$namespace" "$name"
+done
+
+while IFS=' ' read -r namespace name replicas; do
+  [ -n "$namespace" ] || continue
+  wait_zero "$namespace" "$name"
+done < "$quiesce_dir/deployments"
+
+: > "$quiesce_dir/prepared"
+sync -f "$state_root"
+trap - EXIT INT TERM

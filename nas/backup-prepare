@@ -1,0 +1,32 @@
+#!/usr/bin/bash
+set -euo pipefail
+
+vm_root=${VM_STORAGE_ROOT:-/var/srv/ssd/vms}
+metadata_dir="$vm_root/config"
+
+install -d -m 2770 -o root -g qemu "$metadata_dir"
+
+inventory=${VM_INVENTORY_FILE:-}
+if [[ -z $inventory ]]; then
+  for candidate in \
+    /etc/infrastructure/vms/inventory.json \
+    /var/srv/git/infrastructure/vms/inventory.json; do
+    if [[ -r $candidate ]]; then
+      inventory=$candidate
+      break
+    fi
+  done
+fi
+if [[ -n $inventory && -r $inventory ]]; then
+  install -m 0640 -o root -g qemu "$inventory" "$metadata_dir/inventory.json"
+fi
+
+if virsh uri >/dev/null 2>&1; then
+  while IFS= read -r domain; do
+    [[ -n $domain ]] || continue
+    virsh dumpxml "$domain" > "$metadata_dir/$domain.xml"
+    virsh domblklist "$domain" --details > "$metadata_dir/$domain.block-devices"
+    chmod 0640 "$metadata_dir/$domain.xml" "$metadata_dir/$domain.block-devices"
+    chown root:qemu "$metadata_dir/$domain.xml" "$metadata_dir/$domain.block-devices"
+  done < <(virsh list --all --name | sort)
+fi

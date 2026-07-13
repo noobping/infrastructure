@@ -1,0 +1,111 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - {port: 53, protocol: UDP}
+        - {port: 53, protocol: TCP}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: nextcloud-web
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: nextcloud
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: office
+      ports:
+        - {port: 80, protocol: TCP}
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: nextcloud-postgresql
+      ports:
+        - {port: 5432, protocol: TCP}
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: nextcloud-redis
+      ports:
+        - {port: 6379, protocol: TCP}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: office
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: euro-office
+      ports:
+        - {port: 80, protocol: TCP}
+    # App downloads, update checks, SMTP-over-TLS, and federated shares.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - {port: 80, protocol: TCP}
+        - {port: 443, protocol: TCP}
+        - {port: 465, protocol: TCP}
+        - {port: 587, protocol: TCP}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: nextcloud-postgresql
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: nextcloud-postgresql
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: nextcloud
+      ports:
+        - {port: 5432, protocol: TCP}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: nextcloud-redis
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: nextcloud-redis
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: nextcloud
+      ports:
+        - {port: 6379, protocol: TCP}

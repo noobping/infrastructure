@@ -1,0 +1,28 @@
+table inet suricata {
+  chain input {
+    type filter hook input priority filter - 10; policy accept;
+
+    iifname "lo" return
+    iifname { "podman*", "cni*", "flannel*", "veth*" } return
+    meta mark & 0x1 == 0x1 return
+    queue num 0
+  }
+
+  chain output {
+    type filter hook output priority filter - 10; policy accept;
+
+    oifname "lo" return
+    oifname { "podman*", "cni*", "flannel*", "veth*" } return
+    meta mark & 0x1 == 0x1 return
+    queue num 0
+  }
+
+  chain forward {
+    type filter hook forward priority filter - 10; policy accept;
+
+    iifname { "lo", "podman*", "cni*", "flannel*", "veth*" } return
+    oifname { "lo", "podman*", "cni*", "flannel*", "veth*" } return
+    meta mark & 0x1 == 0x1 return
+    queue num 0
+  }
+}

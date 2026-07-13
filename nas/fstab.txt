@@ -1,5 +1,4 @@
 LABEL=ssd /var/srv/ssd btrfs nofail,subvol=/ 0 0
-LABEL=ssd /var/lib/containers btrfs nofail,subvol=apps 0 0
 LABEL=ssd /var/srv/books btrfs nofail,subvol=books 0 0
 LABEL=hdd /var/srv/data btrfs nofail,subvol=data 0 0
 LABEL=ssd /var/srv/docs btrfs nofail,subvol=docs 0 0

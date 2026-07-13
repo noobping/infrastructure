@@ -1,5 +1,7 @@
 ARG IMAGE_NAMESPACE=ghcr.io/noobping
-FROM ${IMAGE_NAMESPACE}/ips:latest
+ARG TAG=latest
+FROM ${IMAGE_NAMESPACE}/ips:${TAG}
+ARG IMAGE_NAMESPACE
 
 LABEL org.opencontainers.image.title="NAS"
 LABEL org.opencontainers.image.description="a bootable container"
@@ -11,76 +13,139 @@ RUN set -euxo pipefail; \
   rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
   ostree container commit
 
-RUN rpm-ostree install -y \
-    libvirt qemu-kvm pcp-zeroconf smartmontools \
-    cockpit-system cockpit-ostree cockpit-podman cockpit-machines cockpit-storaged cockpit-files cockpit-networkmanager cockpit-sosreport cockpit-kdump cockpit-selinux \
-    gssproxy \
-    nut \
-    toolbox git tmux; \
-
-  ln -s /var/srv/git /git; \
+RUN set -euxo pipefail; \
+  rpm-ostree install -y \
+    git tmux \
+    ignition-validate nfs-utils smartmontools \
+    libvirt-client libvirt-daemon libvirt-daemon-config-network \
+    libvirt-daemon-kvm libvirt-dbus qemu-kvm pcp-zeroconf \
+    cockpit-ws cockpit-system cockpit-ostree cockpit-podman cockpit-machines cockpit-storaged cockpit-files cockpit-networkmanager cockpit-sosreport cockpit-kdump cockpit-selinux \
+    nut gssproxy; \
   rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
   mkdir -p \
+  /etc/exports.d \
+  /etc/nfs.conf.d \
   /etc/nftables/rules \
-  /etc/modules-load.d \
+  /etc/systemd/system/libvirt-guests.service.d \
+  /etc/systemd/system/libvirtd-ro.socket.d \
+  /etc/systemd/system/libvirtd.service.d \
+  /etc/systemd/system/libvirtd.socket.d \
+  /etc/systemd/system/nfs-server.service.d \
   /etc/polkit-1/rules.d \
+  /etc/tuned \
   /etc/ups \
-  /etc/systemd/system/multi-user.target.wants \
-  /etc/systemd/system/timers.target.wants \
+  /usr/lib/infrastructure \
+  /usr/lib/systemd/system/rpm-ostree-upgrade.service.d \
   /usr/libexec/infrastructure \
   /var/lib/suricata \
   /var/log/suricata \
-  /var/www; \
-  install -d -m 0755 -o 1007 -g 1007 /var/www/git; \
-  ln -s /var/www/git /web; \
+  /var/srv/git; \
+  ln -s /var/srv/git /git; \
   ostree container commit
 
-COPY fstab.txt /etc/fstab
-COPY todo.sh /usr/bin/todo
-COPY btrfs-backup /usr/libexec/infrastructure/btrfs-backup
-COPY btrfs-backup.service /etc/systemd/system/btrfs-backup.service
-COPY btrfs-backup.timer /etc/systemd/system/btrfs-backup.timer
-COPY caddy.conf /etc/caddy.conf
-COPY caddy-prepare /usr/libexec/infrastructure/caddy-prepare
-COPY caddy-prepare.service /etc/systemd/system/caddy-prepare.service
-COPY containers /etc/containers/systemd
-COPY libvirtd.conf /etc/libvirt/libvirtd.conf
-COPY localhost-registry.conf /etc/containers/registries.conf.d/10-localhost-registry.conf
-COPY mdadm.conf /etc/mdadm.conf
-COPY nextcloud-wildcard.config.php /etc/nextcloud-wildcard.config.php
-COPY nut-configure /usr/libexec/infrastructure/nut-configure
-COPY nut-configure.service /etc/systemd/system/nut-configure.service
-COPY nut.env.example /etc/ups/nut.env.example
-COPY paperless-prepare /usr/libexec/infrastructure/paperless-prepare
-COPY paperless-prepare.service /etc/systemd/system/paperless-prepare.service
-COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
-COPY nftables /etc/nftables/rules
-COPY suricata.nft /etc/nftables/suricata.nft
+COPY nas/fstab.txt /etc/fstab
+COPY --chmod=0755 nas/todo.sh /usr/bin/todo
+COPY --chmod=0755 nas/backup-prepare /usr/libexec/infrastructure/backup-prepare
+COPY --chmod=0755 nas/vm-guest-backup-prepare /usr/libexec/infrastructure/vm-guest-backup-prepare
+COPY --chmod=0755 nas/btrfs-backup /usr/libexec/infrastructure/btrfs-backup
+COPY nas/btrfs-backup.service /etc/systemd/system/btrfs-backup.service
+COPY nas/btrfs-backup.timer /etc/systemd/system/btrfs-backup.timer
+COPY --chmod=0755 nas/configure-vm-bridge /usr/libexec/infrastructure/nas-vm-bridge
+COPY nas/libvirtd.conf /etc/libvirt/libvirtd.conf
+COPY nas/libvirt-access.sysusers /usr/lib/sysusers.d/80-infrastructure-libvirt.conf
+COPY nas/libvirtd.socket.conf /etc/systemd/system/libvirtd.socket.d/10-access.conf
+COPY nas/libvirtd.socket.conf /etc/systemd/system/libvirtd-ro.socket.d/10-access.conf
+COPY nas/libvirtd.service.conf /etc/systemd/system/libvirtd.service.d/10-network.conf
+COPY nas/libvirt-guests /etc/sysconfig/libvirt-guests
+COPY nas/libvirt-guests.service.conf /etc/systemd/system/libvirt-guests.service.d/10-infrastructure.conf
+COPY nas/mdadm.conf /etc/mdadm.conf
+COPY nas/nfs/vm-data.exports /etc/exports.d/vm-data.exports
+COPY nas/nfs/vm-storage.conf /etc/nfs.conf.d/vm-storage.conf
+COPY nas/nfs/nfs-server.conf /etc/systemd/system/nfs-server.service.d/10-vm-storage.conf
+COPY --chmod=0755 nas/nfs-firewall-prepare /usr/libexec/infrastructure/nfs-firewall-prepare
+COPY nas/nfs-firewall-prepare.service /etc/systemd/system/nfs-firewall-prepare.service
+COPY --chmod=0755 nas/nut-configure /usr/libexec/infrastructure/nut-configure
+COPY nas/nut-configure.service /etc/systemd/system/nut-configure.service
+COPY nas/nut.env.example /etc/ups/nut.env.example
+COPY nas/polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
+COPY --chmod=0600 nas/nftables/*.nft /etc/nftables/rules/
+COPY nas/suricata.nft /etc/nftables/suricata.nft
+COPY --chmod=0755 nas/vm-storage-prepare /usr/libexec/infrastructure/vm-storage-prepare
+COPY nas/vm-storage-prepare.service /etc/systemd/system/vm-storage-prepare.service
+COPY nas/nas-bootc-image-ref.conf /usr/lib/tmpfiles.d/nas-bootc-image-ref.conf
+COPY nas/rpm-ostree-upgrade-verified.conf /usr/lib/systemd/system/rpm-ostree-upgrade.service.d/90-verified-bootc.conf
+COPY --chmod=0755 vm/bootc-verified-update /usr/libexec/infrastructure/bootc-verified-update
+COPY --chmod=0755 vm/install-cosign /usr/libexec/infrastructure/install-cosign
+COPY --chmod=0755 vm/verify-bootc-image /usr/libexec/infrastructure/verify-bootc-image
 
 RUN set -euxo pipefail; \
-  chmod -R 0600 /etc/nftables/rules; \
-  find /etc/containers/systemd -type f \( -name '*.container' -o -name '*.network' \) -exec chmod 0644 '{}' ';'; \
-  chmod 0755 \
-    /usr/libexec/infrastructure/btrfs-backup \
-    /usr/libexec/infrastructure/caddy-prepare \
-    /usr/libexec/infrastructure/paperless-prepare; \
-  awk '/set allowed_tcp_dports[[:space:]]*\{/{flag=1} flag{print} /^\t*\}/{if(flag){exit}}' /etc/nftables/main.nft \
-  | grep -q '\<http\>' \
-  || sed -i '/set allowed_tcp_dports[[:space:]]*{/,/}/{/elements = {/ s/}/, http, https}/;}' /etc/nftables/main.nft; \
-  grep -q 'include "/etc/nftables/rules/\\*.nft"' /etc/nftables/main.nft \
-  || sed -i '/tcp dport @allowed_tcp_dports accept/i\        include "/etc/nftables/rules/*.nft"' /etc/nftables/main.nft; \
+  /usr/libexec/infrastructure/verify-bootc-image --self-test; \
+  /usr/libexec/infrastructure/bootc-verified-update --self-test; \
+  /usr/bin/bash -n /usr/libexec/infrastructure/vm-storage-prepare; \
+  rpm -q \
+    cockpit-machines cockpit-podman libvirt-client libvirt-daemon \
+    libvirt-daemon-config-network libvirt-daemon-kvm libvirt-dbus podman \
+    libvirt-daemon-driver-network libvirt-daemon-driver-nodedev \
+    libvirt-daemon-driver-qemu libvirt-daemon-driver-storage-core; \
+  test -x /usr/bin/libvirtd; \
+  test -f /usr/lib/systemd/system/libvirtd.service; \
+  test -f /usr/share/cockpit/machines/manifest.json; \
+  test -f /usr/share/cockpit/podman/manifest.json; \
+  test -f /usr/lib/systemd/system/podman.socket; \
+  /usr/libexec/infrastructure/install-cosign /usr/bin/cosign; \
+  /usr/bin/cosign version; \
+  printf '%s\n' "${IMAGE_NAMESPACE}/nas:latest" > /etc/bootc-image-ref; \
+  printf '%s\n' "${IMAGE_NAMESPACE}/nas:latest" > /usr/lib/infrastructure/nas-bootc-image-ref; \
+  chmod 0644 /etc/bootc-image-ref /usr/lib/infrastructure/nas-bootc-image-ref; \
+  ln -sf ../libexec/infrastructure/nas-vm-bridge /usr/bin/nas-vm-bridge; \
   grep -q 'include "/etc/nftables/suricata.nft"' /etc/nftables/main.nft \
   || printf '\ninclude "/etc/nftables/suricata.nft"\n' >> /etc/nftables/main.nft; \
-  ln -sf /usr/lib/systemd/system/libvirtd.service \
-    /etc/systemd/system/multi-user.target.wants/libvirtd.service; \
-  ln -sf /usr/lib/systemd/system/virtlockd.service \
-    /etc/systemd/system/multi-user.target.wants/virtlockd.service; \
-  ln -sf /usr/lib/systemd/system/virtlogd.service \
-    /etc/systemd/system/multi-user.target.wants/virtlogd.service; \
-  ln -sf /etc/systemd/system/nut-configure.service \
-    /etc/systemd/system/multi-user.target.wants/nut-configure.service; \
-  ln -sf /etc/systemd/system/paperless-prepare.service \
-    /etc/systemd/system/multi-user.target.wants/paperless-prepare.service; \
-  ln -sf /etc/systemd/system/btrfs-backup.timer \
-    /etc/systemd/system/timers.target.wants/btrfs-backup.timer; \
-  ostree container commit
+  rm -f /etc/libvirt/qemu/networks/autostart/default.xml; \
+  printf '%s\n' virtual-host > /etc/tuned/active_profile; \
+  printf '%s\n' manual > /etc/tuned/profile_mode; \
+  test -f /usr/lib/tuned/profiles/virtual-host/tuned.conf; \
+  for daemon in \
+    virtinterfaced virtnetworkd virtnodedevd virtnwfilterd \
+    virtproxyd virtqemud virtsecretd virtstoraged; do \
+    systemctl disable \
+      "$daemon.service" "$daemon.socket" \
+      "$daemon-ro.socket" "$daemon-admin.socket"; \
+    systemctl mask \
+      "$daemon.service" "$daemon.socket" \
+      "$daemon-ro.socket" "$daemon-admin.socket"; \
+  done; \
+  systemctl mask libvirtd-tcp.socket libvirtd-tls.socket; \
+  systemctl unmask \
+    libvirtd.service libvirtd.socket \
+    libvirtd-ro.socket libvirtd-admin.socket; \
+  systemctl enable \
+    cockpit.socket libvirt-guests.service nfs-server.service tuned.service \
+    nfs-firewall-prepare.service nut-configure.service \
+    vm-storage-prepare.service btrfs-backup.timer \
+    libvirtd.service libvirtd.socket \
+    libvirtd-ro.socket libvirtd-admin.socket; \
+  ostree container commit; \
+  for unit in \
+    cockpit.socket libvirtd.service libvirtd.socket \
+    libvirtd-ro.socket libvirtd-admin.socket \
+    virtlockd.socket virtlogd.socket; do \
+    test "$(systemctl is-enabled "$unit")" = enabled; \
+  done; \
+  for daemon in \
+    virtinterfaced virtnetworkd virtnodedevd virtnwfilterd \
+    virtproxyd virtqemud virtsecretd virtstoraged; do \
+    for unit in \
+      "$daemon.service" "$daemon.socket" \
+      "$daemon-ro.socket" "$daemon-admin.socket"; do \
+      state=$(systemctl is-enabled "$unit" 2>/dev/null || true); \
+      test "$state" = masked; \
+    done; \
+  done; \
+  systemd-analyze verify --man=no \
+    btrfs-backup.service btrfs-backup.timer \
+    cockpit.socket gssproxy.service libvirt-dbus.service podman.socket \
+    libvirt-guests.service libvirtd.service \
+    libvirtd.socket libvirtd-ro.socket libvirtd-admin.socket \
+    virtlockd.socket virtlogd.socket \
+    nfs-firewall-prepare.service nfs-server.service nut-configure.service \
+    tuned.service vm-storage-prepare.service
