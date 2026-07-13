@@ -18,8 +18,7 @@ RUN set -euxo pipefail; \
   rpm-ostree install -y \
     git tmux \
     ignition-validate nfs-utils smartmontools \
-    libvirt-client libvirt-daemon libvirt-daemon-config-network \
-    libvirt-daemon-kvm libvirt-dbus qemu-kvm pcp-zeroconf \
+    libvirt qemu-kvm pcp-zeroconf \
     cockpit-ws cockpit-system cockpit-ostree cockpit-podman cockpit-machines cockpit-storaged cockpit-files cockpit-networkmanager cockpit-sosreport cockpit-kdump cockpit-selinux \
     nut gssproxy; \
   rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
