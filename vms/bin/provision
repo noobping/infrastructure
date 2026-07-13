@@ -241,7 +241,7 @@ provision_one() (
   fi
   [[ -r $ignition_source ]] || {
     echo "Missing canonical Ignition for $name: $ignition_source" >&2
-    echo "Render the guest configs described in butane/README-vms.md first." >&2
+    echo "Render the guest configs described in butane/README.md first." >&2
     return 1
   }
 

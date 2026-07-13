@@ -126,21 +126,6 @@ On an existing installation, run `passwd` once as `nick` to replace the old
 local password with a unique one before using password-based console or Cockpit
 login; the early SSH drop-in keeps that password unusable over SSH.
 
-The built-in libvirt `default` NAT network is not autostarted; disable any
-inherited active instance before cutover so `virbr0` is absent.
-`libvirt-guests.service` cleanly shuts down the three guests in parallel at the
-nightly host power cycle so staged guest deployments activate.
-
-The host uses the monolithic `libvirtd` daemon for QEMU, networking, devices,
-secrets, and storage. Its local read-write and read-only sockets are restricted
-to the `libvirt` group. All modular driver and proxy units are masked so they
-cannot race `libvirtd` for the same drivers or compatibility socket.
-
-`libvirtd` waits for NetworkManager but deliberately does not require
-`/var/srv/ssd`, so Cockpit remains available to diagnose a missing or failed
-SSD. The independent storage-preparation service requires that mount and uses
-`qemu:///system` to create and start the `infrastructure-vms` pool.
-
 The LAN bridge is intentionally not created automatically during an image
 deployment. Run `nas-vm-bridge status` and then `sudo nas-vm-bridge apply` in a
 maintenance session after creating the UniFi reservations. The helper accepts

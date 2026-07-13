@@ -54,7 +54,8 @@ systemctl status vm-storage-prepare.service tuned.service \
   libvirtd.service libvirt-guests.service
 systemctl is-enabled \
   libvirtd.socket libvirtd-ro.socket libvirtd-admin.socket
-systemctl is-enabled virtqemud.service virtqemud.socket | grep -Fx masked
+systemctl is-enabled virtlockd.service virtlogd.service
+systemctl is-enabled virtqemud.service virtqemud.socket | grep -Fx disabled
 grep -E '^(ON_SHUTDOWN|PARALLEL_SHUTDOWN)=' \
   /etc/sysconfig/libvirt-guests
 tuned-adm active

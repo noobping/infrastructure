@@ -2,6 +2,7 @@ ARG IMAGE_NAMESPACE=ghcr.io/noobping
 ARG TAG=latest
 FROM ${IMAGE_NAMESPACE}/ips:${TAG}
 ARG IMAGE_NAMESPACE
+ARG TAG
 
 LABEL org.opencontainers.image.title="NAS"
 LABEL org.opencontainers.image.description="a bootable container"
@@ -94,41 +95,24 @@ RUN set -euxo pipefail; \
   test -f /usr/lib/systemd/system/podman.socket; \
   /usr/libexec/infrastructure/install-cosign /usr/bin/cosign; \
   /usr/bin/cosign version; \
-  printf '%s\n' "${IMAGE_NAMESPACE}/nas:latest" > /etc/bootc-image-ref; \
-  printf '%s\n' "${IMAGE_NAMESPACE}/nas:latest" > /usr/lib/infrastructure/nas-bootc-image-ref; \
+  printf '%s\n' "${IMAGE_NAMESPACE}/nas:${TAG}" > /etc/bootc-image-ref; \
+  printf '%s\n' "${IMAGE_NAMESPACE}/nas:${TAG}" > /usr/lib/infrastructure/nas-bootc-image-ref; \
   chmod 0644 /etc/bootc-image-ref /usr/lib/infrastructure/nas-bootc-image-ref; \
   ln -sf ../libexec/infrastructure/nas-vm-bridge /usr/bin/nas-vm-bridge; \
   grep -q 'include "/etc/nftables/suricata.nft"' /etc/nftables/main.nft \
   || printf '\ninclude "/etc/nftables/suricata.nft"\n' >> /etc/nftables/main.nft; \
   rm -f /etc/libvirt/qemu/networks/autostart/default.xml; \
-  printf '%s\n' virtual-host > /etc/tuned/active_profile; \
-  printf '%s\n' manual > /etc/tuned/profile_mode; \
-  test -f /usr/lib/tuned/profiles/virtual-host/tuned.conf; \
-  for daemon in \
-    virtinterfaced virtnetworkd virtnodedevd virtnwfilterd \
-    virtproxyd virtqemud virtsecretd virtstoraged; do \
-    systemctl disable \
-      "$daemon.service" "$daemon.socket" \
-      "$daemon-ro.socket" "$daemon-admin.socket"; \
-    systemctl mask \
-      "$daemon.service" "$daemon.socket" \
-      "$daemon-ro.socket" "$daemon-admin.socket"; \
-  done; \
-  systemctl mask libvirtd-tcp.socket libvirtd-tls.socket; \
-  systemctl unmask \
-    libvirtd.service libvirtd.socket \
-    libvirtd-ro.socket libvirtd-admin.socket; \
   systemctl enable \
-    cockpit.socket libvirt-guests.service nfs-server.service tuned.service \
+    cockpit.socket nfs-server.service tuned.service \
     nfs-firewall-prepare.service nut-configure.service \
     vm-storage-prepare.service btrfs-backup.timer \
-    libvirtd.service libvirtd.socket \
-    libvirtd-ro.socket libvirtd-admin.socket; \
+    libvirtd virtlockd virtlogd; \
   ostree container commit; \
   for unit in \
-    cockpit.socket libvirtd.service libvirtd.socket \
+    cockpit.socket libvirtd libvirtd.socket \
     libvirtd-ro.socket libvirtd-admin.socket \
-    virtlockd.socket virtlogd.socket; do \
+    virtlockd virtlockd.socket \
+    virtlogd virtlogd.socket; do \
     test "$(systemctl is-enabled "$unit")" = enabled; \
   done; \
   for daemon in \
@@ -138,7 +122,7 @@ RUN set -euxo pipefail; \
       "$daemon.service" "$daemon.socket" \
       "$daemon-ro.socket" "$daemon-admin.socket"; do \
       state=$(systemctl is-enabled "$unit" 2>/dev/null || true); \
-      test "$state" = masked; \
+      test "$state" = disabled; \
     done; \
   done; \
   systemd-analyze verify --man=no \
@@ -146,6 +130,7 @@ RUN set -euxo pipefail; \
     cockpit.socket gssproxy.service libvirt-dbus.service podman.socket \
     libvirt-guests.service libvirtd.service \
     libvirtd.socket libvirtd-ro.socket libvirtd-admin.socket \
-    virtlockd.socket virtlogd.socket \
+    virtlockd.service virtlockd.socket \
+    virtlogd.service virtlogd.socket \
     nfs-firewall-prepare.service nfs-server.service nut-configure.service \
     tuned.service vm-storage-prepare.service
