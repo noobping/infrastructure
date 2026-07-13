@@ -1,0 +1,62 @@
+# This never runs on a schedule. After Nextcloud migration, create a one-shot
+# Job from it as documented in cluster/README.md.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: nextcloud-office-configure
+  labels:
+    app.kubernetes.io/name: nextcloud
+    app.kubernetes.io/component: office-configure
+spec:
+  schedule: "0 0 1 1 *"
+  suspend: true
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      activeDeadlineSeconds: 900
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: nextcloud
+            app.kubernetes.io/component: office-configure
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: OnFailure
+          securityContext:
+            runAsUser: 33
+            runAsGroup: 33
+            fsGroup: 33
+          containers:
+            - name: configure
+              image: docker.io/library/nextcloud:34.0.1-apache@sha256:6444fc5450302534e850b4d23c05b5f06c7b0d25bd5ece716452061454699c58
+              imagePullPolicy: IfNotPresent
+              workingDir: /var/www/html
+              command: [/bin/sh, -ec]
+              args:
+                - |
+                  php occ app:install eurooffice || php occ app:enable eurooffice
+                  php occ config:app:set eurooffice DocumentServerUrl --value='https://office.vm/'
+                  php occ config:app:set eurooffice DocumentServerInternalUrl --value='http://euro-office.office.svc.cluster.local/'
+                  php occ config:app:set eurooffice StorageUrl --value='http://nextcloud.nextcloud.svc.cluster.local/'
+                  php occ config:app:set eurooffice jwt_secret --value="$JWT_SECRET"
+                  php occ config:app:set eurooffice jwt_header --value='AuthorizationJWT'
+                  php occ eurooffice:documentserver --check
+              env:
+                - name: JWT_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: euro-office-connector
+                      key: jwt-secret
+              resources:
+                requests: {cpu: 50m, memory: 256Mi}
+                limits: {cpu: "1", memory: 1Gi}
+              volumeMounts:
+                - {name: nextcloud-data, mountPath: /var/www/html}
+          volumes:
+            - name: nextcloud-data
+              persistentVolumeClaim:
+                claimName: nextcloud-data
+

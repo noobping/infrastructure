@@ -1,0 +1,49 @@
+ARG IMAGE_NAMESPACE=ghcr.io/noobping
+ARG TAG=latest
+FROM ${IMAGE_NAMESPACE}/ips:${TAG}
+
+LABEL org.opencontainers.image.title="Virtual machine base"
+LABEL org.opencontainers.image.description="Fedora CoreOS bootc base for KVM guests"
+
+RUN set -euxo pipefail; \
+  rpm-ostree install -y qemu-guest-agent; \
+  rpm -q qemu-guest-agent tuned; \
+  command -v mount.nfs; \
+  command -v mount.nfs4; \
+  rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
+  mkdir -p \
+    /etc/nftables/rules \
+    /etc/systemd/system/clamav-prepare.service.d \
+    /etc/systemd/system/qemu-guest-agent.service.d \
+    /etc/tuned \
+    /usr/libexec/infrastructure; \
+  ostree container commit
+
+COPY --chmod=0755 bootc-verified-update /usr/libexec/infrastructure/bootc-verified-update
+COPY --chmod=0755 install-cosign /usr/libexec/infrastructure/install-cosign
+COPY qemu-guest-agent-selinux.service /etc/systemd/system/qemu-guest-agent-selinux.service
+COPY qemu-guest-agent.conf /etc/systemd/system/qemu-guest-agent.service.d/10-selinux.conf
+COPY suricata.nft /etc/nftables/suricata-vm.nft
+COPY --chmod=0755 verify-bootc-image /usr/libexec/infrastructure/verify-bootc-image
+
+RUN set -euxo pipefail; \
+  /usr/libexec/infrastructure/verify-bootc-image --self-test; \
+  /usr/libexec/infrastructure/bootc-verified-update --self-test; \
+  grep -qxF 'OnAccessIncludePath /var/lib/containers' /etc/clamd.d/scan.conf \
+  || printf '%s\n' 'OnAccessIncludePath /var/lib/containers' >> /etc/clamd.d/scan.conf; \
+  grep -qxF 'OnAccessIncludePath /var/lib/rancher' /etc/clamd.d/scan.conf \
+  || printf '%s\n' 'OnAccessIncludePath /var/lib/rancher' >> /etc/clamd.d/scan.conf; \
+  printf '%s\n' \
+    '[Service]' \
+    'ExecStartPre=/usr/bin/install -d -m 0755 /var/lib/containers /var/lib/rancher' \
+    > /etc/systemd/system/clamav-prepare.service.d/10-vm-state.conf; \
+  /usr/libexec/infrastructure/install-cosign /usr/bin/cosign; \
+  /usr/bin/cosign version; \
+  printf '%s\n' virtual-guest > /etc/tuned/active_profile; \
+  printf '%s\n' manual > /etc/tuned/profile_mode; \
+  test -f /usr/lib/tuned/profiles/virtual-guest/tuned.conf; \
+  : > /etc/nftables/rules/00-vm-base.nft; \
+  grep -q 'include "/etc/nftables/suricata-vm.nft"' /etc/nftables/main.nft \
+  || printf '\ninclude "/etc/nftables/suricata-vm.nft"\n' >> /etc/nftables/main.nft; \
+  systemctl enable qemu-guest-agent.service tuned.service; \
+  ostree container commit

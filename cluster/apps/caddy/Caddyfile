@@ -1,0 +1,94 @@
+{
+	admin 0.0.0.0:2019
+}
+
+(internal_tls) {
+	tls internal
+	encode zstd gzip
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy same-origin
+	}
+}
+
+nextcloud.vm {
+	import internal_tls
+
+	redir /.well-known/carddav /remote.php/dav/ 301
+	redir /.well-known/caldav /remote.php/dav/ 301
+	reverse_proxy http://nextcloud.nextcloud.svc.cluster.local:80
+}
+
+office.vm {
+	import internal_tls
+	reverse_proxy http://euro-office.office.svc.cluster.local:80
+}
+
+paperless.vm {
+	import internal_tls
+	reverse_proxy http://paperless.paperless.svc.cluster.local:8000
+}
+
+status.vm {
+	import internal_tls
+	reverse_proxy http://uptime-kuma.monitoring.svc.cluster.local:3001
+}
+
+registry.vm {
+	import internal_tls
+	header Docker-Distribution-Api-Version "registry/2.0"
+	reverse_proxy http://registry.registry.svc.cluster.local:5000
+}
+
+music.vm {
+	import internal_tls
+	reverse_proxy http://jellyfin.vm:8096
+}
+
+apps.vm {
+	import internal_tls
+
+	@nextcloud_root path /nextcloud
+	redir @nextcloud_root https://nextcloud.vm/ 308
+	handle /nextcloud/* {
+		route {
+			uri strip_prefix /nextcloud
+			redir https://nextcloud.vm{uri} 308
+		}
+	}
+
+	@paperless_root path /paperless
+	redir @paperless_root https://paperless.vm/ 308
+	handle /paperless/* {
+		route {
+			uri strip_prefix /paperless
+			redir https://paperless.vm{uri} 308
+		}
+	}
+
+	@status_root path /status
+	redir @status_root https://status.vm/ 308
+	handle /status/* {
+		route {
+			uri strip_prefix /status
+			redir https://status.vm{uri} 308
+		}
+	}
+
+	@music_root path /music
+	redir @music_root https://music.vm/ 308
+	handle /music/* {
+		route {
+			uri strip_prefix /music
+			redir https://music.vm{uri} 308
+		}
+	}
+
+	@registry path /v2 /v2/*
+	handle @registry {
+		header Docker-Distribution-Api-Version "registry/2.0"
+		reverse_proxy http://registry.registry.svc.cluster.local:5000
+	}
+
+	respond "Use nextcloud.vm, paperless.vm, office.vm, status.vm, registry.vm, or music.vm" 404
+}

@@ -1,0 +1,9 @@
+# The NAS image uses the repository root so it can share verified-update
+# tooling with VM images. Keep the multi-gigabyte build artifacts out.
+*
+!nas
+!nas/**
+!vm
+!vm/bootc-verified-update
+!vm/install-cosign
+!vm/verify-bootc-image

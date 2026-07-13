@@ -1,0 +1,42 @@
+#!/bin/sh
+set -eu
+
+state_root=/var/lib/containers/minecraft
+quiesce_root="$state_root/backups/quiesce"
+java_marker="$quiesce_root/java-save-off"
+bedrock_marker="$quiesce_root/bedrock-save-hold"
+status=0
+
+container_running() {
+  [ "$(podman inspect --format '{{.State.Status}}' "$1" 2>/dev/null || true)" = running ]
+}
+
+[ -d "$quiesce_root" ] || exit 0
+
+if [ -e "$bedrock_marker" ]; then
+  if ! container_running systemd-bedrock; then
+    rm -f "$bedrock_marker"
+  elif podman exec systemd-bedrock send-command save resume >/dev/null; then
+    rm -f "$bedrock_marker"
+  else
+    echo "Failed to release the Bedrock save hold" >&2
+    status=1
+  fi
+fi
+
+if [ -e "$java_marker" ]; then
+  if ! container_running systemd-minecraft; then
+    rm -f "$java_marker"
+  elif podman exec systemd-minecraft rcon-cli save-on >/dev/null; then
+    rm -f "$java_marker"
+  else
+    echo "Failed to re-enable Java world saves" >&2
+    status=1
+  fi
+fi
+
+if [ "$status" -eq 0 ]; then
+  rmdir "$quiesce_root" 2>/dev/null || true
+fi
+
+exit "$status"

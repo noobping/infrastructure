@@ -1,0 +1,17 @@
+passwd:
+  users:
+    - name: nick
+      password_hash: $6$7fNbJeEeffQ7h36Y$u2tMk5CyjP/Q3pq.XFjFvDty0aKOUAhf4jsobML8rjlD2uBsGw44RTyG7qNcJhMr1GSXEdJ7ZHJGsZj2/Uyua1
+      uid: 1000
+      groups:
+        - wheel
+      ssh_authorized_keys:
+        - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEjRfPMkXzhO4unF0mEOHge+wGAE9VarXYo7RRXX2L3j
+
+storage:
+  directories:
+    - path: /var/home/nick/.bashrc.d
+      user:
+        name: nick
+      group:
+        name: nick

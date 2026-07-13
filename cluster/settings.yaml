@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-settings
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/part-of: infrastructure-cluster
+data:
+  # Prefer the reserved UniFi address here if early-boot DNS is not reliable.
+  nfsServer: nas.vm
+

@@ -1,0 +1,14 @@
+#!/bin/sh
+set -eu
+
+state_root=/var/lib/containers/jellyfin
+active_marker="$state_root/backups/jellyfin-was-active"
+
+[ -e "$active_marker" ] || exit 0
+
+if systemctl start jellyfin.service; then
+  rm -f "$active_marker"
+else
+  echo "Failed to restart Jellyfin after backup" >&2
+  exit 1
+fi

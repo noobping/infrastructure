@@ -1,0 +1,52 @@
+ARG IMAGE_NAMESPACE=ghcr.io/noobping
+ARG TAG=latest
+FROM ${IMAGE_NAMESPACE}/vm:${TAG}
+
+ARG K3S_VERSION=v1.36.1+k3s1
+ARG K3S_AMD64_SHA256=a443db3fe9820cd93617ae67e4386d87c1514c1e96ceb30f4c2791c39065653c
+ARG K3S_ARM64_SHA256=2240e9f7fd8cf36e9998d7ef18781975780d724b59408174618ec15b410891dc
+ARG K3S_SELINUX_VERSION=1.6-1
+ARG K3S_SELINUX_RELEASE=v1.6.latest.1
+ARG K3S_SELINUX_SHA256=ff171703f71f8c2c987342267d674a9ee3b86bb2e5d4c7cbd4a3a4be3be386d3
+
+LABEL org.opencontainers.image.title="K3s VM"
+LABEL org.opencontainers.image.description="Single-node K3s server for a KVM guest"
+LABEL io.k3s.version="${K3S_VERSION}"
+
+RUN set -euxo pipefail; \
+  case "$(uname -m)" in \
+    x86_64) k3s_asset=k3s; k3s_sha256="${K3S_AMD64_SHA256}" ;; \
+    aarch64) k3s_asset=k3s-arm64; k3s_sha256="${K3S_ARM64_SHA256}" ;; \
+    *) echo "unsupported K3s architecture: $(uname -m)" >&2; exit 1 ;; \
+  esac; \
+  release_url="https://github.com/k3s-io/k3s/releases/download/${K3S_VERSION}"; \
+  curl --fail --location --retry 5 \
+    --output "/tmp/${k3s_asset}" "${release_url}/${k3s_asset}"; \
+  printf '%s  %s\n' "${k3s_sha256}" "/tmp/${k3s_asset}" | sha256sum --check --strict -; \
+  selinux_rpm="k3s-selinux-${K3S_SELINUX_VERSION}.coreos.noarch.rpm"; \
+  curl --fail --location --retry 5 \
+    --output "/tmp/${selinux_rpm}" \
+    "https://github.com/k3s-io/k3s-selinux/releases/download/${K3S_SELINUX_RELEASE}/${selinux_rpm}"; \
+  printf '%s  %s\n' "${K3S_SELINUX_SHA256}" "/tmp/${selinux_rpm}" \
+    | sha256sum --check --strict -; \
+  rpm-ostree install -y sqlite "/tmp/${selinux_rpm}"; \
+  install -o root -g root -m 0755 "/tmp/${k3s_asset}" /usr/bin/k3s; \
+  ln -sf k3s /usr/bin/kubectl; \
+  ln -sf k3s /usr/bin/crictl; \
+  restorecon -v /usr/bin/k3s; \
+  rm -f "/tmp/${k3s_asset}" "/tmp/${selinux_rpm}"; \
+  rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
+  ostree container commit
+
+COPY config.yaml /etc/rancher/k3s/config.yaml
+COPY --chmod=0755 backup-prepare /usr/libexec/infrastructure/backup-prepare
+COPY --chmod=0755 backup-quiesce /usr/libexec/infrastructure/backup-quiesce
+COPY --chmod=0755 backup-finish /usr/libexec/infrastructure/backup-finish
+COPY k3s.modules /etc/modules-load.d/k3s.conf
+COPY k3s.nft /etc/nftables/rules/20-k3s.nft
+COPY k3s.service /etc/systemd/system/k3s.service
+COPY sysctl.conf /etc/sysctl.d/90-k3s.conf
+
+RUN set -euxo pipefail; \
+  systemctl enable k3s.service; \
+  ostree container commit

@@ -1,0 +1,26 @@
+storage:
+  disks:
+    - device: /dev/disk/by-id/virtio-k3s-data
+      partitions:
+        - label: k3s-data
+          number: 1
+          start_mib: 1
+          size_mib: 0
+
+  filesystems:
+    - device: /dev/disk/by-partlabel/k3s-data
+      format: xfs
+      label: k3s-data
+      path: /var/lib/rancher/k3s
+      with_mount_unit: true
+
+  directories:
+    - path: /var/lib/rancher/k3s
+      mode: 0700
+
+  files:
+    - path: /etc/hostname
+      overwrite: true
+      contents:
+        inline: |
+          k3s.vm

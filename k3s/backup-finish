@@ -1,0 +1,49 @@
+#!/bin/sh
+set -eu
+umask 077
+
+state_root=/var/lib/rancher/k3s
+quiesce_dir="$state_root/backups/quiesce"
+kubeconfig=/etc/rancher/k3s/k3s.yaml
+
+[ -d "$quiesce_dir" ] || exit 0
+[ -r "$kubeconfig" ]
+
+kubectl() {
+  /usr/bin/k3s kubectl --kubeconfig "$kubeconfig" "$@"
+}
+
+kubectl get --raw=/readyz >/dev/null
+
+if [ -r "$quiesce_dir/deployments" ]; then
+  while IFS=' ' read -r namespace name replicas; do
+    [ -n "$namespace" ] || continue
+    case "$replicas" in
+      *[!0-9]*|'') exit 1 ;;
+    esac
+    kubectl -n "$namespace" scale deployment "$name"       --replicas="$replicas" >/dev/null
+  done < "$quiesce_dir/deployments"
+fi
+
+if [ -r "$quiesce_dir/cronjobs" ]; then
+  while IFS=' ' read -r namespace name suspend; do
+    [ -n "$namespace" ] || continue
+    case "$suspend" in
+      true|false) ;;
+      *) exit 1 ;;
+    esac
+    kubectl -n "$namespace" patch cronjob "$name"       --type merge --patch "{\"spec\":{\"suspend\":$suspend}}" >/dev/null
+  done < "$quiesce_dir/cronjobs"
+fi
+
+if [ -r "$quiesce_dir/flux-suspend" ]; then
+  flux_suspend="$(cat "$quiesce_dir/flux-suspend")"
+  case "$flux_suspend" in
+    true|false) ;;
+    *) exit 1 ;;
+  esac
+  kubectl -n flux-system patch kustomization infrastructure-cluster     --type merge --patch "{\"spec\":{\"suspend\":$flux_suspend}}" >/dev/null
+fi
+
+rm -rf "$quiesce_dir"
+sync -f "$state_root"

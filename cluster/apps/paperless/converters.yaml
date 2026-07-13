@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paperless-tika
+  labels:
+    app.kubernetes.io/name: paperless-tika
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: paperless-tika
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: paperless-tika
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: tika
+          image: docker.io/apache/tika:3.3.1.0-full@sha256:d8e6ed96260ad89307a93195a1b856102987a818ac648502f8efbaf313d32470
+          imagePullPolicy: IfNotPresent
+          ports:
+            - {name: tika, containerPort: 9998, protocol: TCP}
+          readinessProbe:
+            tcpSocket: {port: tika}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: {port: tika}
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests: {cpu: 200m, memory: 512Mi}
+            limits: {cpu: "2", memory: 2Gi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: paperless-tika
+spec:
+  selector:
+    app.kubernetes.io/name: paperless-tika
+  ports:
+    - {name: tika, port: 9998, targetPort: tika}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paperless-gotenberg
+  labels:
+    app.kubernetes.io/name: paperless-gotenberg
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: paperless-gotenberg
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: paperless-gotenberg
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: gotenberg
+          image: docker.io/gotenberg/gotenberg:8.32.0@sha256:a40c5a46b79d812ce2f5e139278163142a054050bfd1e5f162da36d3d11c7138
+          imagePullPolicy: IfNotPresent
+          args:
+            - gotenberg
+            - --chromium-disable-javascript=true
+            - --chromium-allow-list=file:///tmp/.*
+          ports:
+            - {name: gotenberg, containerPort: 3000, protocol: TCP}
+          readinessProbe:
+            httpGet: {path: /health, port: gotenberg}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /health, port: gotenberg}
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests: {cpu: 200m, memory: 512Mi}
+            limits: {cpu: "2", memory: 2Gi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: paperless-gotenberg
+spec:
+  selector:
+    app.kubernetes.io/name: paperless-gotenberg
+  ports:
+    - {name: gotenberg, port: 3000, targetPort: gotenberg}
+
