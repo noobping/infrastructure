@@ -101,7 +101,7 @@ sudo journalctl -b \
 
 ## Minecraft
 
-## Bedrock
+### Bedrock
 
 Enter server console
 
