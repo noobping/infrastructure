@@ -162,17 +162,13 @@ steps:
 
       build_image() {
         local context="$1"
-        local containerfile="$2"
-        local image="$3"
-        shift 3
+        local image="$2"
+        shift 2
 
         run_buildah bud \
           --pull=always \
           --arch "$image_arch" \
           --isolation="$isolation" \
-          --layers=false \
-          --rm \
-          -f "$containerfile" \
           -t "$image" \
           --label "org.opencontainers.image.source=${source_url}" \
           "$@" \
@@ -188,10 +184,9 @@ steps:
       pushd "$repo" >/dev/null
       mkdir -p dist/ign dist/iso
 
-      build_image images/ips images/ips/Containerfile "${namespace}/ips:${image_arch}" \
-        --build-arg "FCOS_STREAM=stable"
+      build_image images/ips "${namespace}/ips:${image_arch}"
 
-      build_image images/workstation images/workstation/Containerfile "${namespace}/workstation:${image_arch}" \
+      build_image images/workstation "${namespace}/workstation:${image_arch}" \
         --tls-verify="$tls_verify" \
         --build-arg "IMAGE_NAMESPACE=${namespace}" \
         --build-arg "TAG=${image_arch}"

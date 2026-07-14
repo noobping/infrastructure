@@ -77,9 +77,6 @@ steps:
           --pull=always \
           --arch "$image_arch" \
           --isolation="$isolation" \
-          --layers=false \
-          --rm \
-          -f Containerfile \
           -t "$image" \
           --label "org.opencontainers.image.source=${source_url}" \
           --build-arg "FCOS_STREAM=${fcos_stream}" \

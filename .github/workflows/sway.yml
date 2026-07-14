@@ -115,7 +115,6 @@ jobs:
       - name: Build
         working-directory: images/sway
         env:
-          BUILDAH_ISOLATION: chroot
           TMPDIR: /mnt/tmp
         run: |
           IMAGE="${IMAGE_NAME}:${{ matrix.arch.name }}${{ matrix.stream.suffix }}"
@@ -123,9 +122,6 @@ jobs:
           buildah bud \
             --pull-always \
             --isolation=chroot \
-            --layers=false \
-            --rm \
-            -f Containerfile \
             -t "$IMAGE" \
             --label org.opencontainers.image.source="${{ github.repositoryUrl }}" \
             --build-arg TAG=${{ matrix.stream.tag }} \

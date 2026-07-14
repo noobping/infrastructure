@@ -86,14 +86,9 @@ jobs:
             --pull-always \
             --arch "$ARCH" \
             --isolation=chroot \
-            --layers=false \
-            --rm \
-            -f Containerfile \
             -t "$image" \
             --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
             --label "org.opencontainers.image.revision=${REVISION}" \
-            --build-arg "IMAGE_NAMESPACE=${IMAGE_NAMESPACE}" \
-            --build-arg TAG=latest \
             .
           buildah push "$image" "docker://$image"
 
@@ -173,14 +168,9 @@ jobs:
             --pull-always \
             --arch "$ARCH" \
             --isolation=chroot \
-            --layers=false \
-            --rm \
-            -f Containerfile \
             -t "$image" \
             --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
             --label "org.opencontainers.image.revision=${REVISION}" \
-            --build-arg "IMAGE_NAMESPACE=${IMAGE_NAMESPACE}" \
-            --build-arg TAG=latest \
             .
           buildah push "$image" "docker://$image"
 
