@@ -34,7 +34,7 @@
       "vcpus": 4,
       "memory_mib": 8192,
       "root_gib": 40,
-      "autostart": true
+      "autostart": false
     }
   ]
 }
