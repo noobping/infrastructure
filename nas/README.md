@@ -1,7 +1,5 @@
 # NAS
 
-## Backups
-
 `btrfs-backup.timer` runs weekly, with up to one hour of random delay. It
 creates read-only snapshots of the SSD subvolumes and transfers them to
 `/var/srv/hdd/backups/ssd` with `btrfs send/receive`. The newest matching
@@ -26,57 +24,3 @@ The service accepts environment overrides named `BTRFS_BACKUP_SOURCE_ROOT`,
 `BTRFS_BACKUP_SNAPSHOT_ROOT`, `BTRFS_BACKUP_DESTINATION_ROOT`,
 `BTRFS_BACKUP_SUBVOLUMES`, and `BTRFS_BACKUP_RETENTION`. Set them with a systemd
 drop-in if the storage layout or retention policy changes.
-
-## Minecraft
-
-### Bedrock
-
-Enter server console
-
-```sh
-sudo podman exec -it systemd-bedrock /bin/bash
-```
-
-Show allowlist
-
-```sh
-send-command allowlist list
-```
-
-Allow player
-
-```sh
-send-command allowlist add "YourGamertag"
-```
-
-OP player
-
-```sh
-send-command op "YourGamertag"
-```
-
-### Java
-
-Enter server console
-
-```sh
-sudo podman exec -it systemd-minecraft rcon-cli
-```
-
-Show allowlist
-
-```sh
-whitelist list
-```
-
-Allow player
-
-```sh
-whitelist add "YourUsername"
-```
-
-OP player
-
-```sh
-op "YourUsername"
-```

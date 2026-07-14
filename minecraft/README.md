@@ -9,6 +9,58 @@ Java is exposed on TCP 25565 and Bedrock on UDP 19132/19133. Both
 containers use the dedicated guest network directly so Suricata inspects their
 LAN traffic. The guest firewall does not open RCON port 25575 to the LAN.
 
+## Bedrock
+
+Enter server console
+
+```sh
+sudo podman exec -it systemd-bedrock /bin/bash
+```
+
+Show allowlist
+
+```sh
+send-command allowlist list
+```
+
+Allow player
+
+```sh
+send-command allowlist add "YourGamertag"
+```
+
+OP player
+
+```sh
+send-command op "YourGamertag"
+```
+
+## Java
+
+Enter server console
+
+```sh
+sudo podman exec -it systemd-minecraft rcon-cli
+```
+
+Show allowlist
+
+```sh
+whitelist list
+```
+
+Allow player
+
+```sh
+whitelist add "YourUsername"
+```
+
+OP player
+
+```sh
+op "YourUsername"
+```
+
 ## Migrate the worlds
 
 Rehearse this with a copy first. Let the new guest complete its image rebase,
@@ -46,13 +98,3 @@ stop and mask the guest services before unmasking the legacy NAS services. If
 players wrote new state after cutover, copy the guest worlds back into a clone
 of the pre-cutover snapshot before restarting the old servers; never merge two
 live world trees.
-
-## Weekly backup export
-
-The NAS backup invokes `/usr/libexec/infrastructure/backup-prepare` through QEMU
-Guest Agent before freezing the VM data disk. It briefly disables Java saves
-and holds Bedrock saves, then atomically publishes the consistent world copy at
-`/var/lib/containers/minecraft/backups/current`. A server that is already
-stopped is copied without sending console commands, so the export still
-contains both existing editions. Restore `java/world*` and `bedrock/worlds`
-from that directory while both services are stopped.
