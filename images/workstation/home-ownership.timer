@@ -4,8 +4,6 @@ Description=Recheck local user home directory ownership after boot
 [Timer]
 OnBootSec=30s
 AccuracySec=5s
-Persistent=true
-Unit=home-ownership.service
 
 [Install]
 WantedBy=timers.target
