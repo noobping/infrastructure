@@ -88,15 +88,17 @@ vm_root=$(jq --raw-output '.storage_pool.path' "$inventory")
 pool_name=$(jq --raw-output '.storage_pool.name' "$inventory")
 fcos_stream=$(jq --raw-output '.storage_pool.fcos_stream' "$inventory")
 
-if [[ -x /usr/libexec/infrastructure/vm-storage-prepare ]]; then
-  VM_STORAGE_ROOT="$vm_root" VM_STORAGE_POOL="$pool_name" \
-    /usr/libexec/infrastructure/vm-storage-prepare
-else
-  btrfs subvolume show "$vm_root" >/dev/null || {
-    echo "$vm_root is not prepared; deploy the NAS image or run vm-storage-prepare" >&2
-    exit 1
-  }
-fi
+btrfs subvolume show "$vm_root" >/dev/null || {
+  echo "$vm_root must already be a Btrfs subvolume" >&2
+  exit 1
+}
+
+install -d -o root -g qemu -m 0770 \
+  "$vm_root/base" \
+  "$vm_root/config" \
+  "$vm_root/disks" \
+  "$vm_root/ignition"
+restorecon -RF "$vm_root"
 
 ip link show br0 >/dev/null 2>&1 || {
   echo "br0 does not exist. Run sudo nas-vm-bridge apply first." >&2
