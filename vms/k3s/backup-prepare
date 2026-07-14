@@ -10,6 +10,12 @@ finish_hook=/usr/libexec/infrastructure/backup-finish
 quiesced=
 staging=
 
+backup_fstype=$(/usr/bin/findmnt -rn -o FSTYPE -T "$backup_root" 2>/dev/null || true)
+case "$backup_fstype" in
+  nfs|nfs4) ;;
+  *) echo "$backup_root must be mounted from NFS" >&2; exit 1 ;;
+esac
+
 cleanup() {
   status=$?
   trap - EXIT INT TERM
@@ -93,6 +99,6 @@ fi
 mv "$staging" "$current"
 staging=
 rm -rf "$previous"
-sync -f "$state_root"
+sync -f "$backup_root"
 
 trap - EXIT INT TERM

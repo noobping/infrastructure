@@ -12,6 +12,7 @@
 /var/lib/containers/paperless/redis k3s.vm(rw,sync,no_subtree_check,no_root_squash)
 /var/lib/containers/registry k3s.vm(rw,sync,no_subtree_check,no_root_squash)
 /var/lib/containers/uptime-kuma k3s.vm(rw,sync,no_subtree_check,no_root_squash)
+/var/lib/containers/k3s-backups k3s.vm(rw,sync,no_subtree_check,no_root_squash)
 
 # Shared cluster data keeps normal root squashing.
 /var/srv/docs/shared k3s.vm(rw,sync,no_subtree_check,root_squash)

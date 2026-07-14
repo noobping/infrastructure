@@ -6,6 +6,12 @@ state_root=/var/lib/rancher/k3s
 quiesce_dir="$state_root/backups/quiesce"
 kubeconfig=/etc/rancher/k3s/k3s.yaml
 
+backup_fstype=$(/usr/bin/findmnt -rn -o FSTYPE -T "$state_root/backups" 2>/dev/null || true)
+case "$backup_fstype" in
+  nfs|nfs4) ;;
+  *) echo "$state_root/backups must be mounted from NFS" >&2; exit 1 ;;
+esac
+
 [ -d "$quiesce_dir" ] || exit 0
 [ -r "$kubeconfig" ]
 
@@ -46,4 +52,4 @@ if [ -r "$quiesce_dir/flux-suspend" ]; then
 fi
 
 rm -rf "$quiesce_dir"
-sync -f "$state_root"
+sync -f "$state_root/backups"

@@ -1,0 +1,15 @@
+[Unit]
+Description=K3s backup artifacts on the NAS
+Wants=network-online.target
+After=network-online.target cachefilesd.service nfs-selinux.service
+Requires=cachefilesd.service nfs-selinux.service
+
+[Mount]
+What=nas.vm:/var/lib/containers/k3s-backups
+Where=/var/lib/rancher/k3s/backups
+Type=nfs
+Options=nfsvers=4.2,rw,hard,timeo=600,retrans=2,fsc,nosuid,nodev,noexec
+TimeoutSec=180
+
+[Install]
+WantedBy=multi-user.target

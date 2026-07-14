@@ -14,6 +14,12 @@ quiesce_dir="$backup_root/quiesce"
 finish_hook=/usr/libexec/infrastructure/backup-finish
 kubeconfig=/etc/rancher/k3s/k3s.yaml
 
+backup_fstype=$(/usr/bin/findmnt -rn -o FSTYPE -T "$backup_root" 2>/dev/null || true)
+case "$backup_fstype" in
+  nfs|nfs4) ;;
+  *) echo "$backup_root must be mounted from NFS" >&2; exit 1 ;;
+esac
+
 kubectl() {
   /usr/bin/k3s kubectl --kubeconfig "$kubeconfig" "$@"
 }
@@ -173,5 +179,5 @@ while IFS=' ' read -r namespace name replicas; do
 done < "$quiesce_dir/deployments"
 
 : > "$quiesce_dir/prepared"
-sync -f "$state_root"
+sync -f "$backup_root"
 trap - EXIT INT TERM

@@ -44,9 +44,10 @@ COPY --chmod=0755 backup-quiesce /usr/libexec/infrastructure/backup-quiesce
 COPY --chmod=0755 backup-finish /usr/libexec/infrastructure/backup-finish
 COPY k3s.modules /etc/modules-load.d/k3s.conf
 COPY k3s.nft /etc/nftables/rules/20-k3s.nft
+COPY var-lib-rancher-k3s-backups.mount /etc/systemd/system/var-lib-rancher-k3s-backups.mount
 COPY k3s.service /etc/systemd/system/k3s.service
 COPY sysctl.conf /etc/sysctl.d/90-k3s.conf
 
 RUN set -euxo pipefail; \
-  systemctl enable k3s.service; \
+  systemctl enable k3s.service var-lib-rancher-k3s-backups.mount; \
   ostree container commit
