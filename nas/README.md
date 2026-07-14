@@ -1,21 +1,5 @@
 # NAS
 
-## HTTPS
-
-Caddy reverse-proxies Nextcloud, Paperless, and the container registry. On its first start, Caddy creates a local certificate authority
-and stores its keys and certificates in the dedicated `/var/srv/ssd/caddy`
-Btrfs subvolume. Import the root certificate from
-`/var/srv/ssd/caddy/data/caddy/pki/authorities/local/root.crt` on each client
-that should trust the NAS.
-
-## Uptime Kuma
-
-Open `http://<nas-address>:3001` or `https://<nas-address>/uptime` and create the administrator
-account with the first-run setup wizard. Uptime Kuma stores its account,
-monitors, and status pages in `/var/lib/containers/uptime-kuma`.
-
-This image no longer provisions FreeIPA, FreeRADIUS, or any other domain-controller services.
-
 ## Backups
 
 `btrfs-backup.timer` runs weekly, with up to one hour of random delay. It
@@ -42,62 +26,6 @@ The service accepts environment overrides named `BTRFS_BACKUP_SOURCE_ROOT`,
 `BTRFS_BACKUP_SNAPSHOT_ROOT`, `BTRFS_BACKUP_DESTINATION_ROOT`,
 `BTRFS_BACKUP_SUBVOLUMES`, and `BTRFS_BACKUP_RETENTION`. Set them with a systemd
 drop-in if the storage layout or retention policy changes.
-
-## Nextcloud
-
-Open Nextcloud at `https://<nas-address>/nextcloud/`.
-
-The container exposes `/var/srv/docs/shared` at the same path. Before adding
-files, create the directory and grant Nextcloud's `www-data` user access:
-
-```sh
-sudo install -d -m 2770 -o docs -g docs /var/srv/docs/shared && sudo setfacl -m 'u:33:rwx,m::rwx,d:u::rwx,d:u:33:rwx,d:g::rwx,d:m::rwx,d:o::---' /var/srv/docs/shared
-```
-
-Then enable the bundled **External storage support** app and add an
-administrator-managed **Local** storage named `/Shared` with configuration path
-`/var/srv/docs/shared`.
-
-## Paperless
-
-The Paperless PostgreSQL and Redis backends run on a private container network.
-Open `https://<nas-address>/paperless/`. The first visit prompts you to create the
-superuser account.
-
-Paperless watches `/var/srv/docs/paperless/consume` for new documents. Its
-document archive and exports are stored in:
-
-- `/var/srv/docs/paperless/media`
-- `/var/srv/docs/paperless/export`
-
-Apache Tika and Gotenberg add consumption support for Word, Excel, PowerPoint,
-OpenDocument (`.odt`, `.ods`, `.odp`), and email (`.eml`) files. These converter
-services are internal and stateless, so they add no backup directories.
-
-Application state and database data live below
-`/var/lib/containers/paperless`. The prepare service creates these directories
-and stable random secrets automatically. Create a consistent application export
-before a backup with:
-
-```sh
-sudo podman exec paperless document_exporter ../export
-```
-
-Back up `/var/srv/docs/paperless` and
-`/var/lib/containers/secrets/paperless`. The documents in `media` are stored
-unencrypted. See the [official administration documentation](https://docs.paperless-ngx.com/administration/).
-
-Check the complete stack after an image update with:
-
-```sh
-sudo systemctl status \
-  paperless.service paperless-db.service paperless-redis.service \
-  paperless-gotenberg.service paperless-tika.service
-
-sudo journalctl -b \
-  -u paperless.service -u paperless-db.service -u paperless-redis.service \
-  -u paperless-gotenberg.service -u paperless-tika.service
-```
 
 ## Minecraft
 
