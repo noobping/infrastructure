@@ -8,7 +8,7 @@ Requires=cachefilesd.service nfs-selinux.service
 What=nas.vm:/var/lib/containers/k3s-backups
 Where=/var/lib/rancher/k3s/backups
 Type=nfs
-Options=nfsvers=4.2,rw,hard,timeo=600,retrans=2,fsc,nosuid,nodev,noexec
+Options=nfsvers=4.2,fsc,nosuid,nodev,noexec
 TimeoutSec=180
 
 [Install]
