@@ -42,7 +42,7 @@ registry.vm {
 
 music.vm {
 	import internal_tls
-	reverse_proxy http://jellyfin.vm:8096
+	reverse_proxy http://nas.vm:8096
 }
 
 apps.vm {

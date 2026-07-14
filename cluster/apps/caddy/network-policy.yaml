@@ -85,7 +85,7 @@ spec:
               app.kubernetes.io/name: registry
       ports:
         - {port: 5000, protocol: TCP}
-    # music.vm resolves to the independent Jellyfin VM on the UniFi LAN.
+    # music.vm proxies to the retained NAS Jellyfin service on the UniFi LAN.
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
