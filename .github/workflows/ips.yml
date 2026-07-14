@@ -119,8 +119,6 @@ jobs:
             -t "$IMAGE" \
             --label org.opencontainers.image.source="${{ github.repositoryUrl }}" \
             --build-arg FCOS_STREAM="${{ matrix.stream.fcos_stream }}" \
-            --build-arg UID=1000 \
-            --build-arg GID=1000 \
             .
 
           buildah push --digestfile digest.txt "$IMAGE" "docker://$IMAGE"

@@ -117,8 +117,6 @@ jobs:
             -f Containerfile \
             -t "$IMAGE" \
             --label org.opencontainers.image.source="${{ github.repositoryUrl }}" \
-            --build-arg UID=1000 \
-            --build-arg GID=1000 \
             .
 
           buildah push --digestfile digest.txt "$IMAGE" "docker://$IMAGE"

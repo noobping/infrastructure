@@ -16,8 +16,6 @@ steps:
 
       namespace="${CI_IMAGE_NAMESPACE:-localhost:5000/noobping}"
       tls_verify="${CI_REGISTRY_TLS_VERIFY:-false}"
-      uid="${CI_UID:-1000}"
-      gid="${CI_GID:-1000}"
       isolation="${BUILDAH_ISOLATION:-chroot}"
       tmpdir="${TMPDIR:-/tmp}"
       source_url="$(git -C "$CI_REPO" config --get remote.origin.url || printf '%s' "$CI_REPO")"
@@ -85,8 +83,6 @@ steps:
           -t "$image" \
           --label "org.opencontainers.image.source=${source_url}" \
           --build-arg "FCOS_STREAM=${fcos_stream}" \
-          --build-arg "UID=${uid}" \
-          --build-arg "GID=${gid}" \
           .
 
         run_buildah push --tls-verify="$tls_verify" --digestfile "$digest_file" "$image" "docker://$image"

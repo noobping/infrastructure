@@ -16,8 +16,6 @@ steps:
       repo="${CI_REPO:-$PWD}"
       namespace="${CI_IMAGE_NAMESPACE:-localhost:5000/noobping}"
       tls_verify="${CI_REGISTRY_TLS_VERIFY:-false}"
-      uid="${CI_UID:-1000}"
-      gid="${CI_GID:-1000}"
       isolation="${BUILDAH_ISOLATION:-chroot}"
       tmpdir="${TMPDIR:-/tmp}"
       source_url="$(git -C "$repo" config --get remote.origin.url || printf '%s' "$repo")"
@@ -191,16 +189,12 @@ steps:
       mkdir -p dist/ign dist/iso
 
       build_image images/ips images/ips/Containerfile "${namespace}/ips:${image_arch}" \
-        --build-arg "FCOS_STREAM=stable" \
-        --build-arg "UID=${uid}" \
-        --build-arg "GID=${gid}"
+        --build-arg "FCOS_STREAM=stable"
 
       build_image images/workstation images/workstation/Containerfile "${namespace}/workstation:${image_arch}" \
         --tls-verify="$tls_verify" \
         --build-arg "IMAGE_NAMESPACE=${namespace}" \
-        --build-arg "TAG=${image_arch}" \
-        --build-arg "UID=${uid}" \
-        --build-arg "GID=${gid}"
+        --build-arg "TAG=${image_arch}"
 
       podman pull --tls-verify="$tls_verify" "${namespace}/workstation:${image_arch}"
       podman tag "${namespace}/workstation:${image_arch}" "${namespace}/workstation:latest"
