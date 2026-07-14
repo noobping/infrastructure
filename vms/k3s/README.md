@@ -1,40 +1,47 @@
 # K3s VM
 
-This image embeds K3s `v1.36.1+k3s1` from the signed upstream release and
-verifies its architecture-specific checksum. It also installs the pinned
-CoreOS K3s SELinux policy RPM and starts K3s with SELinux enforcement enabled.
+This image embeds K3s `v1.36.1+k3s1` from the upstream release and verifies its
+architecture-specific checksum. It also installs the pinned CoreOS K3s SELinux
+policy RPM and runs K3s with SELinux enforcement enabled.
 
-The verified binary is installed directly as immutable `/usr/bin/k3s`.
-`k3s.service` restores the policy labels on writable K3s state before starting
-the server; no runtime installer or wrapper is involved.
+K3s keeps its live runtime under `/var/lib/rancher/k3s` on the VM's root disk.
+Containerd snapshots, kubelet state, and the single-server SQLite control-plane
+database must not be placed on NFS. Application persistence is separate: all 17
+cluster claims are statically bound to the NFS exports in
+`cluster/storage/nfs-volumes.yaml`. The `backups` child is the only nested NFS
+mount and is backed by the NAS's `/var/lib/containers/k3s-backups` directory.
 
-The VM state disk must use virtio serial `k3s-data`; Ignition mounts it at
-`/var/lib/rancher/k3s`. The single server uses the standard pod and service
-CIDRs, keeps ServiceLB and local-path storage, and disables only bundled
-Traefik so Caddy can own ports 80 and 443.
+The VM base starts `cachefilesd` before K3s. Every NFS PV requests `fsc`, NFS
+4.2, and a hard mount. The bundled `local-storage` provisioner and Traefik are
+disabled; ServiceLB remains enabled so Caddy can own ports 80 and 443.
 
-Override `K3S_VERSION` only together with a reviewed upstream checksum file.
-The SELinux RPM release, version, and SHA-256 are separate build arguments so
-Renovate can update them deliberately.
+Override `K3S_VERSION` only together with reviewed architecture checksums. The
+SELinux RPM release, version, and SHA-256 are separate build arguments so they
+can be updated deliberately.
 
-## Application-consistent backup
+## Backups
 
-The host invokes `backup-prepare` through QEMU Guest Agent. It suspends the
-Flux Kustomization and Nextcloud CronJobs, closes Caddy ingress, runs the
-Paperless exporter, scales every state-writing Deployment to zero, and only
-then writes PostgreSQL dumps, a consistent K3s SQLite copy, the Flux age
-Secret, and the Caddy CA archive. Workloads remain quiesced until the host has
-snapshotted both the NFS-backed `docs` subvolume and the VM state disk.
+`backup-prepare` stops the application Deployments, then takes PostgreSQL
+logical dumps, a consistent SQLite backup, the Flux age Secret, and the Caddy
+CA. PostgreSQL and Redis StatefulSets remain running; PostgreSQL must stay up to
+produce its dumps. The hook leaves the recorded Deployments stopped until
+`backup-finish` restores their previous state.
 
-After thawing the guest, the host invokes the idempotent `backup-finish` hook,
-which restores the exact prior replicas, CronJob suspension flags, and Flux
-suspension state. The quiesce state is stored on the K3s data disk so failure
-cleanup and a restored raw VM snapshot can recover it. After restoring such a
-snapshot, run this once before accepting traffic:
+The output is already on NFS and is included in the NAS `apps` snapshot. The
+NAS timer does not call the guest hooks automatically, so run this sequence from
+an administration machine. This mount always uses `nas.vm`, even if the cluster
+PV setting uses an IP address, so that name must resolve in the guest:
 
 ```sh
-sudo /usr/libexec/infrastructure/backup-finish
+ssh nick@k3s.vm \
+  'sudo systemctl start var-lib-rancher-k3s-backups.mount && findmnt -T /var/lib/rancher/k3s/backups'
+ssh nick@k3s.vm 'sudo /usr/libexec/infrastructure/backup-prepare'
+ssh nick@nas.vm 'sudo systemctl start btrfs-backup.service'
+ssh nick@k3s.vm 'sudo /usr/libexec/infrastructure/backup-finish'
 ```
 
-Then verify that all recorded Deployments and CronJobs have their previous
-replica and suspension state and that Flux reconciliation is healthy.
+Always run `backup-finish`, even if the NAS backup command fails. PostgreSQL
+data directories use hard NFS mounts and synchronous exports, but their live
+snapshots are only crash-consistent; the logical dumps are the canonical
+restore source. The Flux Secret copy is root-only, not encrypted by this hook,
+so keep a separately encrypted offline copy.

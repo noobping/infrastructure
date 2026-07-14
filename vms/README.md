@@ -1,108 +1,86 @@
 # NAS virtual machines
 
-This directory is the host-side contract for the three KVM guests. The physical
-NAS remains responsible for Btrfs, NFSv4, libvirt, the LAN bridge, NUT, IPS,
-weekly backups, and Cockpit at `https://nas.vm/`. The new NAS image
-contains no application Quadlets: K3s, Minecraft, and Jellyfin state and writers
-live only in their respective VMs. Legacy Quadlets exist only in the previous
-rpm-ostree deployment retained for rollback.
+The physical NAS keeps its existing libvirt services and host services. It owns
+the Btrfs filesystems, NFSv4 server, LAN bridge, backups, and Cockpit at
+`https://nas.vm/`. Nothing here masks or replaces the NAS libvirt setup.
 
-## Inventory
+Each guest has one qcow2 root disk. Application data is not stored on a second
+libvirt disk:
 
-`inventory.json` is authoritative for VM resources, role image references,
-stable MAC addresses, state-disk serials, and NFS mounts.
+- every Kubernetes PVC is a static NFS volume;
+- Minecraft and Jellyfin use Quadlet named NFS volumes, not host-path binds;
+- K3s keeps its runtime, containerd state, and SQLite control-plane database on
+  the local VM root, while its backup artifacts are on NFS;
+- `cachefilesd` and the `fsc` mount option provide a persistent read cache in
+  every VM.
 
-| Domain | UniFi name | MAC | vCPU | RAM | Root | Minimum state |
-|---|---|---|---:|---:|---:|---:|
-| `k3s` | `k3s.vm` | `52:54:00:00:00:31` | 12 | 24 GiB | 40 GiB | 250 GiB |
-| `minecraft` | `minecraft.vm` | `52:54:00:00:00:32` | 8 | 12 GiB | 40 GiB | 100 GiB |
-| `jellyfin` | `jellyfin.vm` | `52:54:00:00:00:33` | 4 | 8 GiB | 40 GiB | 50 GiB |
+## Inventory and DNS
 
-The provisioner measures each role's existing source directories and creates a
-sparse raw state disk sized to 150% of current usage or the stated minimum,
-whichever is larger. Update the committed minimum before provisioning if you
-want more guaranteed headroom.
+`inventory.json` contains the VM resources, root-disk size, stable MAC address,
+and canonical Ignition file.
 
-## UniFi prerequisites
+| Domain | UniFi name | MAC | vCPU | RAM | Root |
+|---|---|---|---:|---:|---:|
+| `k3s` | `k3s.vm` | `52:54:00:00:00:31` | 12 | 24 GiB | 40 GiB |
+| `minecraft` | `minecraft.vm` | `52:54:00:00:00:32` | 8 | 12 GiB | 40 GiB |
+| `jellyfin` | `jellyfin.vm` | `52:54:00:00:00:33` | 4 | 8 GiB | 40 GiB |
 
-Create DHCP reservations for all three MACs before starting guests. Preserve the
-physical NIC's current NAS reservation; the bridge clones that MAC so the NAS
-keeps its address.
-
-The `.vm` suffix is intentionally used as a private UniFi DNS suffix even
-though it is not a standards-reserved home-network domain.
-
-Create these local records:
+Create DHCP reservations for those MACs. The NAS and all guests must resolve
+these local names before NFS-backed workloads start:
 
 | Record | Reserved address |
 |---|---|
 | `nas.vm` | Physical NAS |
-| `k3s.vm`, `apps.vm`, `nextcloud.vm`, `office.vm`, `paperless.vm`, `status.vm`, `registry.vm` | K3s VM |
+| `k3s.vm`, `apps.vm`, `nextcloud.vm`, `office.vm`, `paperless.vm`, `status.vm`, `registry.vm`, `music.vm` | K3s VM |
 | `minecraft.vm` | Minecraft VM |
-| `jellyfin.vm`, `music.vm` | Jellyfin VM |
+| `jellyfin.vm` | Jellyfin VM |
 
-The NFS service resolves `k3s.vm` and `jellyfin.vm` when it builds its
-firewall rule. It intentionally fails closed until both reservations resolve.
-Exports retain root squashing; music and books are read-only.
+The exports in `nas/nfs/exports` grant access only to the matching VM names.
+K3s gets root access only to its isolated application and backup exports.
+Shared documents and the VM-role exports remain root-squashed; music and books
+are read-only. For NFS, the firewall adds only TCP port 2049.
 
-## Prepare the host bridge
+## Existing libvirt storage and bridge
 
-Deploy and reboot into the NAS image first. Verify storage and tuning:
+The provisioner deliberately does not rewrite libvirt configuration. Its
+`storage_pool.name` must name an existing active pool, and `storage_pool.path`
+must be that pool's Btrfs subvolume. Create the subvolume once if needed, then
+verify the existing pool target is `/var/srv/ssd/vms`:
 
 ```sh
-systemctl status vm-storage-prepare.service tuned.service \
-  libvirtd.service libvirt-guests.service
-systemctl is-enabled \
-  libvirtd.socket libvirtd-ro.socket libvirtd-admin.socket
-systemctl is-enabled virtlockd.service virtlogd.service
-systemctl is-enabled virtqemud.service virtqemud.socket | grep -Fx disabled
-grep -E '^(ON_SHUTDOWN|PARALLEL_SHUTDOWN)=' \
-  /etc/sysconfig/libvirt-guests
-tuned-adm active
-sudo virt-host-validate
-sudo virsh net-info default
-if ip link show virbr0; then exit 1; fi
+sudo btrfs subvolume create /var/srv/ssd/vms
+sudo virsh pool-info infrastructure-vms
+sudo virsh pool-dumpxml infrastructure-vms
 ```
 
-`libvirt-guests.service` shuts all three guests down in parallel (up to five
-minutes) instead of managed-saving them, so staged guest deployments activate
-at the nightly host power cycle. Reconnect your login session after the first
-deployment so the new `libvirt` group membership is active. Its unit drop-in
-orders it after the NFS server and VM storage preparation; systemd reverses that
-order at shutdown, so guests finish stopping before exports or disks become
-unavailable.
+The provisioner creates the `base`, `config`, `disks`, and `ignition`
+directories inside that subvolume. It only refreshes the named pool; it never
+defines or rewrites it.
 
-Inspect, then apply the bridge from a stable SSH or local-console session:
+Inspect and apply the existing bridge helper from a stable SSH or local-console
+session:
 
 ```sh
-nas-vm-bridge status
-sudo nas-vm-bridge apply
-```
-
-The helper refuses static addressing, Wi-Fi, and ambiguous default routes. It
-uses a NetworkManager checkpoint covering all devices, performs gateway, DNS,
-GHCR, and SSH checks, then asks for confirmation. Bridge/port autoconnect is
-made persistent only after the confirmed checkpoint returns and health passes
-again. If SSH disappears or confirmation times out, NetworkManager restores the
-previous profile.
-
-Afterwards confirm the NAS retained its reservation:
-
-```sh
+/usr/libexec/infrastructure/nas-vm-bridge status
+sudo /usr/libexec/infrastructure/nas-vm-bridge apply
 ip -4 route
 nmcli connection show --active
-nas-vm-bridge status
+sudo virt-host-validate
 ```
+
+Every guest interface uses the existing `br0`; there is no libvirt NAT
+dependency.
 
 ## Render role Ignition
 
-Use the canonical role Butane fragments; do not hand-edit generated Ignition:
+Use the canonical Butane fragments; do not edit generated Ignition:
 
 ```sh
 mkdir -p dist/ign
 for role in k3s minecraft jellyfin; do
   yq ea '. as $item ireduce ({}; . *+ $item)' \
-    butane/base.yml butane/vm.yml "butane/$role.yml" > "butane/$role.bu"
+    butane/base.yml butane/updates.yml butane/vm.yml \
+    "butane/$role.yml" > "butane/$role.bu"
   sed -e "s#__CI_IMAGE_NAMESPACE__#ghcr.io/noobping#g" \
     -e "s#__CI_BOOTC_IMAGE__#$role#g" \
     "butane/$role.bu" > "butane/$role.rendered.bu"
@@ -112,221 +90,103 @@ for role in k3s minecraft jellyfin; do
 done
 ```
 
-The Butane workflow also publishes these three files in its `vm-ignition`
-artifact. The provisioner validates the inventory image against the role's
-`ghcr.io/noobping` path, writes it to `/etc/bootc-image-ref`, and adds the
-inventory's NFS automounts. The shared first-boot service performs the verified
-rebase; role Ignition owns the remaining guest state.
+The Butane workflow publishes the same three files in its `vm-ignition`
+artifact. On first boot, each guest directly rebases to its role's
+`ghcr.io/noobping/<role>:latest` image and reboots once.
 
-## Provision
+## Provision and verify
 
-The provisioner downloads and verifies the signed stable FCOS QEMU qcow2 with
-`coreos-installer`, creates qcow2 root overlays and NOCOW sparse raw state
-disks under `/var/srv/ssd/vms`, always validates the augmented Ignition,
-validates XML when its validator is installed, defines each domain, and enables
-libvirt autostart. It never replaces an existing domain or disk.
+The provisioner downloads the stable FCOS QEMU image, creates one qcow2 overlay
+per VM, validates Ignition and the domain XML, defines the domain, and applies
+the inventory's autostart setting. It never replaces an existing domain or
+disk. K3s and Minecraft autostart; Jellyfin deliberately does not while the NAS
+Jellyfin service is retained.
 
 ```sh
 sudo ./vms/bin/provision --all
-sudo virsh domiflist k3s
 sudo virsh domblklist k3s --details
-sudo virsh start k3s
-sudo virsh start minecraft
-sudo virsh start jellyfin
+sudo virsh domblklist minecraft --details
+sudo virsh domblklist jellyfin --details
+sudo virsh autostart --disable jellyfin
 ```
 
-Use `--start` with provisioning only after UniFi reservations, NFS, and the
-role images are ready. Every domain interface source must be `br0`; there is
-no libvirt NAT dependency.
+The last command also corrects a Jellyfin domain defined before this inventory
+change. Each disk list should contain only one guest disk. Use `--start` only
+after DNS, the NFS server, and the role images are ready. If a retained NAS
+service and its VM replacement use the same data, stop the old writer before
+starting the guest; never run both copies against one export.
 
-Verify first boot and the image rebase:
+If K3s or Minecraft is provisioned before the current NAS deployment is
+running, immediately disable that domain's autostart. Re-enable it only after
+NFS is available and the corresponding legacy host writer is absent.
+
+This series leaves the existing libvirt shutdown policy untouched. Before
+depending on the NAS's nightly poweroff, verify that the host's existing setup
+shuts running guests cleanly before NFS and the backing filesystems stop.
+
+After first boot:
 
 ```sh
-sudo virsh console k3s
-sudo virsh qemu-agent-command k3s '{"execute":"guest-ping"}'
-ssh nick@k3s.vm rpm-ostree status
-ssh nick@k3s.vm findmnt /var/lib/rancher/k3s
-ssh nick@jellyfin.vm findmnt /var/srv/music /var/srv/books
-ssh nick@jellyfin.vm findmnt -T /var/srv/music/touhou
-ssh nick@jellyfin.vm test -r /var/srv/music/touhou
-for domain in k3s minecraft jellyfin; do
-  ssh "nick@${domain}.vm" getsebool virt_qemu_ga_read_nonsecurity_files \
-    | grep -q -- '--> on$'
-  sudo virsh domfsfreeze "$domain"
-  sudo virsh domfsthaw "$domain"
+for host in k3s.vm minecraft.vm jellyfin.vm; do
+  ssh "nick@$host" 'systemctl is-active cachefilesd.service && getsebool virt_use_nfs'
 done
+
+ssh nick@minecraft.vm \
+  'sudo podman volume inspect systemd-minecraft-java systemd-minecraft-bedrock'
+ssh nick@jellyfin.vm \
+  'sudo podman volume inspect systemd-jellyfin-config systemd-jellyfin-cache systemd-jellyfin-music systemd-jellyfin-books'
+ssh nick@k3s.vm 'sudo k3s kubectl get pv,pvc -A'
 ```
 
-Do not enable the weekly backup until the boolean check and a real freeze/thaw
-cycle succeed for every guest.
+Check `/proc/mounts` in each guest for `vers=4.2`, `hard`, and `fsc`. On K3s,
+all 17 PVs must be bound and no `local-path` claim should remain.
 
-## Guest image updates
+## Updates
 
-Each guest's daily `rpm-ostree-upgrade.timer` reads its role's channel from
-`/etc/bootc-image-ref`. The service accepts only a keyless signature issued to
-this repository's `vms.yml` workflow on `refs/heads/main`, extracts the one
-verified manifest digest, and stages that immutable digest. VM images are not
-published from another branch. The graceful host shutdown described above lets
-the normal nightly NAS power cycle activate the staged deployment.
+The first-boot rebase tracks the role's `:latest` tag. The standard daily
+`rpm-ostree upgrade` timer follows that same channel; there is no custom update
+helper, digest file, or immutable-tag workflow.
 
 ```sh
-# Run inside the guest: stage latest and activate it at the next reboot.
 sudo systemctl start rpm-ostree-upgrade.service
 rpm-ostree status
-sudo systemctl reboot
+```
 
-# Return to the previous deployment once.
+To hold a rollback without masking services, disable the normal update units,
+then re-enable them after review:
+
+```sh
+sudo systemctl disable --now rpm-ostree-upgrade.timer rpm-ostree-upgrade.service
 sudo rpm-ostree rollback
-rpm-ostree status
 sudo systemctl reboot
+
+sudo systemctl enable --now rpm-ostree-upgrade.timer rpm-ostree-upgrade.service
 ```
 
-For a persistent rollback, replace the example value with an immutable tag from
-the image workflow:
+## Cutover and backups
 
-```sh
-TAG=git-0123456789ab-img-abcdef012345
-printf '%s\n' "ghcr.io/noobping/k3s:${TAG}" | sudo tee /etc/bootc-image-ref
-sudo systemctl start rpm-ostree-upgrade.service
-rpm-ostree status
-sudo systemctl reboot
-```
+Minecraft and Jellyfin point at the existing NAS directories, so they need no
+second data copy. Jellyfin is intentionally a manual trial while its NAS
+Quadlet remains enabled: stop the host service, start the non-autostarted guest,
+and verify the named volumes. Before any NAS shutdown or reboot, cleanly shut
+down the trial guest, confirm `virsh domstate jellyfin` reports `shut off`, and
+confirm `virsh dominfo jellyfin` reports `Managed save: no`. Remove stale
+managed-save state before rebooting if necessary; disabling domain autostart
+does not override the existing libvirt save/resume policy. The retained host
+service can then return at boot. Do not enable Jellyfin guest autostart while
+that host Quadlet remains enabled. Rollback is the same operation in reverse:
+stop the guest before starting the retained host service. `music.vm` continues
+to proxy to the retained NAS service; use `jellyfin.vm` directly during a VM
+trial.
 
-Use the `minecraft` or `jellyfin` repository path instead when operating
-that role. The same identity verification is required for immutable tags. The
-tracked immutable tag prevents the daily timer from replacing the rollback.
-Return to the reviewed automatic channel explicitly:
+Minecraft autostarts on the current NAS deployment. Before booting a retained
+legacy deployment whose Minecraft services use the same worlds, shut down the
+guest and disable its domain autostart. Stop the legacy writers before returning
+to the current deployment, then re-enable the guest's intended autostart.
 
-```sh
-printf '%s\n' 'ghcr.io/noobping/k3s:latest' | sudo tee /etc/bootc-image-ref
-sudo systemctl start rpm-ostree-upgrade.service
-rpm-ostree status
-```
-
-## Backups
-
-The weekly host job invokes `/usr/libexec/infrastructure/backup-prepare` in each
-running guest through QEMU Guest Agent. A guest hook prepares that VM's
-application-consistent exports and may leave its writers quiesced. The host has
-no local application containers to prepare or pause; it freezes and suspends the
-guests while creating the source snapshots.
-
-After all snapshots exist, the host resumes/thaws workloads and invokes the
-idempotent `/usr/libexec/infrastructure/backup-finish` hook in every prepared
-guest before performing the slower HDD sends. The `vms` subvolume and generated
-libvirt XML are included with retention three. The steady-state host set is
-`books docs git music photos touhou videos vms`; legacy `apps` and `caddy` are
-excluded and retained only in the final pre-cutover archive.
-
-All role images must provide both hooks before the first post-cutover backup.
-A missing/failing prepare, finish, resume, or thaw fails the backup. The host
-EXIT trap retries resume/thaw and finish after partial failures. Do not disable
-the guest hooks after applications begin accepting writes in the VMs.
-
-Run and inspect a rehearsal before cutover:
-
-```sh
-sudo systemctl start btrfs-backup.service
-sudo journalctl -u btrfs-backup.service -b
-sudo btrfs subvolume list /var/srv/hdd/backups/ssd
-```
-
-## Cutover safety
-
-### Hold the legacy host image first
-
-Before merging or otherwise publishing the NAS change that removes application
-Quadlets, pin the current application-bearing immutable tag and mask the live
-NAS update timer. A newly published host-only `nas:latest` must not be staged by
-the daily timer or activated by the nightly reboot before migration is ready:
-
-```sh
-sudo systemctl mask --now rpm-ostree-upgrade.timer
-TAG=git-0123456789ab-img-abcdef012345 # current legacy NAS deployment
-printf '%s\n' "ghcr.io/noobping/nas:${TAG}" | sudo tee /etc/bootc-image-ref
-rpm-ostree status
-```
-
-Keep this hold until the final archive and restore rehearsal have succeeded.
-If an unintended pending deployment already exists, follow the cleanup check in
-[the NAS update runbook](../nas/README.md#hold-the-legacy-deployment-before-publication).
-
-### Final migration and archive
-
-Do not run old and migrated copies of a writable application against the same
-data. Rehearse with copied data first. At cutover, enable Nextcloud maintenance
-mode, create the database/application exports in the role runbooks, then stop
-and mask every legacy writer while still booted into the old NAS deployment:
-
-```sh
-sudo ./vms/bin/legacy-apps mask
-./vms/bin/legacy-apps status
-```
-
-Every listed unit must be inactive and masked. Masking is required because a
-plain stop lets the old Quadlet generator recreate services on reboot. The
-helper does not include Cockpit; the new image provides Cockpit on HTTPS port
-443 and contains none of these application Quadlets.
-
-Before the final copy, grant UID 33 access to existing shared documents and add
-inheritable ACLs to every existing directory:
-
-```sh
-sudo setfacl -R -m 'u:33:rwX,m::rwX' /var/srv/docs/shared
-sudo find /var/srv/docs/shared -type d -exec \
-  setfacl -m 'd:u::rwx,d:u:33:rwx,d:g::rwx,d:m::rwx,d:o::---' {} +
-```
-
-Run the old deployment backup one final time after its writers stop. Record and
-retain the common received `apps/<timestamp>` and `caddy/<timestamp>` snapshot
-trees as the legacy rollback archive. The new steady-state backup excludes both
-subvolumes. See [the archive procedure](../nas/README.md#final-legacy-application-archive).
-
-Only then perform the final state sync, manually stage the signed minimal NAS
-deployment, reboot, and start the VMs and Flux workloads. Prove Nextcloud can
-write the root-squashed NFS export as `www-data` (UID 33):
-
-```sh
-kubectl -n nextcloud exec deploy/nextcloud -c nextcloud -- \
-  su -s /bin/sh -c \
-  'test "$(id -u)" = 33 &&
-   touch /var/srv/docs/shared/.nextcloud-acl-test &&
-   rm /var/srv/docs/shared/.nextcloud-acl-test' www-data
-```
-
-Change service DNS only after all application checks succeed. Keep the host
-update timer masked until the cutover is accepted.
-
-### Rollback after cutover
-
-Rollback is an ordered outage, not just a host image switch:
-
-1. Stop all new writers first. Suspend Flux, put applications in maintenance
-   mode, flush/export any post-cutover state, and cleanly stop the K3s,
-   Minecraft, and Jellyfin guests. Follow each role runbook; never leave a VM
-   writer active while starting its legacy counterpart.
-2. Restore UniFi service DNS to the physical NAS. Restore or reconcile the
-   captured post-cutover changes into writable clones of the final legacy
-   `apps` and `caddy` data. Never write into the received read-only snapshots.
-3. On the NAS, keep updates masked, verify that the previous deployment is the
-   application-bearing legacy image, select it, and reboot:
-
-   ```sh
-   sudo systemctl mask --now rpm-ostree-upgrade.timer
-   rpm-ostree status
-   sudo rpm-ostree rollback
-   sudo systemctl reboot
-   ```
-
-4. After the reboot, confirm the legacy Quadlet files are present and only then
-   remove their persistent masks and start them:
-
-   ```sh
-   test -f /etc/containers/systemd/nextcloud.container
-   sudo ./vms/bin/legacy-apps restore
-   ./vms/bin/legacy-apps status
-   ```
-
-The restore helper intentionally refuses to run in the minimal image. Keep the
-legacy deployment, final archive, and original NetworkManager uplink profile
-until the migration and rollback drill are accepted.
+The NAS backup snapshots the `apps`, `caddy`, `docs`, `music`, and `books`
+subvolumes that contain the NFS exports. Each subvolume snapshot is
+crash-consistent, but the sequence is not one atomic snapshot across all five.
+The K3s hooks place logical dumps and recovery material on the NFS-backed
+`k3s-backups` path inside `apps`. Use those hooks for an explicitly coordinated
+backup; the normal NAS timer does not invoke guest hooks automatically.

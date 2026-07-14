@@ -17,11 +17,13 @@ still limits inbound traffic to the documented Jellyfin ports.
 ## Migrate Jellyfin state
 
 The old NAS service and the guest use the same NAS configuration and cache
-directories, so there is no data copy. Keep the guest powered off until
-cutover, then stop the old instance before first booting the guest. Never let
-both instances write the shared configuration:
+directories, so there is no data copy. The inventory deliberately leaves the
+Jellyfin domain without autostart while the NAS Quadlet is retained. Apply the
+same setting once to a domain defined before this change, then stop the old
+instance before starting the guest:
 
 ```sh
+sudo virsh autostart --disable jellyfin
 sudo systemctl stop jellyfin.service
 sudo virsh start jellyfin
 ```
@@ -35,6 +37,13 @@ ssh nick@jellyfin.vm \
 ```
 
 Verify libraries, users, watch state, music/book playback, and LAN discovery,
-then restart Jellyfin once and verify the state persists. For rollback, stop
-the guest service before starting the legacy NAS service; never run both
-instances against one configuration tree.
+then restart Jellyfin once and verify the state persists. This remains a manual
+trial. Before any NAS shutdown or reboot, cleanly shut down the guest and
+wait until `sudo virsh domstate jellyfin` reports `shut off`. Confirm
+`sudo virsh dominfo jellyfin` reports `Managed save: no`; if it reports `yes`, run
+`sudo virsh managedsave-remove jellyfin` and check again. Domain autostart is
+disabled, but the existing libvirt save/resume policy can restore a managed-save
+independently. The retained host service can then return at boot. Do not enable
+guest autostart until a later accepted change removes or disables the host
+Quadlet. `music.vm` remains on the NAS service, so use `jellyfin.vm` directly
+for the trial. Never run both instances against one configuration tree.

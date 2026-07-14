@@ -83,6 +83,22 @@ ssh nick@minecraft.vm \
 ```
 
 Join both editions, verify the expected worlds and player data, make a test
-change, restart both services, and verify the change persisted. For rollback,
-stop the guest services before starting the legacy NAS services. Never run both
-sets of writers against these shared directories.
+change, restart both services, and verify the change persisted.
+
+For rollback to a retained NAS deployment that contains the legacy services,
+stop both guest services, shut down the domain, and prevent it from autostarting
+against them:
+
+```sh
+sudo virsh shutdown minecraft
+sudo virsh autostart --disable minecraft
+sudo virsh domstate minecraft
+sudo virsh dominfo minecraft
+```
+
+Wait until `domstate` reports `shut off`. If `dominfo` reports `Managed save:
+yes`, run `sudo virsh managedsave-remove minecraft` and check again before
+rebooting the NAS. Stop the legacy services before returning to the current
+deployment. Once it is active again, run `sudo virsh autostart minecraft` to
+restore the intended setting. Never run both sets of writers against the shared
+world directories.
