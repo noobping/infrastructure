@@ -19,9 +19,7 @@ spec:
   nfs:
     path: /var/srv/docs/shared
     server: REPLACED_BY_KUSTOMIZE
-  persistentVolumeReclaimPolicy: Retain
   storageClassName: nfs-static
-  volumeMode: Filesystem
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -35,7 +33,6 @@ spec:
     requests:
       storage: 1Ti
   storageClassName: nfs-static
-  volumeMode: Filesystem
   volumeName: nextcloud-shared
 ---
 apiVersion: v1
@@ -58,9 +55,7 @@ spec:
   nfs:
     path: /var/srv/docs/paperless/consume
     server: REPLACED_BY_KUSTOMIZE
-  persistentVolumeReclaimPolicy: Retain
   storageClassName: nfs-static
-  volumeMode: Filesystem
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -94,9 +89,7 @@ spec:
   nfs:
     path: /var/srv/docs/paperless/media
     server: REPLACED_BY_KUSTOMIZE
-  persistentVolumeReclaimPolicy: Retain
   storageClassName: nfs-static
-  volumeMode: Filesystem
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -130,9 +123,7 @@ spec:
   nfs:
     path: /var/srv/docs/paperless/export
     server: REPLACED_BY_KUSTOMIZE
-  persistentVolumeReclaimPolicy: Retain
   storageClassName: nfs-static
-  volumeMode: Filesystem
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -166,9 +157,7 @@ spec:
   nfs:
     path: /var/srv/ssd/caddy/data
     server: REPLACED_BY_KUSTOMIZE
-  persistentVolumeReclaimPolicy: Retain
   storageClassName: nfs-static
-  volumeMode: Filesystem
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -189,9 +178,7 @@ spec:
   nfs:
     path: /var/srv/ssd/caddy/config
     server: REPLACED_BY_KUSTOMIZE
-  persistentVolumeReclaimPolicy: Retain
   storageClassName: nfs-static
-  volumeMode: Filesystem
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -212,9 +199,7 @@ spec:
   nfs:
     path: /var/lib/containers/euro-office/data
     server: REPLACED_BY_KUSTOMIZE
-  persistentVolumeReclaimPolicy: Retain
   storageClassName: nfs-static
-  volumeMode: Filesystem
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -235,9 +220,7 @@ spec:
   nfs:
     path: /var/lib/containers/euro-office/config
     server: REPLACED_BY_KUSTOMIZE
-  persistentVolumeReclaimPolicy: Retain
   storageClassName: nfs-static
-  volumeMode: Filesystem
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -258,9 +241,7 @@ spec:
   nfs:
     path: /var/lib/containers/euro-office/logs
     server: REPLACED_BY_KUSTOMIZE
-  persistentVolumeReclaimPolicy: Retain
   storageClassName: nfs-static
-  volumeMode: Filesystem
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -281,9 +262,7 @@ spec:
   nfs:
     path: /var/lib/containers/nextcloud
     server: REPLACED_BY_KUSTOMIZE
-  persistentVolumeReclaimPolicy: Retain
   storageClassName: nfs-static
-  volumeMode: Filesystem
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -304,9 +283,7 @@ spec:
   nfs:
     path: /var/lib/containers/nextcloud-postgresql
     server: REPLACED_BY_KUSTOMIZE
-  persistentVolumeReclaimPolicy: Retain
   storageClassName: nfs-static
-  volumeMode: Filesystem
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -327,9 +304,7 @@ spec:
   nfs:
     path: /var/lib/containers/nextcloud-redis
     server: REPLACED_BY_KUSTOMIZE
-  persistentVolumeReclaimPolicy: Retain
   storageClassName: nfs-static
-  volumeMode: Filesystem
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -350,9 +325,7 @@ spec:
   nfs:
     path: /var/lib/containers/paperless/data
     server: REPLACED_BY_KUSTOMIZE
-  persistentVolumeReclaimPolicy: Retain
   storageClassName: nfs-static
-  volumeMode: Filesystem
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -373,9 +346,7 @@ spec:
   nfs:
     path: /var/lib/containers/paperless/postgres
     server: REPLACED_BY_KUSTOMIZE
-  persistentVolumeReclaimPolicy: Retain
   storageClassName: nfs-static
-  volumeMode: Filesystem
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -396,9 +367,7 @@ spec:
   nfs:
     path: /var/lib/containers/paperless/redis
     server: REPLACED_BY_KUSTOMIZE
-  persistentVolumeReclaimPolicy: Retain
   storageClassName: nfs-static
-  volumeMode: Filesystem
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -419,9 +388,7 @@ spec:
   nfs:
     path: /var/lib/containers/registry
     server: REPLACED_BY_KUSTOMIZE
-  persistentVolumeReclaimPolicy: Retain
   storageClassName: nfs-static
-  volumeMode: Filesystem
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -442,6 +409,4 @@ spec:
   nfs:
     path: /var/lib/containers/uptime-kuma
     server: REPLACED_BY_KUSTOMIZE
-  persistentVolumeReclaimPolicy: Retain
   storageClassName: nfs-static
-  volumeMode: Filesystem
