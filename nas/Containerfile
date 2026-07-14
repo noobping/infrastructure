@@ -63,10 +63,6 @@ RUN set -euxo pipefail; \
   awk '/set allowed_tcp_dports[[:space:]]*\{/{flag=1} flag{print} /^\t*\}/{if(flag){exit}}' /etc/nftables/main.nft \
   | grep -q '\<http\>' \
   || sed -i '/set allowed_tcp_dports[[:space:]]*{/,/}/{/elements = {/ s/}/, http, https}/;}' /etc/nftables/main.nft; \
-  sed -i '/set allowed_tcp_dports[[:space:]]*{/,/}/{/elements = {/ { s/,[[:space:]]*9090[[:space:]]*,/,/g; s/,[[:space:]]*9090[[:space:]]*}/}/; s/{[[:space:]]*9090[[:space:]]*,/{/; };}' \
-    /etc/nftables/main.nft; \
-  ! awk '/set allowed_tcp_dports[[:space:]]*\{/{flag=1} flag{print} /^\t*\}/{if(flag){exit}}' \
-    /etc/nftables/main.nft | grep -q '\<9090\>'; \
   grep -q 'include "/etc/nftables/rules/\\*.nft"' /etc/nftables/main.nft \
   || sed -i '/tcp dport @allowed_tcp_dports accept/i\        include "/etc/nftables/rules/*.nft"' /etc/nftables/main.nft; \
   grep -q 'include "/etc/nftables/suricata.nft"' /etc/nftables/main.nft \
