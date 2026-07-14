@@ -2,7 +2,7 @@
 
 This directory is the host-side contract for the three KVM guests. The physical
 NAS remains responsible for Btrfs, NFSv4, libvirt, the LAN bridge, NUT, IPS,
-weekly backups, and native Cockpit at `https://nas.vm:9090/`. The new NAS image
+weekly backups, and Cockpit at `https://nas.vm/`. The new NAS image
 contains no application Quadlets: K3s, Minecraft, and Jellyfin state and writers
 live only in their respective VMs. Legacy Quadlets exist only in the previous
 rpm-ostree deployment retained for rollback.
@@ -265,8 +265,8 @@ sudo ./vms/bin/legacy-apps mask
 
 Every listed unit must be inactive and masked. Masking is required because a
 plain stop lets the old Quadlet generator recreate services on reboot. The
-helper does not include Cockpit; the new image provides native Cockpit on port
-9090 and contains none of these application Quadlets.
+helper does not include Cockpit; the new image provides Cockpit on HTTPS port
+443 and contains none of these application Quadlets.
 
 Before the final copy, grant UID 33 access to existing shared documents and add
 inheritable ACLs to every existing directory:
