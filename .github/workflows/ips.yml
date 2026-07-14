@@ -6,7 +6,7 @@ on:
       - main
       - master
     paths:
-      - "ips/**"
+      - "images/ips/**"
       - ".github/workflows/ips.yml"
       - "!**/*.md"
 
@@ -103,7 +103,7 @@ jobs:
           echo "${{ secrets.GITHUB_TOKEN }}" | buildah login -u "${{ github.actor }}" --password-stdin ghcr.io
 
       - name: Build
-        working-directory: ips
+        working-directory: images/ips
         env:
           BUILDAH_ISOLATION: chroot
           TMPDIR: /mnt/tmp

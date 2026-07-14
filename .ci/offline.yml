@@ -190,7 +190,7 @@ steps:
       pushd "$repo" >/dev/null
       mkdir -p dist/ign dist/iso
 
-      build_image ips ips/Containerfile "${namespace}/ips:${image_arch}" \
+      build_image images/ips images/ips/Containerfile "${namespace}/ips:${image_arch}" \
         --build-arg "FCOS_STREAM=stable" \
         --build-arg "UID=${uid}" \
         --build-arg "GID=${gid}"
