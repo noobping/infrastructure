@@ -1,0 +1,28 @@
+# K3s application volumes. Root access is limited to the single K3s VM.
+/var/srv/ssd/caddy/data k3s.vm(rw,sync,no_subtree_check,no_root_squash)
+/var/srv/ssd/caddy/config k3s.vm(rw,sync,no_subtree_check,no_root_squash)
+/var/lib/containers/euro-office/data k3s.vm(rw,sync,no_subtree_check,no_root_squash)
+/var/lib/containers/euro-office/config k3s.vm(rw,sync,no_subtree_check,no_root_squash)
+/var/lib/containers/euro-office/logs k3s.vm(rw,sync,no_subtree_check,no_root_squash)
+/var/lib/containers/nextcloud k3s.vm(rw,sync,no_subtree_check,no_root_squash)
+/var/lib/containers/nextcloud-postgresql k3s.vm(rw,sync,no_subtree_check,no_root_squash)
+/var/lib/containers/nextcloud-redis k3s.vm(rw,sync,no_subtree_check,no_root_squash)
+/var/lib/containers/paperless/data k3s.vm(rw,sync,no_subtree_check,no_root_squash)
+/var/lib/containers/paperless/postgres k3s.vm(rw,sync,no_subtree_check,no_root_squash)
+/var/lib/containers/paperless/redis k3s.vm(rw,sync,no_subtree_check,no_root_squash)
+/var/lib/containers/registry k3s.vm(rw,sync,no_subtree_check,no_root_squash)
+/var/lib/containers/uptime-kuma k3s.vm(rw,sync,no_subtree_check,no_root_squash)
+
+# Shared cluster data keeps normal root squashing.
+/var/srv/docs/shared k3s.vm(rw,sync,no_subtree_check,root_squash)
+/var/srv/docs/paperless/consume k3s.vm(rw,sync,no_subtree_check,root_squash)
+/var/srv/docs/paperless/media k3s.vm(rw,sync,no_subtree_check,root_squash)
+/var/srv/docs/paperless/export k3s.vm(rw,sync,no_subtree_check,root_squash)
+
+# VM application data. The containers use the matching numeric NAS users.
+/var/lib/containers/minecraft/java minecraft.vm(rw,sync,no_subtree_check,root_squash)
+/var/lib/containers/minecraft/bedrock minecraft.vm(rw,sync,no_subtree_check,root_squash)
+/var/lib/containers/jellyfin jellyfin.vm(rw,sync,no_subtree_check,root_squash)
+/var/lib/containers/jellyfin/cache jellyfin.vm(rw,sync,no_subtree_check,root_squash)
+/var/srv/music jellyfin.vm(ro,sync,no_subtree_check,root_squash,crossmnt)
+/var/srv/books jellyfin.vm(ro,sync,no_subtree_check,root_squash)

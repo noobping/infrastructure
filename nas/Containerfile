@@ -12,7 +12,7 @@ RUN set -euxo pipefail; \
   ostree container commit
 
 RUN rpm-ostree install -y \
-    libvirt qemu-kvm pcp-zeroconf smartmontools \
+    libvirt nfs-utils qemu-kvm pcp-zeroconf smartmontools \
     cockpit-system cockpit-ostree cockpit-podman cockpit-machines cockpit-storaged cockpit-files cockpit-networkmanager cockpit-sosreport cockpit-kdump cockpit-selinux \
     gssproxy \
     nut \
@@ -21,11 +21,14 @@ RUN rpm-ostree install -y \
   ln -s /var/srv/git /git; \
   rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
   mkdir -p \
+  /etc/exports.d \
   /etc/nftables/rules \
+  /etc/nfs.conf.d \
   /etc/modules-load.d \
   /etc/polkit-1/rules.d \
   /etc/ups \
   /etc/systemd/system/multi-user.target.wants \
+  /etc/systemd/system/nfs-server.service.d \
   /etc/systemd/system/timers.target.wants \
   /usr/libexec/infrastructure \
   /var/lib/suricata \
@@ -46,6 +49,10 @@ COPY containers /etc/containers/systemd
 COPY fstab.txt /etc/fstab
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
 COPY mdadm.conf /etc/mdadm.conf
+COPY nfs/exports /etc/exports.d/infrastructure.exports
+COPY nfs/nfs.conf /etc/nfs.conf.d/infrastructure.conf
+COPY nfs/nfs-server.conf /etc/systemd/system/nfs-server.service.d/10-infrastructure.conf
+COPY nfs/storage.conf /usr/lib/tmpfiles.d/infrastructure-nfs.conf
 COPY nut-configure.service /etc/systemd/system/nut-configure.service
 COPY nut.env.example /etc/ups/nut.env.example
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
@@ -70,6 +77,8 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/multi-user.target.wants/virtlockd.service; \
   ln -sf /usr/lib/systemd/system/virtlogd.service \
     /etc/systemd/system/multi-user.target.wants/virtlogd.service; \
+  ln -sf /usr/lib/systemd/system/nfs-server.service \
+    /etc/systemd/system/multi-user.target.wants/nfs-server.service; \
   ln -sf /etc/systemd/system/nut-configure.service \
     /etc/systemd/system/multi-user.target.wants/nut-configure.service; \
   ln -sf /etc/systemd/system/btrfs-backup.timer \
