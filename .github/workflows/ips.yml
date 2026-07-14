@@ -57,12 +57,6 @@ jobs:
       - uses: jlumbroso/free-disk-space@v1.3.1
         with:
           tool-cache: true
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: true
-          swap-storage: true
 
       - name: Build tools
         env:
