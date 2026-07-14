@@ -101,7 +101,7 @@ install -d -o root -g qemu -m 0770 \
 restorecon -RF "$vm_root"
 
 ip link show br0 >/dev/null 2>&1 || {
-  echo "br0 does not exist. Run sudo nas-vm-bridge apply first." >&2
+  echo "br0 does not exist. Run sudo /usr/libexec/infrastructure/nas-vm-bridge apply first." >&2
   exit 1
 }
 
