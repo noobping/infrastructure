@@ -60,7 +60,6 @@ RUN set -euxo pipefail; \
   cp -a /var/lib/clamav/. /usr/share/clamav/; \
   chown -R root:root /usr/share/clamav; \
   /usr/libexec/infrastructure/clamav-prepare; \
-  install -d -o suricata -g suricata -m 0750 /var/lib/suricata /var/log/suricata; \
   /usr/libexec/infrastructure/suricata-sync-rules; \
   mv /var/lib/suricata/rules /usr/share/suricata/rules; \
   chown -R root:root /usr/share/suricata; \

@@ -60,7 +60,6 @@ COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY suricata.nft /etc/nftables/suricata.nft
 
 RUN set -euxo pipefail; \
-  find /etc/containers/systemd -type f \( -name '*.container' -o -name '*.network' \) -exec chmod 0644 '{}' ';'; \
   awk '/set allowed_tcp_dports[[:space:]]*\{/{flag=1} flag{print} /^\t*\}/{if(flag){exit}}' /etc/nftables/main.nft \
   | grep -q '\<http\>' \
   || sed -i '/set allowed_tcp_dports[[:space:]]*{/,/}/{/elements = {/ s/}/, http, https}/;}' /etc/nftables/main.nft; \

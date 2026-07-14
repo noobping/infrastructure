@@ -91,7 +91,6 @@ RUN set -euxo pipefail; \
     /usr/share/gnome-background-properties \
     /var/lib/AccountsService
 
-# COPY *.nmconnection /etc/NetworkManager/system-connections/
 COPY aliases.sh /etc/profile.d/
 COPY background.png /usr/share/backgrounds/wallpaper.png
 COPY background.xml /usr/share/gnome-background-properties/noobping.xml
