@@ -7,7 +7,8 @@ AutoUpdate=registry
 Memory=512M
 PidsLimit=512
 PodmanArgs=--privileged --pid=host --network=host -v /:/host
-Exec=/container/label-run --port 443
+Entrypoint=/container/label-run
+Exec=--port 443
 
 [Service]
 Restart=always
