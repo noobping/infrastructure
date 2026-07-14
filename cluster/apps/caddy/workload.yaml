@@ -9,7 +9,8 @@ spec:
   resources:
     requests:
       storage: 2Gi
-  storageClassName: local-path
+  storageClassName: nfs-static
+  volumeName: caddy-data
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -22,7 +23,8 @@ spec:
   resources:
     requests:
       storage: 1Gi
-  storageClassName: local-path
+  storageClassName: nfs-static
+  volumeName: caddy-runtime-config
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -103,4 +105,3 @@ spec:
     - {name: http, port: 80, targetPort: http, protocol: TCP}
     - {name: https, port: 443, targetPort: https, protocol: TCP}
     - {name: https-udp, port: 443, targetPort: https-udp, protocol: UDP}
-

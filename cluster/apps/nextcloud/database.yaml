@@ -9,7 +9,8 @@ spec:
   resources:
     requests:
       storage: 20Gi
-  storageClassName: local-path
+  storageClassName: nfs-static
+  volumeName: nextcloud-postgresql
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -86,7 +87,8 @@ spec:
   resources:
     requests:
       storage: 2Gi
-  storageClassName: local-path
+  storageClassName: nfs-static
+  volumeName: nextcloud-redis
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -144,4 +146,3 @@ spec:
     app.kubernetes.io/name: nextcloud-redis
   ports:
     - {name: redis, port: 6379, targetPort: redis}
-

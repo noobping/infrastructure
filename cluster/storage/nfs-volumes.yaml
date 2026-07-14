@@ -14,6 +14,7 @@ spec:
     - hard
     - timeo=600
     - retrans=2
+    - fsc
     # These exports contain application data, never executable workloads.
     - nosuid
     - nodev
@@ -56,6 +57,7 @@ spec:
     - hard
     - timeo=600
     - retrans=2
+    - fsc
     - nosuid
     - nodev
     - noexec
@@ -94,6 +96,7 @@ spec:
     - hard
     - timeo=600
     - retrans=2
+    - fsc
     - nosuid
     - nodev
     - noexec
@@ -132,6 +135,7 @@ spec:
     - hard
     - timeo=600
     - retrans=2
+    - fsc
     - nosuid
     - nodev
     - noexec
@@ -154,3 +158,341 @@ spec:
       storage: 250Gi
   storageClassName: nfs-static
   volumeName: paperless-export
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: caddy-data
+  labels:
+    app.kubernetes.io/part-of: caddy
+spec:
+  accessModes: [ReadWriteOnce]
+  capacity:
+    storage: 2Gi
+  mountOptions:
+    - nfsvers=4.2
+    - hard
+    - timeo=600
+    - retrans=2
+    - fsc
+    - nosuid
+    - nodev
+    - noexec
+  nfs:
+    path: /var/srv/ssd/caddy/data
+    server: REPLACED_BY_KUSTOMIZE
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-static
+  volumeMode: Filesystem
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: caddy-runtime-config
+  labels:
+    app.kubernetes.io/part-of: caddy
+spec:
+  accessModes: [ReadWriteOnce]
+  capacity:
+    storage: 1Gi
+  mountOptions:
+    - nfsvers=4.2
+    - hard
+    - timeo=600
+    - retrans=2
+    - fsc
+    - nosuid
+    - nodev
+    - noexec
+  nfs:
+    path: /var/srv/ssd/caddy/config
+    server: REPLACED_BY_KUSTOMIZE
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-static
+  volumeMode: Filesystem
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: euro-office-data
+  labels:
+    app.kubernetes.io/part-of: euro-office
+spec:
+  accessModes: [ReadWriteOnce]
+  capacity:
+    storage: 20Gi
+  mountOptions:
+    - nfsvers=4.2
+    - hard
+    - timeo=600
+    - retrans=2
+    - fsc
+    - nosuid
+    - nodev
+    - noexec
+  nfs:
+    path: /var/lib/containers/euro-office/data
+    server: REPLACED_BY_KUSTOMIZE
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-static
+  volumeMode: Filesystem
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: euro-office-config
+  labels:
+    app.kubernetes.io/part-of: euro-office
+spec:
+  accessModes: [ReadWriteOnce]
+  capacity:
+    storage: 2Gi
+  mountOptions:
+    - nfsvers=4.2
+    - hard
+    - timeo=600
+    - retrans=2
+    - fsc
+    - nosuid
+    - nodev
+    - noexec
+  nfs:
+    path: /var/lib/containers/euro-office/config
+    server: REPLACED_BY_KUSTOMIZE
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-static
+  volumeMode: Filesystem
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: euro-office-logs
+  labels:
+    app.kubernetes.io/part-of: euro-office
+spec:
+  accessModes: [ReadWriteOnce]
+  capacity:
+    storage: 10Gi
+  mountOptions:
+    - nfsvers=4.2
+    - hard
+    - timeo=600
+    - retrans=2
+    - fsc
+    - nosuid
+    - nodev
+    - noexec
+  nfs:
+    path: /var/lib/containers/euro-office/logs
+    server: REPLACED_BY_KUSTOMIZE
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-static
+  volumeMode: Filesystem
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nextcloud-data
+  labels:
+    app.kubernetes.io/part-of: nextcloud
+spec:
+  accessModes: [ReadWriteOnce]
+  capacity:
+    storage: 40Gi
+  mountOptions:
+    - nfsvers=4.2
+    - hard
+    - timeo=600
+    - retrans=2
+    - fsc
+    - nosuid
+    - nodev
+    - noexec
+  nfs:
+    path: /var/lib/containers/nextcloud
+    server: REPLACED_BY_KUSTOMIZE
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-static
+  volumeMode: Filesystem
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nextcloud-postgresql
+  labels:
+    app.kubernetes.io/part-of: nextcloud
+spec:
+  accessModes: [ReadWriteOnce]
+  capacity:
+    storage: 20Gi
+  mountOptions:
+    - nfsvers=4.2
+    - hard
+    - timeo=600
+    - retrans=2
+    - fsc
+    - nosuid
+    - nodev
+    - noexec
+  nfs:
+    path: /var/lib/containers/nextcloud-postgresql
+    server: REPLACED_BY_KUSTOMIZE
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-static
+  volumeMode: Filesystem
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nextcloud-redis
+  labels:
+    app.kubernetes.io/part-of: nextcloud
+spec:
+  accessModes: [ReadWriteOnce]
+  capacity:
+    storage: 2Gi
+  mountOptions:
+    - nfsvers=4.2
+    - hard
+    - timeo=600
+    - retrans=2
+    - fsc
+    - nosuid
+    - nodev
+    - noexec
+  nfs:
+    path: /var/lib/containers/nextcloud-redis
+    server: REPLACED_BY_KUSTOMIZE
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-static
+  volumeMode: Filesystem
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: paperless-data
+  labels:
+    app.kubernetes.io/part-of: paperless
+spec:
+  accessModes: [ReadWriteOnce]
+  capacity:
+    storage: 10Gi
+  mountOptions:
+    - nfsvers=4.2
+    - hard
+    - timeo=600
+    - retrans=2
+    - fsc
+    - nosuid
+    - nodev
+    - noexec
+  nfs:
+    path: /var/lib/containers/paperless/data
+    server: REPLACED_BY_KUSTOMIZE
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-static
+  volumeMode: Filesystem
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: paperless-postgresql
+  labels:
+    app.kubernetes.io/part-of: paperless
+spec:
+  accessModes: [ReadWriteOnce]
+  capacity:
+    storage: 20Gi
+  mountOptions:
+    - nfsvers=4.2
+    - hard
+    - timeo=600
+    - retrans=2
+    - fsc
+    - nosuid
+    - nodev
+    - noexec
+  nfs:
+    path: /var/lib/containers/paperless/postgres
+    server: REPLACED_BY_KUSTOMIZE
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-static
+  volumeMode: Filesystem
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: paperless-redis
+  labels:
+    app.kubernetes.io/part-of: paperless
+spec:
+  accessModes: [ReadWriteOnce]
+  capacity:
+    storage: 2Gi
+  mountOptions:
+    - nfsvers=4.2
+    - hard
+    - timeo=600
+    - retrans=2
+    - fsc
+    - nosuid
+    - nodev
+    - noexec
+  nfs:
+    path: /var/lib/containers/paperless/redis
+    server: REPLACED_BY_KUSTOMIZE
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-static
+  volumeMode: Filesystem
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: registry-data
+  labels:
+    app.kubernetes.io/part-of: registry
+spec:
+  accessModes: [ReadWriteOnce]
+  capacity:
+    storage: 100Gi
+  mountOptions:
+    - nfsvers=4.2
+    - hard
+    - timeo=600
+    - retrans=2
+    - fsc
+    - nosuid
+    - nodev
+    - noexec
+  nfs:
+    path: /var/lib/containers/registry
+    server: REPLACED_BY_KUSTOMIZE
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-static
+  volumeMode: Filesystem
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: uptime-kuma-data
+  labels:
+    app.kubernetes.io/part-of: uptime-kuma
+spec:
+  accessModes: [ReadWriteOnce]
+  capacity:
+    storage: 5Gi
+  mountOptions:
+    - nfsvers=4.2
+    - hard
+    - timeo=600
+    - retrans=2
+    - fsc
+    - nosuid
+    - nodev
+    - noexec
+  nfs:
+    path: /var/lib/containers/uptime-kuma
+    server: REPLACED_BY_KUSTOMIZE
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-static
+  volumeMode: Filesystem

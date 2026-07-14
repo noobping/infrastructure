@@ -9,7 +9,8 @@ spec:
   resources:
     requests:
       storage: 100Gi
-  storageClassName: local-path
+  storageClassName: nfs-static
+  volumeName: registry-data
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -69,4 +70,3 @@ spec:
     app.kubernetes.io/name: registry
   ports:
     - {name: http, port: 5000, targetPort: http}
-

@@ -9,7 +9,8 @@ spec:
   resources:
     requests:
       storage: 10Gi
-  storageClassName: local-path
+  storageClassName: nfs-static
+  volumeName: paperless-data
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -114,4 +115,3 @@ spec:
     app.kubernetes.io/name: paperless
   ports:
     - {name: http, port: 8000, targetPort: http}
-

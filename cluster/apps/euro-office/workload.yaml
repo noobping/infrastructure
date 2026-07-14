@@ -9,7 +9,8 @@ spec:
   resources:
     requests:
       storage: 20Gi
-  storageClassName: local-path
+  storageClassName: nfs-static
+  volumeName: euro-office-data
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -22,7 +23,8 @@ spec:
   resources:
     requests:
       storage: 2Gi
-  storageClassName: local-path
+  storageClassName: nfs-static
+  volumeName: euro-office-config
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -35,7 +37,8 @@ spec:
   resources:
     requests:
       storage: 10Gi
-  storageClassName: local-path
+  storageClassName: nfs-static
+  volumeName: euro-office-logs
 ---
 apiVersion: apps/v1
 kind: Deployment
