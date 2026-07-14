@@ -11,8 +11,8 @@ dns_name=${BRIDGE_HEALTH_DNS_NAME:-ghcr.io}
 usage() {
   cat <<'USAGE'
 Usage:
-  nas-vm-bridge status
-  sudo nas-vm-bridge apply
+  vm-bridge status
+  sudo vm-bridge apply
 
 The apply command only accepts a single, DHCP-configured wired default route.
 NetworkManager takes a timed checkpoint, the script runs gateway, DNS,

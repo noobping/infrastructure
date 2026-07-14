@@ -26,13 +26,16 @@ Ignition paths.
 ```sh
 sudo virsh pool-info infrastructure-vms
 sudo virsh pool-dumpxml infrastructure-vms
-/usr/libexec/infrastructure/nas-vm-bridge status
+vm-bridge status
 ```
 
 ## Provision
 
+Run the installed deployer from the repository root so it can read the
+inventory, domain template, and rendered Ignition files.
+
 ```sh
-sudo ./vms/bin/provision --all
+sudo vm-deploy --all
 for vm in k3s minecraft jellyfin; do
   sudo virsh domblklist "$vm" --details
 done

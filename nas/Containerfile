@@ -12,6 +12,7 @@ RUN set -euxo pipefail; \
   ostree container commit
 
 RUN rpm-ostree install -y \
+    coreos-installer ignition-validate jq \
     libvirt nfs-utils qemu-kvm pcp-zeroconf smartmontools \
     cockpit-system cockpit-ostree cockpit-podman cockpit-machines cockpit-storaged cockpit-files cockpit-networkmanager cockpit-sosreport cockpit-kdump cockpit-selinux \
     gssproxy \
@@ -39,8 +40,8 @@ RUN rpm-ostree install -y \
   ostree container commit
 
 COPY --chmod=0600 nftables /etc/nftables/rules
+COPY --chmod=0755 bin/ /usr/bin/
 COPY --chmod=0755 btrfs-backup /usr/libexec/infrastructure/btrfs-backup
-COPY --chmod=0755 configure-vm-bridge /usr/libexec/infrastructure/nas-vm-bridge
 COPY --chmod=0755 nut-configure /usr/libexec/infrastructure/nut-configure
 COPY --chmod=0755 todo.sh /usr/bin/todo
 COPY btrfs-backup.service /etc/systemd/system/btrfs-backup.service
