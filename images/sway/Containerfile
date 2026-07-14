@@ -34,31 +34,11 @@ RUN set -euxo pipefail; \
     xdg-utils \
     xdg-desktop-portal-wlr; \
   rm -rf /var/cache/rpm-ostree /var/lib/rpm-ostree/cache /var/cache/dnf; \
-  mkdir -p \
-    /etc/skel/.config/mako \
-    /etc/skel/.config/sway \
-    /etc/skel/.config/wofi \
-    /etc/systemd/system/multi-user.target.wants \
-    /usr/libexec/infrastructure; \
   ostree container commit
 
-COPY apply-skel /usr/libexec/infrastructure/apply-skel
-COPY apply-skel.service /etc/systemd/system/apply-skel.service
 COPY skel /etc/skel
 
 RUN set -euxo pipefail; \
-  chmod 0644 \
-    /etc/skel/.config/mako/config \
-    /etc/skel/.config/sway/config \
-    /etc/skel/.config/sway/env \
-    /etc/skel/.config/sway/i3status.conf \
-    /etc/skel/.config/wofi/config \
-    /etc/skel/.config/wofi/style.css \
-    /etc/systemd/system/apply-skel.service; \
-  chmod 0755 /usr/libexec/infrastructure/apply-skel; \
-  find /etc/skel/.config/sway -type f -name '*.sh' -exec chmod 0755 '{}' +; \
-  ln -sf /etc/systemd/system/apply-skel.service \
-    /etc/systemd/system/multi-user.target.wants/apply-skel.service; \
   if grep -q '^XSession=' /var/lib/AccountsService/default; then \
     sed -i 's/^XSession=.*/XSession=sway/' /var/lib/AccountsService/default; \
   else \
