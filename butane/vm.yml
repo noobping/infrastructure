@@ -10,6 +10,8 @@ passwd:
 
 storage:
   directories:
+    - path: /var/cache/fscache
+      mode: 0700
     - path: /var/home/nick/.bashrc.d
       user:
         name: nick

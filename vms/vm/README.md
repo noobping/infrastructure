@@ -6,14 +6,14 @@ Suricata remain enabled in every guest. The guest nftables hooks inspect LAN
 traffic while bypassing loopback and Podman/K3s internal interfaces.
 
 The image adds the QEMU guest agent, verifies that an NFS client is available,
-and selects TuneD's `virtual-guest` profile. Before the guest agent starts, a
-fail-closed oneshot persistently enables the SELinux
-`virt_qemu_ga_read_nonsecurity_files` boolean required for host-initiated
-filesystem freeze/thaw. The image also installs a SHA256-pinned Cosign verifier.
-First boot and daily updates accept only images signed by this repository's
-`vms.yml` workflow on `refs/heads/main` through GitHub's OIDC issuer, extract the
-verified manifest digest, and pass only that immutable digest to rpm-ostree. VM
-images are therefore published only from `main`.
+enables `cachefilesd` for persistent NFS read caching, and selects TuneD's
+`virtual-guest` profile. A small SELinux oneshot permits confined workloads to
+use NFS. Before the guest agent starts, a separate fail-closed oneshot enables
+the `virt_qemu_ga_read_nonsecurity_files` boolean required for host-initiated
+filesystem freeze/thaw. Guest Ignition performs a direct
+`ostree-image-signed` rebase to the role's `:latest` image, then the standard
+rpm-ostree update timer follows that channel. The image needs no separate update
+helper or verifier.
 
 Build it locally with:
 
@@ -24,6 +24,5 @@ podman build \
   -t ghcr.io/noobping/vm:latest vms/vm
 ```
 
-CI builds both architectures from `latest@<verified-manifest-digest>`, so every
-architecture uses the same Cosign-verified immutable IPS parent even while the
-child architecture images are being assembled.
+CI builds both architectures from `ips:latest`, publishes `vm:latest`, and then
+builds and publishes each role's `:latest` multi-architecture manifest.

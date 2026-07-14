@@ -1,0 +1,11 @@
+[Unit]
+Description=Allow confined containers to use NFS volumes
+ConditionSecurity=selinux
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/setsebool virt_use_nfs on
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
