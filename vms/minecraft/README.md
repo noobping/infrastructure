@@ -27,8 +27,8 @@ restore autostart with `sudo virsh autostart minecraft`.
 Guest consoles:
 
 ```sh
-sudo podman exec -it systemd-minecraft rcon-cli
-sudo podman exec -it systemd-bedrock /bin/bash
+sudo mc-enter
+sudo mc-send gamerule dofiretick false
 ```
 
 For a consistent world backup, follow the

@@ -1,0 +1,13 @@
+#!/usr/bin/bash
+set -euo pipefail
+
+if (( EUID != 0 )); then
+  echo "Run with sudo: sudo mc-send COMMAND [ARG...]" >&2
+  exit 1
+fi
+if (( $# == 0 )); then
+  echo "Usage: sudo mc-send COMMAND [ARG...]" >&2
+  exit 2
+fi
+
+exec podman exec systemd-bedrock send-command "$@"

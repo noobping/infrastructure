@@ -7,6 +7,7 @@ LABEL org.opencontainers.image.description="KVM guest for Minecraft Java and Bed
 
 COPY containers /etc/containers/systemd
 COPY minecraft.nft /etc/nftables/rules/20-minecraft.nft
+COPY --chmod=0755 bin/ /usr/bin/
 COPY --chmod=0755 backup-prepare /usr/libexec/infrastructure/backup-prepare
 COPY --chmod=0755 backup-finish /usr/libexec/infrastructure/backup-finish
 

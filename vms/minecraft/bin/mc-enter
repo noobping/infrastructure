@@ -1,0 +1,9 @@
+#!/usr/bin/bash
+set -euo pipefail
+
+if (( EUID != 0 )); then
+  echo "Run with sudo: sudo mc-enter" >&2
+  exit 1
+fi
+
+exec podman exec --interactive systemd-minecraft rcon-cli "$@"
