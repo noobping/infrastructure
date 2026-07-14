@@ -36,7 +36,7 @@ systemd:
         TimeoutStartSec=0
         Restart=on-failure
         RestartSec=30s
-        ExecStart=/usr/bin/rpm-ostree rebase ostree-unverified-registry:__CI_IMAGE_NAMESPACE__/__CI_BOOTC_IMAGE__:latest
+        ExecStart=/usr/bin/rpm-ostree rebase ostree-image-signed:docker://__CI_IMAGE_NAMESPACE__/__CI_BOOTC_IMAGE__:latest
         ExecStart=/usr/bin/install -d -m 0755 /var/lib/infrastructure
         ExecStart=/usr/bin/touch /var/lib/infrastructure/rebase-to-image.done
         ExecStart=/usr/bin/systemctl --no-block reboot
