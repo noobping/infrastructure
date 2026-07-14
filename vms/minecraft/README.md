@@ -1,72 +1,7 @@
 # Minecraft VM
 
-This role runs the Java (Paper) and Bedrock servers as root-managed Quadlets.
-Both container images are pinned by release and multi-architecture manifest
-digest. Two Quadlet named volumes mount the existing NAS `java` and `bedrock`
-directories over NFSv4.2 with FS-Cache; no application directory is bound from
-the guest filesystem.
-
-Java is exposed on TCP 25565 and Bedrock on UDP 19132/19133. Both
-containers use the dedicated guest network directly so Suricata inspects their
-LAN traffic. The guest firewall does not open RCON port 25575 to the LAN.
-
-## Bedrock
-
-Enter server console
-
-```sh
-sudo podman exec -it systemd-bedrock /bin/bash
-```
-
-Show allowlist
-
-```sh
-send-command allowlist list
-```
-
-Allow player
-
-```sh
-send-command allowlist add "YourGamertag"
-```
-
-OP player
-
-```sh
-send-command op "YourGamertag"
-```
-
-## Java
-
-Enter server console
-
-```sh
-sudo podman exec -it systemd-minecraft rcon-cli
-```
-
-Show allowlist
-
-```sh
-whitelist list
-```
-
-Allow player
-
-```sh
-whitelist add "YourUsername"
-```
-
-OP player
-
-```sh
-op "YourUsername"
-```
-
-## Migrate the worlds
-
-The guest and legacy NAS services use the same NAS directories, so there is no
-data copy. Keep the guest powered off until the maintenance window. Then flush
-and stop the old NAS servers before first booting the guest:
+Java and Bedrock use the existing NAS world directories through cached NFS
+volumes. Flush and stop the legacy NAS services before starting the guest:
 
 ```sh
 sudo podman exec systemd-minecraft rcon-cli save-all flush
@@ -74,31 +9,28 @@ sudo systemctl stop minecraft.service bedrock.service
 sudo virsh start minecraft
 ```
 
-The guest rebases and reboots once; its enabled services then start normally.
-Inspect the named volumes after it returns:
-
-```sh
-ssh nick@minecraft.vm \
-  'sudo podman volume inspect systemd-minecraft-java systemd-minecraft-bedrock'
-```
-
-Join both editions, verify the expected worlds and player data, make a test
-change, restart both services, and verify the change persisted.
-
-For rollback to a retained NAS deployment that contains the legacy services,
-stop both guest services, shut down the domain, and prevent it from autostarting
-against them:
+Never run the legacy and guest writers together. Before booting a legacy NAS
+deployment, shut down the guest, disable autostart, and remove any managed-save
+state:
 
 ```sh
 sudo virsh shutdown minecraft
 sudo virsh autostart --disable minecraft
-sudo virsh domstate minecraft
-sudo virsh dominfo minecraft
+sudo virsh domstate minecraft      # must report: shut off
+sudo virsh dominfo minecraft       # must report: Managed save: no
+# If needed: sudo virsh managedsave-remove minecraft
 ```
 
-Wait until `domstate` reports `shut off`. If `dominfo` reports `Managed save:
-yes`, run `sudo virsh managedsave-remove minecraft` and check again before
-rebooting the NAS. Stop the legacy services before returning to the current
-deployment. Once it is active again, run `sudo virsh autostart minecraft` to
-restore the intended setting. Never run both sets of writers against the shared
-world directories.
+Stop the legacy services before returning to the current deployment, then
+restore autostart with `sudo virsh autostart minecraft`.
+
+Guest consoles:
+
+```sh
+sudo podman exec -it systemd-minecraft rcon-cli
+sudo podman exec -it systemd-bedrock /bin/bash
+```
+
+For a consistent world backup, follow the
+[shared backup order](../README.md#safety-and-backups). The hooks hold and
+flush world saves before the snapshot, then resume them afterward.
