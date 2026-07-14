@@ -129,7 +129,7 @@ if ! verify_archive "$archive"; then
     exit 1
 fi
 
-archive_ref="ostree-unverified-image:oci-archive:${archive}"
+archive_ref="ostree-image-signed:oci-archive:${archive}"
 echo "Remote rebase failed; using ISO archive: $archive_ref"
 
 mount -o remount,rw /sysroot 2>/dev/null || true
