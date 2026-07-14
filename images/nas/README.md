@@ -28,6 +28,6 @@ sudo journalctl -u btrfs-backup.service
 ```
 
 The timer is crash-consistent: it does not quiesce guests or snapshot all
-subvolumes atomically. Use the [VM backup order](../vms/README.md#safety-and-backups)
+subvolumes atomically. Use the [VM backup order](../../vms/README.md#safety-and-backups)
 when logical database dumps are required. The Caddy backup contains the local
 CA private key; keep backups restricted.

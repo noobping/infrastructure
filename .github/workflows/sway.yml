@@ -6,7 +6,7 @@ on:
       - main
       - master
     paths:
-      - "sway/**"
+      - "images/sway/**"
       - ".github/workflows/sway.yml"
       - "!**/*.md"
 
@@ -113,7 +113,7 @@ jobs:
           echo "${{ secrets.GITHUB_TOKEN }}" | buildah login -u "${{ github.actor }}" --password-stdin ghcr.io
 
       - name: Build
-        working-directory: sway
+        working-directory: images/sway
         env:
           BUILDAH_ISOLATION: chroot
           TMPDIR: /mnt/tmp

@@ -11,7 +11,7 @@ container:
 steps:
   - name: Build and push Workstation arch images
     container: false
-    working-directory: workstation
+    working-directory: images/workstation
     run: |
       set -euo pipefail
 
