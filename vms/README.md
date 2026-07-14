@@ -20,8 +20,6 @@ Ignition paths.
 - The existing `infrastructure-vms` pool must be active at
   `/var/srv/ssd/vms`.
 - The existing `br0` bridge must be ready.
-- Render `dist/ign/{k3s,minecraft,jellyfin}.ign` using the
-  [Butane instructions](../butane/README.md) or the workflow artifact.
 
 ```sh
 sudo virsh pool-info infrastructure-vms
@@ -31,8 +29,8 @@ vm-bridge status
 
 ## Provision
 
-Run the installed deployer from the repository root so it can read the
-inventory, domain template, and rendered Ignition files.
+Run the installed deployer from the repository root. It regenerates and
+validates all three guest Ignition files before create-only provisioning.
 
 ```sh
 sudo vm-deploy --all

@@ -14,7 +14,7 @@ Usage:
   sudo vm-deploy [--start] --all
 
 Run this command from the infrastructure repository root.
-The canonical role Ignition files must exist at dist/ign/{k3s,minecraft,jellyfin}.ign.
+The canonical guest Ignition files are regenerated before provisioning.
 The command is create-only: it refuses to overwrite domains or disks.
 USAGE
 }
@@ -67,7 +67,7 @@ if [[ $(uname -m) != x86_64 ]]; then
   exit 1
 fi
 
-for command in coreos-installer ignition-validate jq qemu-img virsh; do
+for command in coreos-installer ignition-validate jq podman qemu-img virsh; do
   command -v "$command" >/dev/null || {
     echo "Required command is missing: $command" >&2
     exit 1
@@ -88,6 +88,62 @@ jq --exit-status '
     and (.root_gib >= 40)
   )
 ' "$inventory" >/dev/null
+
+for name in "${requested[@]}"; do
+  jq --exit-status --arg name "$name" \
+    'any(.vms[]; .name == $name)' "$inventory" >/dev/null || {
+    echo "VM is not present in inventory: $name" >&2
+    exit 1
+  }
+done
+
+render_ignition() (
+  local guest output temporary_directory
+
+  install -d -m 0755 "$repository_root/dist/ign"
+  chmod 0755 "$repository_root/dist" "$repository_root/dist/ign"
+  chown --reference="$repository_root" \
+    "$repository_root/dist" "$repository_root/dist/ign"
+  temporary_directory=$(mktemp -d "$repository_root/dist/.vm-ignition.XXXXXX")
+  trap 'rm -rf -- "$temporary_directory"' EXIT
+
+  for guest in k3s minecraft jellyfin; do
+    output="$temporary_directory/$guest.ign"
+    echo "Rendering Ignition for $guest"
+
+    podman run --rm \
+      --security-opt label=disable \
+      --volume "$repository_root:/work:ro" \
+      --workdir /work \
+      docker.io/mikefarah/yq:4.45.1 \
+      ea '. as $item ireduce ({}; . *+ $item)' \
+      butane/base.yml \
+      butane/updates.yml \
+      butane/vm.yml \
+      "butane/$guest.yml" \
+    | sed \
+        -e 's#__CI_IMAGE_NAMESPACE__#ghcr.io/noobping#g' \
+        -e "s#__CI_BOOTC_IMAGE__#$guest#g" \
+    | podman run --rm --interactive \
+        --security-opt label=disable \
+        --volume "$repository_root:/work:ro" \
+        --workdir /work \
+        quay.io/coreos/butane:release \
+        --pretty --strict --files-dir . \
+        > "$output"
+
+    ignition-validate "$output"
+  done
+
+  for guest in k3s minecraft jellyfin; do
+    output="$temporary_directory/$guest.ign"
+    chmod 0644 "$output"
+    chown --reference="$repository_root" "$output"
+    mv -f "$output" "$repository_root/dist/ign/$guest.ign"
+  done
+)
+
+render_ignition
 
 vm_root=$(jq --raw-output '.storage_pool.path' "$inventory")
 pool_name=$(jq --raw-output '.storage_pool.name' "$inventory")
@@ -151,8 +207,7 @@ provision_one() (
     ignition_source="$repository_root/$ignition_source"
   fi
   [[ -r $ignition_source ]] || {
-    echo "Missing canonical Ignition for $name: $ignition_source" >&2
-    echo "Render the guest configs described in butane/README.md first." >&2
+    echo "Generated Ignition is missing for $name: $ignition_source" >&2
     return 1
   }
 
