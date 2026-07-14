@@ -33,7 +33,6 @@ spec:
       containers:
         - name: postgresql
           image: docker.io/library/postgres:18.3-alpine@sha256:54451ecb8ab38c24c3ec123f2fd501303a3a1856a5c66e98cecf2460d5e1e9d7
-          imagePullPolicy: IfNotPresent
           env:
             - {name: POSTGRES_DB, value: nextcloud}
             - {name: POSTGRES_USER, value: nextcloud}
@@ -111,7 +110,6 @@ spec:
       containers:
         - name: redis
           image: docker.io/library/redis:8.8.0-alpine@sha256:9d317178eceac8454a2284a9e6df2466b93c745529947f0cd42a0fa9609d7005
-          imagePullPolicy: IfNotPresent
           args: [redis-server, --appendonly, "yes", --save, "60", "1"]
           ports:
             - {name: redis, containerPort: 6379, protocol: TCP}
@@ -130,7 +128,6 @@ spec:
             limits: {cpu: "1", memory: 512Mi}
           volumeMounts:
             - {name: data, mountPath: /data}
-      terminationGracePeriodSeconds: 30
       volumes:
         - name: data
           persistentVolumeClaim:

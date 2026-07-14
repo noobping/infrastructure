@@ -34,7 +34,6 @@ spec:
       containers:
         - name: registry
           image: docker.io/library/registry:3.1.1@sha256:1be55279f18a2fe1a74edf2664cac61c1bea305b7b4642dab412e7affdcb3e33
-          imagePullPolicy: IfNotPresent
           env:
             - {name: REGISTRY_STORAGE_DELETE_ENABLED, value: "true"}
             - {name: OTEL_TRACES_EXPORTER, value: none}

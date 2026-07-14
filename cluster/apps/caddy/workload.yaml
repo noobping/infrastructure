@@ -48,7 +48,6 @@ spec:
       containers:
         - name: caddy
           image: docker.io/library/caddy:2.11.4@sha256:af5fdcd76f2db5e4e974ee92f96ee8c0fc3edb55bd4ba5032547cbf3f65e486d
-          imagePullPolicy: IfNotPresent
           args: [caddy, run, --config, /etc/caddy/Caddyfile, --adapter, caddyfile]
           ports:
             - {name: http, containerPort: 80, protocol: TCP}
@@ -78,7 +77,6 @@ spec:
             - {name: caddyfile, mountPath: /etc/caddy/Caddyfile, subPath: Caddyfile, readOnly: true}
             - {name: data, mountPath: /data}
             - {name: runtime-config, mountPath: /config}
-      terminationGracePeriodSeconds: 30
       volumes:
         - name: caddyfile
           configMap:

@@ -18,7 +18,6 @@ spec:
       containers:
         - name: tika
           image: docker.io/apache/tika:3.3.1.0-full@sha256:d8e6ed96260ad89307a93195a1b856102987a818ac648502f8efbaf313d32470
-          imagePullPolicy: IfNotPresent
           ports:
             - {name: tika, containerPort: 9998, protocol: TCP}
           readinessProbe:
@@ -63,7 +62,6 @@ spec:
       containers:
         - name: gotenberg
           image: docker.io/gotenberg/gotenberg:8.32.0@sha256:a40c5a46b79d812ce2f5e139278163142a054050bfd1e5f162da36d3d11c7138
-          imagePullPolicy: IfNotPresent
           args:
             - gotenberg
             - --chromium-disable-javascript=true
@@ -91,4 +89,3 @@ spec:
     app.kubernetes.io/name: paperless-gotenberg
   ports:
     - {name: gotenberg, port: 3000, targetPort: gotenberg}
-

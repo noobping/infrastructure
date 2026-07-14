@@ -64,7 +64,6 @@ spec:
         # Seed the persistent config before the main container mounts it there.
         - name: seed-persistent-directories
           image: ghcr.io/euro-office/documentserver:v9.3.2@sha256:5a1a8b7083856b309f09a5b06aa96f80182cbdfccddcae6c082ecf7a2b3cbf2b
-          imagePullPolicy: IfNotPresent
           command: [/bin/sh, -ec]
           args:
             - |
@@ -82,7 +81,6 @@ spec:
       containers:
         - name: documentserver
           image: ghcr.io/euro-office/documentserver:v9.3.2@sha256:5a1a8b7083856b309f09a5b06aa96f80182cbdfccddcae6c082ecf7a2b3cbf2b
-          imagePullPolicy: IfNotPresent
           env:
             - {name: JWT_ENABLED, value: "true"}
             - {name: JWT_HEADER, value: "AuthorizationJWT"}
