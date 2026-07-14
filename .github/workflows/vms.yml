@@ -5,10 +5,10 @@ on:
     branches:
       - main
     paths:
-      - "vm/**"
-      - "minecraft/**"
-      - "jellyfin/**"
-      - "k3s/**"
+      - "vms/vm/**"
+      - "vms/minecraft/**"
+      - "vms/jellyfin/**"
+      - "vms/k3s/**"
       - "butane/vm*.yml"
       - "butane/minecraft.yml"
       - "butane/jellyfin.yml"
@@ -104,7 +104,7 @@ jobs:
             | buildah login --username "$GITHUB_ACTOR" --password-stdin ghcr.io
 
       - name: Build and push architecture image
-        working-directory: vm
+        working-directory: vms/vm
         env:
           ARCH: ${{ matrix.arch }}
           IPS_DIGEST: ${{ needs.resolve-ips.outputs.digest }}
@@ -231,7 +231,7 @@ jobs:
           printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
 
       - name: Build and push architecture image
-        working-directory: ${{ matrix.role }}
+        working-directory: vms/${{ matrix.role }}
         env:
           ARCH: ${{ matrix.arch }}
           ROLE: ${{ matrix.role }}

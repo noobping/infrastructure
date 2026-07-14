@@ -3,7 +3,8 @@
 *
 !nas
 !nas/**
-!vm
-!vm/bootc-verified-update
-!vm/install-cosign
-!vm/verify-bootc-image
+!vms
+!vms/vm
+!vms/vm/bootc-verified-update
+!vms/vm/install-cosign
+!vms/vm/verify-bootc-image

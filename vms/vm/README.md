@@ -21,7 +21,7 @@ Build it locally with:
 podman build \
   --build-arg IMAGE_NAMESPACE=ghcr.io/noobping \
   --build-arg TAG=latest \
-  -t ghcr.io/noobping/vm:latest vm
+  -t ghcr.io/noobping/vm:latest vms/vm
 ```
 
 CI builds both architectures from `latest@<verified-manifest-digest>`, so every
