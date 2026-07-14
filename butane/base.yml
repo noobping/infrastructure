@@ -20,19 +20,6 @@ storage:
         inline: |
           include "/etc/nftables/main.nft"
 
-    - path: /etc/bootc-image-namespace
-      mode: 0644
-      overwrite: true
-      contents:
-        inline: |
-          __CI_IMAGE_NAMESPACE__
-
-    - path: /usr/local/sbin/rebase-to-image
-      mode: 0755
-      overwrite: true
-      contents:
-        local: ./butane/rebase-to-image.sh
-
 systemd:
   units:
     - name: nftables.service

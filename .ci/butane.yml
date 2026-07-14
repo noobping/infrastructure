@@ -91,6 +91,30 @@ steps:
           > "dist/ign/${profile}.ign"
       done
 
+      for guest in k3s minecraft jellyfin; do
+        run_yq ea '. as $item ireduce ({}; . *+ $item)' \
+          butane/base.yml \
+          butane/updates.yml \
+          butane/vm.yml \
+          "butane/${guest}.yml" \
+          > "butane/${guest}.bu"
+
+        render_butane \
+          "butane/${guest}.bu" \
+          "butane/${guest}.rendered.bu" \
+          "$guest"
+
+        podman run --rm \
+          -v "$PWD:/work:Z" -w /work \
+          quay.io/coreos/butane:release \
+          --pretty --strict --files-dir . "butane/${guest}.rendered.bu" \
+          > "dist/ign/${guest}.ign"
+
+        podman run --rm -i \
+          quay.io/coreos/ignition-validate:release \
+          - < "dist/ign/${guest}.ign"
+      done
+
       if ! ls -1 fedora-coreos-*-live-iso."${coreos_arch}".iso >/dev/null 2>&1; then
         podman run --rm \
           --userns=keep-id \

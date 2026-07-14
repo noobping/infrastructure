@@ -8,6 +8,11 @@ yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/setup.yml > b
 yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/updates.yml butane/workstation.yml > butane/workstation.bu
 yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/updates.yml butane/workstation.yml > butane/sway.bu
 yq ea '. as $item ireduce ({}; . *+ $item)' butane/base.yml butane/updates.yml butane/nas.yml > butane/nas.bu
+for role in k3s minecraft jellyfin; do
+    yq ea '. as $item ireduce ({}; . *+ $item)' \
+        butane/base.yml butane/updates.yml butane/vm.yml \
+        "butane/$role.yml" > "butane/$role.bu"
+done
 ```
 
 The Sway profile reuses `butane/workstation.yml`; render `__CI_BOOTC_IMAGE__` as `sway` for `sway.ign` and as `workstation` for `workstation.ign`.
@@ -32,6 +37,9 @@ render_butane butane/setup.bu butane/setup.rendered.bu workstation
 render_butane butane/workstation.bu butane/workstation.rendered.bu workstation
 render_butane butane/sway.bu butane/sway.rendered.bu sway
 render_butane butane/nas.bu butane/nas.rendered.bu nas
+for role in k3s minecraft jellyfin; do
+    render_butane "butane/$role.bu" "butane/$role.rendered.bu" "$role"
+done
 ```
 
 Build ignition file:
@@ -41,6 +49,11 @@ butane --pretty --strict --files-dir . butane/setup.rendered.bu > setup.ign
 butane --pretty --strict --files-dir . butane/workstation.rendered.bu > workstation.ign
 butane --pretty --strict --files-dir . butane/sway.rendered.bu > sway.ign
 butane --pretty --strict --files-dir . butane/nas.rendered.bu > nas.ign
+mkdir -p dist/ign
+for role in k3s minecraft jellyfin; do
+    butane --pretty --strict --files-dir . \
+        "butane/$role.rendered.bu" > "dist/ign/$role.ign"
+done
 ```
 
 Download live ISO

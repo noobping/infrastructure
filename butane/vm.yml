@@ -15,3 +15,29 @@ storage:
         name: nick
       group:
         name: nick
+
+systemd:
+  units:
+    - name: rebase-to-image.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Switch Fedora CoreOS to the VM role image
+        Wants=network-online.target
+        After=network-online.target
+        Before=rpm-ostree-upgrade.service
+        ConditionPathExists=!/var/lib/infrastructure/rebase-to-image.done
+        StartLimitIntervalSec=0
+
+        [Service]
+        Type=oneshot
+        TimeoutStartSec=0
+        Restart=on-failure
+        RestartSec=30s
+        ExecStart=/usr/bin/rpm-ostree rebase ostree-image-signed:docker://__CI_IMAGE_NAMESPACE__/__CI_BOOTC_IMAGE__:latest
+        ExecStart=/usr/bin/install -d -m 0755 /var/lib/infrastructure
+        ExecStart=/usr/bin/touch /var/lib/infrastructure/rebase-to-image.done
+        ExecStart=/usr/bin/systemctl --no-block reboot
+
+        [Install]
+        WantedBy=multi-user.target

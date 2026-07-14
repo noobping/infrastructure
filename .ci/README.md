@@ -12,7 +12,7 @@ ci offline
 ci butane
 ```
 
-`images` builds and pushes IPS, NAS, Workstation, and Sway arch tags, then pushes manifest tags. `butane` only builds installer ISOs and checksums under `dist/iso`.
+`images` builds and pushes IPS, NAS, Workstation, and Sway arch tags, then pushes manifest tags. `butane` builds installer ISOs and checksums under `dist/iso` and renders the three guest Ignition configs under `dist/ign`.
 `offline` builds a x64-only Workstation ISO with the bootc image embedded under
 `dist/iso/workstation-offline-x86_64.iso`; it starts `localhost:5000` when the local registry is not already responding.
 

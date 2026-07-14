@@ -135,9 +135,69 @@ jobs:
             ${{ matrix.profile.name }}.ign
             setup.ign
 
+  guests:
+    name: Build guest Ignition configs
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mikefarah/yq@v4.45.1
+
+      - name: Install Podman
+        run: |
+          set -euxo pipefail
+          if ! command -v podman >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y podman
+          fi
+
+      - name: Build guest configs
+        run: |
+          set -euxo pipefail
+          mkdir -p dist/ign
+
+          for guest in k3s minecraft jellyfin; do
+            yq ea '. as $item ireduce ({}; . *+ $item)' \
+              butane/base.yml \
+              butane/updates.yml \
+              butane/vm.yml \
+              "butane/${guest}.yml" \
+              > "butane/${guest}.bu"
+
+            sed \
+              -e "s#__CI_IMAGE_NAMESPACE__#${CI_IMAGE_NAMESPACE}#g" \
+              -e "s#__CI_BOOTC_IMAGE__#${guest}#g" \
+              "butane/${guest}.bu" \
+              > "butane/${guest}.rendered.bu"
+
+            podman run --rm \
+              -v "$PWD:/work:Z" -w /work \
+              quay.io/coreos/butane:release \
+              --pretty --strict --files-dir . "butane/${guest}.rendered.bu" \
+              > "dist/ign/${guest}.ign"
+
+            podman run --rm -i \
+              quay.io/coreos/ignition-validate:release \
+              - < "dist/ign/${guest}.ign"
+          done
+
+      - name: Upload guest configs
+        uses: actions/upload-artifact@v4
+        with:
+          name: vm-ignition
+          path: |
+            dist/ign/k3s.ign
+            dist/ign/minecraft.ign
+            dist/ign/jellyfin.ign
+
   release:
     name: Release
-    needs: build
+    needs:
+      - build
+      - guests
     runs-on: ubuntu-latest
 
     permissions:
