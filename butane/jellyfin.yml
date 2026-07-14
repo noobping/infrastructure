@@ -6,33 +6,6 @@ passwd:
       shell: /usr/bin/nologin
 
 storage:
-  disks:
-    - device: /dev/disk/by-id/virtio-jellyfin-data
-      partitions:
-        - label: jellyfin-data
-          number: 1
-          start_mib: 1
-          size_mib: 0
-
-  filesystems:
-    - device: /dev/disk/by-partlabel/jellyfin-data
-      format: xfs
-      label: jellyfin
-      path: /var/lib/containers/jellyfin
-      with_mount_unit: true
-
-  directories:
-    - path: /var/lib/containers/jellyfin/config
-      user:
-        name: music
-      group:
-        name: music
-    - path: /var/lib/containers/jellyfin/cache
-      user:
-        name: music
-      group:
-        name: music
-
   files:
     - path: /etc/hostname
       overwrite: true

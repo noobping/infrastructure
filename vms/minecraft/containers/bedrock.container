@@ -2,8 +2,6 @@
 Description=Minecraft Bedrock server
 Wants=network-online.target
 After=network-online.target
-RequiresMountsFor=/var/lib/containers/minecraft
-ConditionPathIsMountPoint=/var/lib/containers/minecraft
 
 [Container]
 Image=docker.io/itzg/minecraft-bedrock-server:2026.5.3@sha256:d0aa4e6726adba217e6a38fcc56320ac948272f06fc21b8a0788dc8f56edaad7
@@ -14,7 +12,7 @@ User=1003
 Group=1003
 PidsLimit=1024
 Network=host
-Volume=/var/lib/containers/minecraft/bedrock:/data:Z
+Volume=minecraft-bedrock.volume:/data
 ShmSize=2g
 
 [Service]

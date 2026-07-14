@@ -1,0 +1,11 @@
+[Unit]
+Description=Minecraft Bedrock data on the NAS
+Wants=network-online.target
+After=network-online.target cachefilesd.service nfs-selinux.service
+Requires=cachefilesd.service nfs-selinux.service
+
+[Volume]
+Type=nfs
+Device=:/var/lib/containers/minecraft/bedrock
+Options=addr=nas.vm,nfsvers=4.2,rw,hard,timeo=600,retrans=2,fsc,nosuid,nodev
+Copy=false

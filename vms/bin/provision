@@ -62,7 +62,7 @@ if [[ $(uname -m) != x86_64 ]]; then
   exit 1
 fi
 
-for command in coreos-installer ignition-validate jq qemu-img virsh systemd-escape; do
+for command in coreos-installer ignition-validate jq qemu-img virsh; do
   command -v "$command" >/dev/null || {
     echo "Required command is missing: $command" >&2
     exit 1
@@ -76,18 +76,11 @@ jq --exit-status '
   and ([.vms[].name] | length == (unique | length))
   and ([.vms[].mac] | length == (unique | length))
   and all(.vms[];
-    . as $vm
-    | (.name | test("^[a-z0-9-]+$"))
-    and ($vm.image | test(
-      "^ghcr\\.io/noobping/" + $vm.name +
-      "(:(latest|git-[0-9a-f]{12}-img-[0-9a-f]{12})(@sha256:[0-9a-f]{64})?|@sha256:[0-9a-f]{64})$"
-    ))
+    (.name | test("^[a-z0-9-]+$"))
     and (.mac | test("^52:54:00:([0-9a-f]{2}:){2}[0-9a-f]{2}$"))
     and (.vcpus > 0)
     and (.memory_mib > 0)
     and (.root_gib >= 40)
-    and (.data_min_gib > 0)
-    and (.data_serial | test("^[a-z0-9-]{1,20}$"))
   )
 ' "$inventory" >/dev/null
 
@@ -132,99 +125,11 @@ chown root:qemu "$base_image"
 chmod 0440 "$base_image"
 restorecon "$base_image"
 
-augment_ignition() {
-  local source=$1
-  local destination=$2
-  local vm_json=$3
-  local mounts expected image
-  image=$(jq --raw-output '.image' <<< "$vm_json")
-
-  while IFS=$'\t' read -r where unit; do
-    [[ -n $where ]] || continue
-    expected=$(systemd-escape --path --suffix=mount "$where")
-    if [[ $unit != "$expected" ]]; then
-      echo "NFS mount unit $unit does not match path $where (expected $expected)" >&2
-      return 1
-    fi
-  done < <(jq --raw-output '.nfs_mounts[]? | [.where, .unit] | @tsv' <<< "$vm_json")
-
-  mounts=$(jq --compact-output '.nfs_mounts // []' <<< "$vm_json")
-  jq --exit-status --argjson mounts "$mounts" \
-    --arg image "$image" '
-    ($mounts | map(
-      . as $mount |
-      [
-        {
-          name: $mount.unit,
-          contents: (
-            "[Mount]\nWhat=" + $mount.what +
-            "\nWhere=" + $mount.where +
-            "\nType=nfs4\nOptions=" + $mount.mode +
-            ",vers=4.2,hard,timeo=600,retrans=2,_netdev,nosuid,nodev,noexec\n"
-          )
-        },
-        {
-          name: ($mount.unit | sub("\\.mount$"; ".automount")),
-          enabled: true,
-          contents: (
-            "[Automount]\nWhere=" + $mount.where +
-            "\n\n[Install]\nWantedBy=multi-user.target\n"
-          )
-        }
-      ]
-    ) | add // []) as $mount_units
-    | {
-        path: "/etc/bootc-image-ref",
-        mode: 420,
-        overwrite: true,
-        contents: {
-          source: (
-            "data:text/plain;charset=utf-8;base64," +
-            (($image + "\n") | @base64)
-          )
-        }
-      } as $image_file
-    | .storage.files = (
-        (((.storage.files // []) | group_by(.path) | map(last))
-          | map(select(.path != $image_file.path))) + [$image_file]
-      )
-    | .storage.directories = reduce $mounts[] as $mount (
-        ((.storage.directories // []) | group_by(.path) | map(last));
-        map(select(.path != $mount.where)) +
-          [{path: $mount.where, mode: 493}]
-      )
-    | .systemd.units = reduce $mount_units[] as $unit (
-        ((.systemd.units // []) | group_by(.name) | map(last));
-        map(select(.name != $unit.name)) + [$unit]
-      )
-  ' "$source" > "$destination"
-
-  ignition-validate "$destination"
-}
-
-capacity_gib() {
-  local vm_json=$1
-  local minimum bytes=0 source usage calculated
-
-  minimum=$(jq --raw-output '.data_min_gib' <<< "$vm_json")
-  while IFS= read -r source; do
-    [[ -n $source && -e $source ]] || continue
-    usage=$(du --summarize --block-size=1 -- "$source" | awk '{ print $1 }')
-    bytes=$((bytes + usage))
-  done < <(jq --raw-output '.capacity_sources[]?' <<< "$vm_json")
-
-  calculated=$(( (bytes * 3 + 2147483647) / 2147483648 ))
-  if (( calculated < minimum )); then
-    calculated=$minimum
-  fi
-  printf '%s\n' "$calculated"
-}
-
 provision_one() (
   local name=$1
-  local vm_json image ignition_source ignition_file xml_file
-  local root_disk data_disk root_new data_new ignition_new xml_new
-  local vcpus memory_mib root_gib data_gib data_serial mac autostart
+  local vm_json ignition_source ignition_file xml_file
+  local root_disk root_new ignition_new xml_new
+  local vcpus memory_mib root_gib mac autostart
   local completed=0 finalized=0 define_attempted=0
 
   vm_json=$(jq --compact-output --arg name "$name" \
@@ -234,7 +139,6 @@ provision_one() (
     return 1
   }
 
-  image=$(jq --raw-output '.image' <<< "$vm_json")
   ignition_source=$(jq --raw-output '.ignition' <<< "$vm_json")
   if [[ $ignition_source != /* ]]; then
     ignition_source="$repository_root/$ignition_source"
@@ -251,10 +155,9 @@ provision_one() (
   fi
 
   root_disk="$vm_root/disks/$name-root.qcow2"
-  data_disk="$vm_root/disks/$name-data.raw"
   ignition_file="$vm_root/ignition/$name.ign"
   xml_file="$vm_root/config/$name.xml"
-  for path in "$root_disk" "$data_disk" "$ignition_file" "$xml_file"; do
+  for path in "$root_disk" "$ignition_file" "$xml_file"; do
     [[ ! -e $path ]] || {
       echo "Provisioning output already exists; refusing to overwrite: $path" >&2
       return 1
@@ -264,18 +167,14 @@ provision_one() (
   vcpus=$(jq --raw-output '.vcpus' <<< "$vm_json")
   memory_mib=$(jq --raw-output '.memory_mib' <<< "$vm_json")
   root_gib=$(jq --raw-output '.root_gib' <<< "$vm_json")
-  data_gib=$(capacity_gib "$vm_json")
-  data_serial=$(jq --raw-output '.data_serial' <<< "$vm_json")
   mac=$(jq --raw-output '.mac' <<< "$vm_json")
   autostart=$(jq --raw-output '.autostart' <<< "$vm_json")
 
-  echo "Provisioning $name from verified FCOS base"
-  echo "  bootc image: $image"
+  echo "Provisioning $name from the FCOS base image"
   echo "  CPU/RAM: $vcpus vCPU / $memory_mib MiB"
-  echo "  disks: $root_gib GiB root / $data_gib GiB sparse state"
+  echo "  disk: $root_gib GiB root"
 
   root_new="$root_disk.new"
-  data_new="$data_disk.new"
   ignition_new="$ignition_file.new"
   xml_new="$xml_file.new"
 
@@ -285,7 +184,7 @@ provision_one() (
     trap - EXIT INT TERM
     set +e
 
-    rm -f -- "$root_new" "$data_new" "$ignition_new" "$xml_new"
+    rm -f -- "$root_new" "$ignition_new" "$xml_new"
 
     if (( ! completed && define_attempted )) \
       && virsh dominfo "$name" >/dev/null 2>&1; then
@@ -297,7 +196,7 @@ provision_one() (
     fi
 
     if (( ! completed && finalized && can_remove )); then
-      rm -f -- "$root_disk" "$data_disk" "$ignition_file" "$xml_file"
+      rm -f -- "$root_disk" "$ignition_file" "$xml_file"
       virsh pool-refresh "$pool_name" >/dev/null 2>&1 || true
     fi
 
@@ -306,7 +205,7 @@ provision_one() (
   trap cleanup_provision EXIT
   trap 'exit 130' INT
   trap 'exit 143' TERM
-  rm -f -- "$root_new" "$data_new" "$ignition_new" "$xml_new"
+  rm -f -- "$root_new" "$ignition_new" "$xml_new"
 
   qemu-img create \
     -f qcow2 \
@@ -314,16 +213,14 @@ provision_one() (
     -b "$base_image" \
     -o cluster_size=2M,lazy_refcounts=on \
     "$root_new" "${root_gib}G"
-  qemu-img create -f raw "$data_new" "${data_gib}G"
-  augment_ignition "$ignition_source" "$ignition_new" "$vm_json"
+  install -m 0640 "$ignition_source" "$ignition_new"
+  ignition-validate "$ignition_new"
 
   sed \
     -e "s|@NAME@|$name|g" \
     -e "s|@MEMORY_MIB@|$memory_mib|g" \
     -e "s|@VCPUS@|$vcpus|g" \
     -e "s|@ROOT_DISK@|$root_disk|g" \
-    -e "s|@DATA_DISK@|$data_disk|g" \
-    -e "s|@DATA_SERIAL@|$data_serial|g" \
     -e "s|@MAC@|$mac|g" \
     -e "s|@IGNITION@|$ignition_file|g" \
     "$template" > "$xml_new"
@@ -334,13 +231,12 @@ provision_one() (
 
   finalized=1
   mv "$root_new" "$root_disk"
-  mv "$data_new" "$data_disk"
   mv "$ignition_new" "$ignition_file"
   mv "$xml_new" "$xml_file"
-  chown root:qemu "$root_disk" "$data_disk" "$ignition_file" "$xml_file"
-  chmod 0660 "$root_disk" "$data_disk"
+  chown root:qemu "$root_disk" "$ignition_file" "$xml_file"
+  chmod 0660 "$root_disk"
   chmod 0640 "$ignition_file" "$xml_file"
-  restorecon "$root_disk" "$data_disk" "$ignition_file" "$xml_file"
+  restorecon "$root_disk" "$ignition_file" "$xml_file"
 
   virsh pool-refresh "$pool_name" >/dev/null
   define_attempted=1
@@ -353,7 +249,7 @@ provision_one() (
   fi
 
   completed=1
-  echo "$name is defined with MAC $mac and virtio state serial $data_serial"
+  echo "$name is defined with MAC $mac"
 )
 
 for name in "${requested[@]}"; do

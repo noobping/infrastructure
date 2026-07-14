@@ -1,0 +1,11 @@
+[Unit]
+Description=Jellyfin books from the NAS
+Wants=network-online.target
+After=network-online.target cachefilesd.service nfs-selinux.service
+Requires=cachefilesd.service nfs-selinux.service
+
+[Volume]
+Type=nfs
+Device=:/var/srv/books
+Options=addr=nas.vm,nfsvers=4.2,ro,hard,timeo=600,retrans=2,fsc,nosuid,nodev,noexec
+Copy=false

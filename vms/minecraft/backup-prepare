@@ -1,14 +1,11 @@
 #!/bin/sh
 set -eu
 
-state_root=/var/lib/containers/minecraft
-backup_root="$state_root/backups"
-quiesce_root="$backup_root/quiesce"
+state_root=/var/lib/infrastructure/backup/minecraft
+quiesce_root="$state_root/quiesce"
 java_marker="$quiesce_root/java-save-off"
 bedrock_marker="$quiesce_root/bedrock-save-hold"
 finish_hook=${MINECRAFT_BACKUP_FINISH_HOOK:-/usr/libexec/infrastructure/backup-finish}
-staging=
-
 
 cleanup() {
   status=$?
@@ -17,14 +14,13 @@ cleanup() {
   if ! "$finish_hook"; then
     [ "$status" -ne 0 ] || status=1
   fi
-  [ -z "$staging" ] || rm -rf "$staging"
   exit "$status"
 }
 trap cleanup EXIT INT TERM
 
-install -d -o root -g root -m 0700 "$backup_root"
+install -d -o root -g root -m 0700 "$state_root"
 # Recover a save-off/hold left by an interrupted previous attempt before
-# creating fresh state. Markers live on the persistent data disk.
+# quiescing the containers again.
 "$finish_hook"
 install -d -o root -g root -m 0700 "$quiesce_root"
 
@@ -32,22 +28,11 @@ container_running() {
   [ "$(podman inspect --format '{{.State.Status}}' "$1" 2>/dev/null || true)" = running ]
 }
 
-staging="$(mktemp -d "$backup_root/.prepare.XXXXXX")"
-chmod 0700 "$staging"
-
 if container_running systemd-minecraft; then
   : > "$java_marker"
   podman exec systemd-minecraft rcon-cli save-off >/dev/null
   podman exec systemd-minecraft rcon-cli save-all flush >/dev/null
 fi
-
-for world in "$state_root/java"/world*; do
-  [ -d "$world" ] || continue
-  if [ ! -d "$staging/java" ]; then
-    install -d -m 0700 "$staging/java"
-  fi
-  cp -a --reflink=auto "$world" "$staging/java/"
-done
 
 if container_running systemd-bedrock; then
   log_since="$(date --iso-8601=seconds)"
@@ -57,7 +42,7 @@ if container_running systemd-bedrock; then
   ready=
   attempts=0
   while [ "$attempts" -lt 30 ]; do
-    podman exec systemd-bedrock send-command save query >/dev/null
+    podman exec systemd-bedrock send-command save query >/dev/null || true
     if podman logs --since "$log_since" systemd-bedrock 2>&1 \
       | grep -Fq 'Files are now ready to be copied'; then
       ready=1
@@ -68,27 +53,12 @@ if container_running systemd-bedrock; then
   done
   [ -n "$ready" ] || {
     echo "Bedrock did not make its world files ready within 60 seconds" >&2
-    exit 1
-  }
+      exit 1
+    }
 
 fi
 
-if [ -d "$state_root/bedrock/worlds" ]; then
-  install -d -m 0700 "$staging/bedrock"
-  cp -a --reflink=auto "$state_root/bedrock/worlds" "$staging/bedrock/"
-fi
-
-"$finish_hook"
-
-previous="$backup_root/previous"
-current="$backup_root/current"
-rm -rf "$previous"
-if [ -d "$current" ]; then
-  mv "$current" "$previous"
-fi
-mv "$staging" "$current"
-staging=
-rm -rf "$previous"
-sync -f "$state_root"
+# Flush the NFS writes before the NAS snapshots the exported directories.
+sync
 
 trap - EXIT INT TERM

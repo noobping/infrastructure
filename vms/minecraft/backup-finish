@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 
-state_root=/var/lib/containers/minecraft
-quiesce_root="$state_root/backups/quiesce"
+state_root=/var/lib/infrastructure/backup/minecraft
+quiesce_root="$state_root/quiesce"
 java_marker="$quiesce_root/java-save-off"
 bedrock_marker="$quiesce_root/bedrock-save-hold"
 status=0

@@ -33,12 +33,6 @@
       <serial>@NAME@-root</serial>
       <boot order='1'/>
     </disk>
-    <disk type='file' device='disk'>
-      <driver name='qemu' type='raw' cache='none' io='native' discard='unmap' detect_zeroes='unmap'/>
-      <source file='@DATA_DISK@'/>
-      <target dev='vdb' bus='virtio'/>
-      <serial>@DATA_SERIAL@</serial>
-    </disk>
     <interface type='bridge'>
       <mac address='@MAC@'/>
       <source bridge='br0'/>

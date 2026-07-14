@@ -10,98 +10,31 @@
       "name": "k3s",
       "hostname": "k3s.vm",
       "mac": "52:54:00:00:00:31",
-      "image": "ghcr.io/noobping/k3s:latest",
       "ignition": "dist/ign/k3s.ign",
       "vcpus": 12,
       "memory_mib": 24576,
       "root_gib": 40,
-      "data_min_gib": 250,
-      "data_serial": "k3s-data",
-      "data_mount": "/var/lib/rancher/k3s",
-      "autostart": true,
-      "capacity_sources": [
-        "/var/lib/containers/nextcloud",
-        "/var/lib/containers/paperless",
-        "/var/lib/containers/registry",
-        "/var/lib/containers/uptime-kuma",
-        "/var/lib/containers/secrets",
-        "/var/srv/ssd/caddy"
-      ],
-      "nfs_mounts": [
-        {
-          "what": "nas.vm:/var/srv/docs/shared",
-          "where": "/var/srv/docs/shared",
-          "unit": "var-srv-docs-shared.mount",
-          "mode": "rw"
-        },
-        {
-          "what": "nas.vm:/var/srv/docs/paperless/consume",
-          "where": "/var/srv/docs/paperless/consume",
-          "unit": "var-srv-docs-paperless-consume.mount",
-          "mode": "rw"
-        },
-        {
-          "what": "nas.vm:/var/srv/docs/paperless/media",
-          "where": "/var/srv/docs/paperless/media",
-          "unit": "var-srv-docs-paperless-media.mount",
-          "mode": "rw"
-        },
-        {
-          "what": "nas.vm:/var/srv/docs/paperless/export",
-          "where": "/var/srv/docs/paperless/export",
-          "unit": "var-srv-docs-paperless-export.mount",
-          "mode": "rw"
-        }
-      ]
+      "autostart": true
     },
     {
       "name": "minecraft",
       "hostname": "minecraft.vm",
       "mac": "52:54:00:00:00:32",
-      "image": "ghcr.io/noobping/minecraft:latest",
       "ignition": "dist/ign/minecraft.ign",
       "vcpus": 8,
       "memory_mib": 12288,
       "root_gib": 40,
-      "data_min_gib": 100,
-      "data_serial": "minecraft-data",
-      "data_mount": "/var/lib/containers/minecraft",
-      "autostart": true,
-      "capacity_sources": [
-        "/var/lib/containers/minecraft"
-      ],
-      "nfs_mounts": []
+      "autostart": true
     },
     {
       "name": "jellyfin",
       "hostname": "jellyfin.vm",
       "mac": "52:54:00:00:00:33",
-      "image": "ghcr.io/noobping/jellyfin:latest",
       "ignition": "dist/ign/jellyfin.ign",
       "vcpus": 4,
       "memory_mib": 8192,
       "root_gib": 40,
-      "data_min_gib": 50,
-      "data_serial": "jellyfin-data",
-      "data_mount": "/var/lib/containers/jellyfin",
-      "autostart": true,
-      "capacity_sources": [
-        "/var/lib/containers/jellyfin"
-      ],
-      "nfs_mounts": [
-        {
-          "what": "nas.vm:/var/srv/music",
-          "where": "/var/srv/music",
-          "unit": "var-srv-music.mount",
-          "mode": "ro"
-        },
-        {
-          "what": "nas.vm:/var/srv/books",
-          "where": "/var/srv/books",
-          "unit": "var-srv-books.mount",
-          "mode": "ro"
-        }
-      ]
+      "autostart": true
     }
   ]
 }

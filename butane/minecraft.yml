@@ -6,33 +6,6 @@ passwd:
       shell: /usr/bin/nologin
 
 storage:
-  disks:
-    - device: /dev/disk/by-id/virtio-minecraft-data
-      partitions:
-        - label: minecraft-data
-          number: 1
-          start_mib: 1
-          size_mib: 0
-
-  filesystems:
-    - device: /dev/disk/by-partlabel/minecraft-data
-      format: xfs
-      label: minecraft
-      path: /var/lib/containers/minecraft
-      with_mount_unit: true
-
-  directories:
-    - path: /var/lib/containers/minecraft/java
-      user:
-        name: minecraft
-      group:
-        name: minecraft
-    - path: /var/lib/containers/minecraft/bedrock
-      user:
-        name: minecraft
-      group:
-        name: minecraft
-
   files:
     - path: /etc/hostname
       overwrite: true

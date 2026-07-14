@@ -2,8 +2,6 @@
 Description=Minecraft Java server
 Wants=network-online.target
 After=network-online.target
-RequiresMountsFor=/var/lib/containers/minecraft
-ConditionPathIsMountPoint=/var/lib/containers/minecraft
 
 [Container]
 Image=docker.io/itzg/minecraft-server:2026.5.4@sha256:f364bae78a0027aee72b01b9b532b1ae0990b3ee8cadbb6a3bc25db77418a25f
@@ -19,7 +17,7 @@ User=1003
 Group=1003
 PidsLimit=1024
 Network=host
-Volume=/var/lib/containers/minecraft/java:/data:Z
+Volume=minecraft-java.volume:/data
 ShmSize=4g
 
 [Service]

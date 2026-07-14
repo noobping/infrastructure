@@ -2,9 +2,8 @@
 Description=Lightweight Kubernetes
 Documentation=https://docs.k3s.io/
 Wants=network-online.target
-After=network-online.target
-RequiresMountsFor=/var/lib/rancher/k3s
-ConditionPathIsMountPoint=/var/lib/rancher/k3s
+Requires=cachefilesd.service nfs-selinux.service
+After=network-online.target cachefilesd.service nfs-selinux.service
 
 [Service]
 Type=notify
