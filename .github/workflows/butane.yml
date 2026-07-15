@@ -109,7 +109,7 @@ jobs:
             iso customize \
               --live-ignition setup.ign \
               --dest-ignition ${{ matrix.profile.name }}.ign \
-              --pre-install butane/detect-device.sh \
+              --pre-install butane/bin/detect-device \
               -o "$out_iso" \
               "$base_iso"
 

@@ -39,9 +39,7 @@ RUN set -euxo pipefail; \
   ostree container commit
 
 COPY config.yaml /etc/rancher/k3s/config.yaml
-COPY --chmod=0755 backup-prepare /usr/libexec/infrastructure/backup-prepare
-COPY --chmod=0755 backup-quiesce /usr/libexec/infrastructure/backup-quiesce
-COPY --chmod=0755 backup-finish /usr/libexec/infrastructure/backup-finish
+COPY --chmod=0755 bin/ /usr/libexec/infrastructure/
 COPY k3s.modules /etc/modules-load.d/k3s.conf
 COPY k3s.nft /etc/nftables/rules/20-k3s.nft
 COPY var-lib-rancher-k3s-backups.mount /etc/systemd/system/var-lib-rancher-k3s-backups.mount

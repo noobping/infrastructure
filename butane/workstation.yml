@@ -40,7 +40,7 @@ storage:
       mode: 0755
       overwrite: true
       contents:
-        local: ./butane/rebase-to-image.sh
+        local: ./butane/bin/rebase-to-image
     - path: /etc/locale.conf
       mode: 0644
       overwrite: true

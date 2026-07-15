@@ -41,13 +41,9 @@ RUN rpm-ostree install -y \
   ostree container commit
 
 COPY --chmod=0600 nftables /etc/nftables/rules
-COPY --chmod=0755 bin/ /usr/bin/
-COPY --chmod=0755 artifacts-prepare /usr/libexec/infrastructure/artifacts-prepare
-COPY --chmod=0755 btrfs-backup /usr/libexec/infrastructure/btrfs-backup
-COPY --chmod=0755 ci-update /usr/libexec/infrastructure/ci-update
+COPY --chmod=0755 bin/todo bin/vm-bridge bin/vm-deploy /usr/bin/
+COPY --chmod=0755 bin/artifacts-prepare bin/btrfs-backup bin/ci-update bin/nut-configure /usr/libexec/infrastructure/
 COPY artifacts-prepare.service /etc/systemd/system/artifacts-prepare.service
-COPY --chmod=0755 nut-configure /usr/libexec/infrastructure/nut-configure
-COPY --chmod=0755 todo.sh /usr/bin/todo
 COPY btrfs-backup.service /etc/systemd/system/btrfs-backup.service
 COPY btrfs-backup.timer /etc/systemd/system/btrfs-backup.timer
 COPY ci-update.service /etc/systemd/system/ci-update.service

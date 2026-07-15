@@ -27,26 +27,19 @@ COPY clamav-clamonacc.service /etc/systemd/system/clamav-clamonacc.service
 COPY clamav-freshclam.service.d/10-prepare.conf /etc/systemd/system/clamav-freshclam.service.d/10-prepare.conf
 COPY clamav-inotify.conf /etc/sysctl.d/90-clamav-inotify.conf
 COPY clamav-prepare.service /etc/systemd/system/clamav-prepare.service
-COPY clamav-prepare /usr/libexec/infrastructure/clamav-prepare
+COPY --chmod=0755 bin/ /usr/libexec/infrastructure/
 COPY clamd.scan.conf /etc/clamd.d/scan.conf
 COPY clamd@scan.service.d/10-prepare.conf /etc/systemd/system/clamd@scan.service.d/10-prepare.conf
 COPY freshclam.conf /etc/freshclam.conf
 COPY gssproxy-prepare.service /etc/systemd/system/gssproxy-prepare.service
-COPY gssproxy-prepare /usr/libexec/infrastructure/gssproxy-prepare
 COPY gssproxy.service.d/10-infrastructure.conf /etc/systemd/system/gssproxy.service.d/10-infrastructure.conf
 COPY ips.yaml /etc/suricata/ips.yaml
 COPY suricata-prepare.service /etc/systemd/system/suricata-prepare.service
-COPY suricata-prepare /usr/libexec/infrastructure/suricata-prepare
-COPY suricata-sync-rules /usr/libexec/infrastructure/suricata-sync-rules
 COPY suricata-update.service /etc/systemd/system/suricata-update.service
 COPY suricata-update.timer /etc/systemd/system/suricata-update.timer
 COPY suricata.service.d/10-inline.conf /etc/systemd/system/suricata.service.d/10-inline.conf
 
 RUN set -euxo pipefail; \
-  chmod 0755 /usr/libexec/infrastructure/clamav-prepare; \
-  chmod 0755 /usr/libexec/infrastructure/gssproxy-prepare; \
-  chmod 0755 /usr/libexec/infrastructure/suricata-prepare; \
-  chmod 0755 /usr/libexec/infrastructure/suricata-sync-rules; \
   chmod 0644 \
     /etc/clamd.d/scan.conf \
     /etc/freshclam.conf \

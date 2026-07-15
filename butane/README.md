@@ -80,7 +80,7 @@ podman run --rm -it \
     iso customize \
         --live-ignition setup.ign \
         --dest-ignition ${PROFILE}.ign \
-        --pre-install butane/detect-device.sh \
+        --pre-install butane/bin/detect-device \
         -o ${PROFILE}-$(uname -m).iso \
         $(ls -1 fedora-coreos-*-live-iso.$(uname -m).iso | tail -n1)
 ```

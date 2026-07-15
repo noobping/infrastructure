@@ -141,7 +141,7 @@ steps:
           iso customize \
             --live-ignition dist/ign/setup.ign \
             --dest-ignition "dist/ign/${profile}.ign" \
-            --pre-install butane/detect-device.sh \
+            --pre-install butane/bin/detect-device \
             -o "$tmp_iso" \
             "$base_iso"
 

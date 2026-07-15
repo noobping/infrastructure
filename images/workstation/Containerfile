@@ -91,7 +91,7 @@ RUN set -euxo pipefail; \
     /usr/share/gnome-background-properties \
     /var/lib/AccountsService
 
-COPY aliases.sh /etc/profile.d/
+COPY --chmod=0755 aliases.sh /etc/profile.d/
 COPY background.png /usr/share/backgrounds/wallpaper.png
 COPY background.xml /usr/share/gnome-background-properties/noobping.xml
 COPY cachefilesd.conf /etc/cachefilesd.conf
@@ -101,23 +101,20 @@ COPY dconf-profile-user /etc/dconf/profile/user
 COPY flathub.txt /etc/recommended/flathub
 COPY firewall.xml /etc/firewalld/zones/public.xml
 COPY keychron-webhid.rules /usr/lib/udev/rules.d/70-keychron-webhid.rules
-COPY home-ownership /usr/libexec/infrastructure/home-ownership
+COPY --chmod=0755 bin/apply-skel bin/home-ownership bin/nut-netclient-configure bin/system-flatpaks /usr/libexec/infrastructure/
+COPY --chmod=0755 bin/switch-to-silverblue /usr/local/sbin/
 COPY home-ownership.service /etc/systemd/system/home-ownership.service
 COPY home-ownership.timer /etc/systemd/system/home-ownership.timer
 COPY suricata-direct.xml /etc/firewalld/direct.xml
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
-COPY nut-netclient-configure /usr/libexec/infrastructure/nut-netclient-configure
 COPY nut-netclient-configure.service /etc/systemd/system/nut-netclient-configure.service
 COPY nut-netclient.env.example /etc/ups/netclient.env.example
 COPY polkit-printers.rules /etc/polkit-1/rules.d/50-printer-access.rules
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY profile.conf /var/lib/AccountsService/default
 COPY profile.png /usr/share/pixmaps/faces/noobping.png
-COPY apply-skel /usr/libexec/infrastructure/apply-skel
 COPY apply-skel.service /etc/systemd/system/apply-skel.service
 COPY skel /etc/skel
-COPY switch-to-silverblue /usr/local/sbin/switch-to-silverblue
-COPY system-flatpaks /usr/libexec/infrastructure/system-flatpaks
 COPY system-flatpaks.service /etc/systemd/system/system-flatpaks.service
 COPY update-system-flatpaks.service /etc/systemd/system/update-system-flatpaks.service
 COPY update-system-flatpaks.timer /etc/systemd/system/update-system-flatpaks.timer
@@ -130,13 +127,6 @@ RUN set -euxo pipefail; \
   authselect check; \
   authselect is-feature-enabled with-fingerprint; \
   mkdir -p /etc/skel/.config; \
-  chmod 0755 \
-    /etc/profile.d/aliases.sh \
-    /usr/local/sbin/switch-to-silverblue \
-    /usr/libexec/infrastructure/apply-skel \
-    /usr/libexec/infrastructure/home-ownership \
-    /usr/libexec/infrastructure/nut-netclient-configure \
-    /usr/libexec/infrastructure/system-flatpaks; \
   chmod 0644 \
     /etc/dconf/db/local.d/00-workstation \
     /etc/dconf/profile/user \

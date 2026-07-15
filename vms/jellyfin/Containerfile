@@ -7,7 +7,6 @@ LABEL org.opencontainers.image.description="KVM guest for Jellyfin music and boo
 
 COPY containers /etc/containers/systemd
 COPY jellyfin.nft /etc/nftables/rules/20-jellyfin.nft
-COPY --chmod=0755 backup-prepare /usr/libexec/infrastructure/backup-prepare
-COPY --chmod=0755 backup-finish /usr/libexec/infrastructure/backup-finish
+COPY --chmod=0755 bin/ /usr/libexec/infrastructure/
 
 RUN ostree container commit
