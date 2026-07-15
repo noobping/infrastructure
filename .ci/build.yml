@@ -10,10 +10,16 @@ container:
 steps:
   - name: build
     working-directory: tools/ci
-    run: cargo build --release --locked
+    run: CARGO_TARGET_DIR="target/$CI_ARCH" cargo build --release --locked
 
   - name: package binary
-    run: install -Dm0755 tools/ci/target/release/ci "dist/ci-linux-$CI_ARCH"
+    run: |
+      set -eu
+      source="tools/ci/target/$CI_ARCH/release/ci"
+      install -Dm0755 "$source" "dist/ci-linux-$CI_ARCH"
+      if [ "$CI_ARCH" = "$CI_HOST_ARCH" ]; then
+        install -Dm0755 "$source" tools/ci/target/release/ci
+      fi
 
   - name: checksum binary
     working-directory: dist
