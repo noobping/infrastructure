@@ -44,34 +44,10 @@ steps:
         fi
       }
 
-      run_cosign() {
-        if command -v cosign >/dev/null 2>&1; then
-          cosign "$@"
-        elif command -v flatpak-spawn >/dev/null 2>&1; then
-          flatpak-spawn --host cosign "$@"
-        else
-          echo "CI_SIGN_IMAGES=1 but cosign is not installed" >&2
-          exit 1
-        fi
-      }
-
-      sign_image() {
-        local image="$1"
-        local digest_file="$2"
-
-        if [[ "${CI_SIGN_IMAGES:-}" != "1" ]]; then
-          return 0
-        fi
-
-        run_cosign sign --yes --allow-insecure-registry "${image}@$(cat "$digest_file")"
-      }
-
       build_stream() {
-        local name="$1"
-        local fcos_stream="$2"
-        local suffix="$3"
+        local fcos_stream="$1"
+        local suffix="$2"
         local image="${namespace}/ips:${image_arch}${suffix}"
-        local digest_file="digest-${name}-${image_arch}.txt"
 
         run_buildah bud \
           --pull=always \
@@ -82,11 +58,10 @@ steps:
           --build-arg "FCOS_STREAM=${fcos_stream}" \
           .
 
-        run_buildah push --tls-verify="$tls_verify" --digestfile "$digest_file" "$image" "docker://$image"
-        sign_image "$image" "$digest_file"
+        run_buildah push --tls-verify="$tls_verify" "$image" "docker://$image"
         run_buildah rmi "$image" >/dev/null 2>&1 || true
         run_buildah prune -f >/dev/null 2>&1 || true
       }
 
-      build_stream stable stable ""
-      build_stream next next "-next"
+      build_stream stable ""
+      build_stream next "-next"

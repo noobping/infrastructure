@@ -45,19 +45,7 @@ steps:
         fi
       }
 
-      run_cosign() {
-        if command -v cosign >/dev/null 2>&1; then
-          cosign "$@"
-        elif command -v flatpak-spawn >/dev/null 2>&1; then
-          flatpak-spawn --host cosign "$@"
-        else
-          echo "CI_SIGN_IMAGES=1 but cosign is not installed" >&2
-          exit 1
-        fi
-      }
-
       image="${namespace}/nas:${image_arch}"
-      digest_file="digest-${image_arch}.txt"
 
       run_buildah bud \
         --pull=always \
@@ -69,11 +57,7 @@ steps:
         --build-arg "IMAGE_NAMESPACE=${namespace}" \
         .
 
-      run_buildah push --tls-verify="$tls_verify" --digestfile "$digest_file" "$image" "docker://$image"
-
-      if [[ "${CI_SIGN_IMAGES:-}" == "1" ]]; then
-        run_cosign sign --yes --allow-insecure-registry "${image}@$(cat "$digest_file")"
-      fi
+      run_buildah push --tls-verify="$tls_verify" "$image" "docker://$image"
 
       run_buildah rmi "$image" >/dev/null 2>&1 || true
       run_buildah prune -f >/dev/null 2>&1 || true
