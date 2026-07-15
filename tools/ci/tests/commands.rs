@@ -531,6 +531,33 @@ steps:
 }
 
 #[test]
+fn run_all_uses_aggregate_order_without_duplicates() {
+    let repo = TestRepo::new();
+    repo.write(
+        ".ci/all.yml",
+        "on: manual\nneeds: [offline, images]\nsteps:\n  - run: printf all >> order.txt\n",
+    );
+    repo.write(
+        ".ci/images.yml",
+        "on: manual\nneeds: offline\nsteps:\n  - run: printf images >> order.txt\n",
+    );
+    repo.write(
+        ".ci/offline.yml",
+        "on: manual\nneeds: registry\nsteps:\n  - run: printf offline >> order.txt\n",
+    );
+    repo.write(
+        ".ci/registry.yml",
+        "on: manual\nsteps:\n  - run: printf registry >> order.txt\n",
+    );
+
+    let mut command = repo.ci();
+    command.args(["run", "--all"]);
+    assert_success(output(command));
+
+    assert_eq!(repo.read("order.txt"), "registryofflineimagesall");
+}
+
+#[test]
 fn status_reports_generated_workflows_and_architecture_diagnostics() {
     let repo = TestRepo::new();
     repo.write(
