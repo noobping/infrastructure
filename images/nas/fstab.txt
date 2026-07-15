@@ -9,3 +9,4 @@ LABEL=ssd /var/srv/music btrfs nofail,subvol=music 0 0
 LABEL=ssd /var/srv/photos btrfs nofail,subvol=photos 0 0
 LABEL=ssd /var/srv/music/touhou btrfs nofail,subvol=touhou 0 0
 LABEL=ssd /var/srv/videos btrfs nofail,subvol=videos 0 0
+/var /sysroot/ostree/deploy/fedora-coreos/var none rbind,rslave,x-systemd.requires-mounts-for=/var 0 0
