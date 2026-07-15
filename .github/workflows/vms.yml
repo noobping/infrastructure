@@ -28,7 +28,7 @@ on:
 
 env:
   IMAGE_NAMESPACE: ghcr.io/noobping
-  REVISION: ${{ github.sha }}
+  REVISION: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
 concurrency:
   group: vm-images
