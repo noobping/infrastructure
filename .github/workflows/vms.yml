@@ -9,10 +9,6 @@ on:
       - "vms/minecraft/**"
       - "vms/jellyfin/**"
       - "vms/k3s/**"
-      - "butane/vm*.yml"
-      - "butane/minecraft.yml"
-      - "butane/jellyfin.yml"
-      - "butane/k3s.yml"
       - ".github/workflows/vms.yml"
       - "!**/*.md"
 
