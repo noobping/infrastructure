@@ -28,6 +28,7 @@ RUN rpm-ostree install -y \
   /etc/modules-load.d \
   /etc/polkit-1/rules.d \
   /etc/ups \
+  /etc/containers/registries.conf.d \
   /etc/systemd/system/multi-user.target.wants \
   /etc/systemd/system/nfs-server.service.d \
   /etc/systemd/system/timers.target.wants \
@@ -49,6 +50,7 @@ COPY btrfs-backup.timer /etc/systemd/system/btrfs-backup.timer
 COPY containers /etc/containers/systemd
 COPY fstab.txt /etc/fstab
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
+COPY localhost-registry.conf /etc/containers/registries.conf.d/10-localhost-registry.conf
 COPY mdadm.conf /etc/mdadm.conf
 COPY nfs/exports /etc/exports.d/infrastructure.exports
 COPY nfs/nfs.conf /etc/nfs.conf.d/infrastructure.conf
