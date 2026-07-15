@@ -72,7 +72,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ci-linux-${{ matrix.arch }}
-          path: dist/ci-linux-${{ matrix.arch }}
+          path: |
+            dist/ci-linux-${{ matrix.arch }}
+            dist/ci-linux-${{ matrix.arch }}.sha256
 
   release:
     name: Release
@@ -107,7 +109,7 @@ jobs:
           allowUpdates: true
           replacesArtifacts: true
           makeLatest: false
-          artifacts: "dist/ci-linux-x64,dist/ci-linux-arm64"
+          artifacts: "dist/ci-linux-x64,dist/ci-linux-x64.sha256,dist/ci-linux-arm64,dist/ci-linux-arm64.sha256"
           generateReleaseNotes: false
           body: |
             This release is automatically updated from main.

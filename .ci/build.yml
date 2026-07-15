@@ -14,3 +14,7 @@ steps:
 
   - name: package binary
     run: install -Dm0755 tools/ci/target/release/ci "dist/ci-linux-$CI_ARCH"
+
+  - name: checksum binary
+    working-directory: dist
+    run: sha256sum "ci-linux-$CI_ARCH" > "ci-linux-$CI_ARCH.sha256"
