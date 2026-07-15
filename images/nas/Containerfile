@@ -56,6 +56,7 @@ COPY localhost-registry.conf /etc/containers/registries.conf.d/10-localhost-regi
 COPY mdadm.conf /etc/mdadm.conf
 COPY nfs/exports /etc/exports.d/infrastructure.exports
 COPY nfs/nfs.conf /etc/nfs.conf.d/infrastructure.conf
+COPY nfs/nfs-root-prepare.service /etc/systemd/system/nfs-root-prepare.service
 COPY nfs/nfs-server.conf /etc/systemd/system/nfs-server.service.d/10-infrastructure.conf
 COPY nfs/storage.conf /usr/lib/tmpfiles.d/infrastructure-nfs.conf
 COPY nut-configure.service /etc/systemd/system/nut-configure.service

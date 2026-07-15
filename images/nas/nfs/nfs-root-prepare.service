@@ -1,0 +1,9 @@
+[Unit]
+Description=Prepare the NFSv4 export root
+RequiresMountsFor=/var/lib/containers /var/srv/ssd /var/srv/docs /var/srv/music/touhou /var/srv/books
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/mount --rbind /var /sysroot/ostree/deploy/fedora-coreos/var
+ExecStart=/usr/bin/mount --make-rslave /sysroot/ostree/deploy/fedora-coreos/var
