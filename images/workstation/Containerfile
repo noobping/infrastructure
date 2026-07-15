@@ -32,6 +32,8 @@ RUN set -euxo pipefail; \
     tuned-ppd iio-sensor-proxy nut \
     avahi bluez cups cups-browsed cups-filters cups-filters-driverless cups-pk-helper \
     dconf dbus-daemon gutenprint-cups hplip ipp-usb nss-mdns samba-client \
+    gvfs-afc gvfs-afp gvfs-archive gvfs-fuse \
+    gvfs-goa gvfs-gphoto2 gvfs-mtp gvfs-nfs gvfs-smb \
     sane-airscan sane-backends sane-backends-drivers-scanners \
     system-config-printer system-config-printer-applet system-config-printer-udev \
     toolbox git \
