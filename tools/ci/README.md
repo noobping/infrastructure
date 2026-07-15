@@ -6,7 +6,7 @@
 
 `ci` is a small Git-native CI runner and build tool.
 
-Install it into a local or bare Git repository to run like Git hooks, or use it directly for builds. It runs workflows from `.ci`, and can also execute GitHub/Gitea workflow files locally.
+Install it into a local or bare Git repository to run like Git hooks, or use it directly for builds. By default it runs native workflows from `.ci`.
 
 No daemon. No server. No web UI.
 
@@ -18,6 +18,12 @@ If Git can run a hook, Git can run `ci`.
 
 ```sh
 cargo build --release --locked
+```
+
+Enable GitHub/Gitea Actions compatibility when needed:
+
+```sh
+cargo build --release --locked --features integrations
 ```
 
 ## Commands
@@ -118,8 +124,8 @@ Workflow sources:
 - Native executable: `.ci/build.sh`
 - Directory metadata: `.ci/release/workflow.yml`
 - Containerfile workflow: `.ci/image/Containerfile`
-- GitHub Actions: `.github/workflows/*.yml`
-- Gitea Actions: `.gitea/workflows/*.yml`
+- GitHub Actions: `.github/workflows/*.yml` (with the `integrations` feature)
+- Gitea Actions: `.gitea/workflows/*.yml` (with the `integrations` feature)
 
 Executable scripts:
 
@@ -280,7 +286,7 @@ Optional config lives in:
 
 The same `.yaml` filenames are also accepted. Config is loaded in order from system, user, then project config, so project config wins. `--config path/to/file.yml` uses that file for normal config while still keeping system/user `policy` and `locked` sections.
 
-Supported defaults include shell, quiet output, fail-fast, tech stack, architecture, container settings, container runtime, git mode/command/image, default install mode, recursive checkout, default branch allowlist, artifact store, and actions cache. `quiet: true` hides normal output, warnings, and workflow script output, while still showing critical errors. By default, `.github/workflows` and `.gitea/workflows` are discovered only in bare repositories; set `other_workflows: true` or `other_workflows: false` to override that while keeping native `.ci` workflows enabled.
+Supported defaults include shell, quiet output, fail-fast, tech stack, architecture, container settings, container runtime, git mode/command/image, default install mode, recursive checkout, default branch allowlist, artifact store, and actions cache. `quiet: true` hides normal output, warnings, and workflow script output, while still showing critical errors. In builds with the `integrations` feature, `.github/workflows` and `.gitea/workflows` are discovered only in bare repositories by default; set `other_workflows: true` or `other_workflows: false` to override that while keeping native `.ci` workflows enabled. The setting has no effect without that feature.
 
 Example:
 
@@ -528,9 +534,9 @@ ci run image
 
 Containerfile workflows build with the repository root as context. Put checks in `RUN` instructions or in the image entrypoint.
 
-## Actions compatibility
+## Optional Actions compatibility
 
-`ci` discovers `.github/workflows/*.yml` and `.gitea/workflows/*.yml` and runs a broad local subset including:
+Build with `--features integrations` to discover `.github/workflows/*.yml` and `.gitea/workflows/*.yml` and run a broad local subset including:
 
 - `on`, `env`, `defaults.run`
 - `jobs`, `needs`, `strategy.matrix`
@@ -621,7 +627,7 @@ Workflow steps receive:
 - `CI_HOOK_ARGS`
 - `CI_BRANCH` when available
 
-GitHub/Gitea compatibility variables such as `GITHUB_ACTIONS`, `GITHUB_REF`, `GITHUB_REF_NAME`, `GITEA_REF`, and `GITEA_REF_NAME` are also populated when applicable.
+Builds with the `integrations` feature also populate GitHub/Gitea compatibility variables such as `GITHUB_ACTIONS`, `GITHUB_REF`, `GITHUB_REF_NAME`, `GITEA_REF`, and `GITEA_REF_NAME` when applicable.
 
 Use expression syntax in YAML inputs:
 

@@ -82,7 +82,7 @@ fn man_extra(page_name: &str) -> Option<&'static str> {
         "ci" => Some(
             r#"
 .SH OVERVIEW
-ci discovers workflows from .ci, .github/workflows, and .gitea/workflows.
+ci discovers native workflows from .ci. Builds compiled with the integrations Cargo feature also discover .github/workflows and .gitea/workflows.
 Native workflows may be YAML files, executable files, or Containerfile/Dockerfile workflows.
 If no workflow exists, ci can auto-detect a basic build workflow for common stacks.
 .SH FILES
@@ -106,12 +106,12 @@ Metadata for directory workflows.
 Container build workflow.
 .TP
 .B .github/workflows/*.yml
-GitHub Actions style workflows.
+GitHub Actions style workflows, when the integrations feature is enabled.
 .TP
 .B .gitea/workflows/*.yml
-Gitea Actions style workflows.
+Gitea Actions style workflows, when the integrations feature is enabled.
 .PP
-By default, .github and .gitea workflows are discovered only for bare repositories. Set other_workflows: true or false in config to override this while keeping native .ci workflows enabled.
+With the integrations feature, .github and .gitea workflows are discovered only for bare repositories by default. Set other_workflows: true or false in config to override this while keeping native .ci workflows enabled. The setting has no effect without that feature.
 .SH EXAMPLES
 .EX
 ci list
