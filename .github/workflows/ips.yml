@@ -48,11 +48,9 @@ jobs:
     permissions:
       contents: read
       packages: write
-      id-token: write
 
     steps:
       - uses: actions/checkout@v4
-      - uses: sigstore/cosign-installer@v3
 
       - uses: jlumbroso/free-disk-space@v1.3.1
         with:
@@ -93,7 +91,6 @@ jobs:
 
       - name: Repository
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | cosign login ghcr.io -u "${{ github.actor }}" --password-stdin
           echo "${{ secrets.GITHUB_TOKEN }}" | buildah login -u "${{ github.actor }}" --password-stdin ghcr.io
 
       - name: Build
@@ -111,11 +108,7 @@ jobs:
             --build-arg FCOS_STREAM="${{ matrix.stream.fcos_stream }}" \
             .
 
-          buildah push --digestfile digest.txt "$IMAGE" "docker://$IMAGE"
-
-          DIGEST="$(cat digest.txt)"
-          echo "Digest: $DIGEST"
-          cosign sign --yes "$IMAGE@$DIGEST"
+          buildah push "$IMAGE" "docker://$IMAGE"
 
           buildah rmi "$IMAGE" || true
           buildah prune -f || true
@@ -141,6 +134,8 @@ jobs:
       id-token: write
 
     steps:
+      - uses: sigstore/cosign-installer@v3
+
       - name: Repository
         uses: docker/login-action@v3
         with:
@@ -150,7 +145,12 @@ jobs:
 
       - name: Push
         run: |
+          set -euxo pipefail
+          metadata="${RUNNER_TEMP}/manifest.json"
           docker buildx imagetools create \
+            --metadata-file "$metadata" \
             -t "${IMAGE_NAME}:${{ matrix.stream.tag }}" \
             "${IMAGE_NAME}:amd64${{ matrix.stream.suffix }}" \
             "${IMAGE_NAME}:arm64${{ matrix.stream.suffix }}"
+          digest="$(jq -r '."containerimage.descriptor".digest' "$metadata")"
+          cosign sign --yes --recursive "${IMAGE_NAME}@${digest}"
