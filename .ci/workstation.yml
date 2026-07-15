@@ -34,7 +34,8 @@ steps:
         digest_file="$(mktemp)"
 
         podman manifest rm "$image" >/dev/null 2>&1 || true
-        podman manifest create --replace "$image"
+        podman image untag "$image" >/dev/null 2>&1 || true
+        podman manifest create "$image"
         podman manifest add --tls-verify="$tls_verify" "$image" "docker://${namespace}/workstation:amd64${suffix}"
         podman manifest add --tls-verify="$tls_verify" "$image" "docker://${namespace}/workstation:arm64${suffix}"
         podman manifest push --all --tls-verify="$tls_verify" --digestfile "$digest_file" "$image" "docker://$image"
