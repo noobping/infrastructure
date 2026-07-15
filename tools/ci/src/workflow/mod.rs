@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
+#[cfg(feature = "integrations")]
 use crate::actions::ActionsWorkflow;
 use crate::config::{
     ArchFilter, ArtifactConfig, BranchConfig, ContainerConfig, ExecutionConfig, ResolvedConfig,
@@ -58,14 +59,18 @@ pub enum WorkflowKind {
     Executable,
     NativeYaml,
     Container,
+    #[cfg(feature = "integrations")]
     GitHubActions,
+    #[cfg(feature = "integrations")]
     GiteaActions,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum WorkflowProvider {
     Native,
+    #[cfg(feature = "integrations")]
     GitHubActions,
+    #[cfg(feature = "integrations")]
     GiteaActions,
 }
 
@@ -84,6 +89,7 @@ pub enum WorkflowSource {
     Executable(ExecutableWorkflow),
     NativeYaml(NativeWorkflow),
     Container(ContainerWorkflow),
+    #[cfg(feature = "integrations")]
     Actions(ActionsWorkflow),
 }
 
@@ -252,6 +258,7 @@ pub fn select_workflows(
     branch: Option<&str>,
     respect_branches: bool,
 ) -> Vec<WorkflowMatch> {
+    #[cfg(feature = "integrations")]
     let canonical = canonical_events(event);
     let automation = event != "manual" || respect_branches;
 
@@ -278,6 +285,7 @@ pub fn select_workflows(
             let mut matched = false;
 
             match &workflow.source {
+                #[cfg(feature = "integrations")]
                 WorkflowSource::Actions(action) => {
                     if let Some(reason) = action.matches_event(&canonical, branch) {
                         reasons.push(reason);
@@ -444,6 +452,7 @@ pub fn explain_subject(
                 workflow.path.display()
             ));
             match &workflow.source {
+                #[cfg(feature = "integrations")]
                 WorkflowSource::Actions(action) => {
                     let events = action
                         .events
@@ -505,7 +514,9 @@ pub fn explain_subject(
 pub fn provider_name(provider: &WorkflowProvider) -> &'static str {
     match provider {
         WorkflowProvider::Native => "native",
+        #[cfg(feature = "integrations")]
         WorkflowProvider::GitHubActions => "github-actions",
+        #[cfg(feature = "integrations")]
         WorkflowProvider::GiteaActions => "gitea-actions",
     }
 }
@@ -515,6 +526,7 @@ pub fn kind_name(kind: &WorkflowKind) -> &'static str {
         WorkflowKind::Executable => "executable",
         WorkflowKind::NativeYaml => "yaml",
         WorkflowKind::Container => "container",
+        #[cfg(feature = "integrations")]
         WorkflowKind::GitHubActions | WorkflowKind::GiteaActions => "actions",
     }
 }
@@ -536,6 +548,7 @@ impl Workflow {
             WorkflowSource::Executable(item) => item.metadata.clone(),
             WorkflowSource::NativeYaml(item) => item.metadata.clone(),
             WorkflowSource::Container(item) => item.metadata.clone(),
+            #[cfg(feature = "integrations")]
             WorkflowSource::Actions(_) => WorkflowOverride::default(),
         }
     }

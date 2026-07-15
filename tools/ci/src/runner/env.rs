@@ -7,7 +7,9 @@ use crate::config::Architecture;
 use crate::containers::container_platform;
 use crate::error::Result;
 use crate::runner::{AppContext, RunInvocation};
-use crate::workflow::{canonical_events, provider_name, ResolvedWorkflow};
+#[cfg(feature = "integrations")]
+use crate::workflow::canonical_events;
+use crate::workflow::{provider_name, ResolvedWorkflow};
 
 pub(crate) fn workflow_env(
     ctx: &AppContext,
@@ -57,29 +59,35 @@ pub(crate) fn workflow_env(
     );
     if let Some(branch) = invocation.branch.as_ref() {
         env.insert("CI_BRANCH".to_string(), branch.clone());
-        env.insert("GITHUB_REF".to_string(), format!("refs/heads/{branch}"));
-        env.insert("GITHUB_REF_NAME".to_string(), branch.clone());
-        env.insert("GITEA_REF".to_string(), format!("refs/heads/{branch}"));
-        env.insert("GITEA_REF_NAME".to_string(), branch.clone());
+        #[cfg(feature = "integrations")]
+        {
+            env.insert("GITHUB_REF".to_string(), format!("refs/heads/{branch}"));
+            env.insert("GITHUB_REF_NAME".to_string(), branch.clone());
+            env.insert("GITEA_REF".to_string(), format!("refs/heads/{branch}"));
+            env.insert("GITEA_REF_NAME".to_string(), branch.clone());
+        }
     }
-    env.insert("GITHUB_ACTIONS".to_string(), "true".to_string());
-    env.insert(
-        "GITHUB_WORKSPACE".to_string(),
-        ctx.repo.root.display().to_string(),
-    );
-    env.insert(
-        "GITHUB_EVENT_NAME".to_string(),
-        canonical_events(&invocation.event)
-            .last()
-            .cloned()
-            .unwrap_or_else(|| invocation.event.clone()),
-    );
-    env.insert("GITHUB_WORKFLOW".to_string(), resolved.name.clone());
-    env.insert(
-        "GITEA_WORKSPACE".to_string(),
-        ctx.repo.root.display().to_string(),
-    );
-    env.insert("GITEA_EVENT_NAME".to_string(), invocation.event.clone());
+    #[cfg(feature = "integrations")]
+    {
+        env.insert("GITHUB_ACTIONS".to_string(), "true".to_string());
+        env.insert(
+            "GITHUB_WORKSPACE".to_string(),
+            ctx.repo.root.display().to_string(),
+        );
+        env.insert(
+            "GITHUB_EVENT_NAME".to_string(),
+            canonical_events(&invocation.event)
+                .last()
+                .cloned()
+                .unwrap_or_else(|| invocation.event.clone()),
+        );
+        env.insert("GITHUB_WORKFLOW".to_string(), resolved.name.clone());
+        env.insert(
+            "GITEA_WORKSPACE".to_string(),
+            ctx.repo.root.display().to_string(),
+        );
+        env.insert("GITEA_EVENT_NAME".to_string(), invocation.event.clone());
+    }
     for (key, value) in &resolved.env {
         env.insert(key.clone(), value.clone());
     }

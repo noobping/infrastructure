@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use serde_yaml::Value;
 use walkdir::WalkDir;
 
+#[cfg(feature = "integrations")]
 use crate::actions::{self, ActionsProvider};
 use crate::config::WorkflowOverride;
 use crate::error::Result;
@@ -20,6 +21,7 @@ use super::validation::validate_native_workflow_keys;
 pub fn discover_all(repo: &RepoInfo, include_other_workflows: bool) -> Result<Vec<Workflow>> {
     let mut workflows = Vec::new();
     discover_native(repo, &mut workflows)?;
+    #[cfg(feature = "integrations")]
     if include_other_workflows {
         discover_actions_dir(
             &repo.root.join(".github").join("workflows"),
@@ -32,6 +34,8 @@ pub fn discover_all(repo: &RepoInfo, include_other_workflows: bool) -> Result<Ve
             &mut workflows,
         )?;
     }
+    #[cfg(not(feature = "integrations"))]
+    let _ = include_other_workflows;
     workflows.sort_by(|left, right| left.name.cmp(&right.name).then(left.path.cmp(&right.path)));
     Ok(workflows)
 }
@@ -88,6 +92,7 @@ fn discover_native(repo: &RepoInfo, workflows: &mut Vec<Workflow>) -> Result<()>
     Ok(())
 }
 
+#[cfg(feature = "integrations")]
 fn discover_actions_dir(
     dir: &Path,
     provider: ActionsProvider,

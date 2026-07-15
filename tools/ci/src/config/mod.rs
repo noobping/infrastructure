@@ -287,7 +287,8 @@ impl ResolvedConfig {
             defaults,
             hooks: file.hooks,
             workflows: file.workflows,
-            other_workflows: file.other_workflows.unwrap_or(repo.is_bare),
+            other_workflows: cfg!(feature = "integrations")
+                && file.other_workflows.unwrap_or(repo.is_bare),
             actions: file.actions,
         })
     }

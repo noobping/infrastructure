@@ -85,7 +85,7 @@ fn non_bare_repos_disable_other_workflows_by_default() {
 }
 
 #[test]
-fn bare_repos_enable_other_workflows_by_default() {
+fn bare_repos_discover_other_workflows_only_with_integrations() {
     let repo = TestRepo::new_bare();
     write_native_and_github_workflows(&repo);
 
@@ -95,11 +95,14 @@ fn bare_repos_enable_other_workflows_by_default() {
     let stdout = stdout(&output);
 
     assert!(stdout.contains("build\tnative\tyaml\t"));
-    assert!(stdout.contains("Release\tgithub-actions"));
+    assert_eq!(
+        stdout.contains("Release\tgithub-actions"),
+        cfg!(feature = "integrations")
+    );
 }
 
 #[test]
-fn config_can_override_other_workflow_discovery_default() {
+fn config_enables_other_workflows_only_with_integrations() {
     let repo = TestRepo::new();
     repo.write(".ci/config.yml", "other_workflows: true\n");
     write_native_and_github_workflows(&repo);
@@ -108,7 +111,40 @@ fn config_can_override_other_workflow_discovery_default() {
     command.args(["list", "--porcelain"]);
     let output = assert_success(output(command));
 
-    assert!(stdout(&output).contains("Release\tgithub-actions"));
+    assert_eq!(
+        stdout(&output).contains("Release\tgithub-actions"),
+        cfg!(feature = "integrations")
+    );
+}
+
+#[test]
+fn provider_environment_requires_integrations() {
+    let repo = TestRepo::new();
+    repo.write(
+        ".ci/build.yml",
+        r#"
+on: [manual]
+steps:
+  - run: printf '%s' "${GITHUB_ACTIONS-unset}" > provider-env.txt
+  - run: printf '%s' '${{ github.ref }}' > provider-expression.txt
+"#,
+    );
+
+    let mut command = repo.ci();
+    command.env_remove("GITHUB_ACTIONS").args(["run", "build"]);
+    assert_success(output(command));
+
+    let expected = if cfg!(feature = "integrations") {
+        "true"
+    } else {
+        "unset"
+    };
+    assert_eq!(repo.read("provider-env.txt"), expected);
+    assert_eq!(
+        repo.read("provider-expression.txt")
+            .starts_with("refs/heads/"),
+        cfg!(feature = "integrations")
+    );
 }
 
 #[test]

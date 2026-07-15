@@ -17,7 +17,9 @@ use crate::install::{inspect_installation, BinaryState};
 use crate::output::Output;
 use crate::repo::RepoInfo;
 
+#[cfg(feature = "integrations")]
 mod action_metadata;
+#[cfg(feature = "integrations")]
 mod actions;
 mod builtins;
 mod cache;
@@ -26,11 +28,13 @@ mod env;
 mod file_actions;
 mod file_system;
 mod inputs;
+#[cfg(feature = "integrations")]
 mod jobs;
 mod lock;
 mod native_container;
 mod native_workflow;
 
+#[cfg(feature = "integrations")]
 use self::actions::run_actions_workflow;
 #[cfg(test)]
 pub(crate) use self::cleanup::parse_cleanup_ignored_mode;
@@ -507,6 +511,7 @@ fn run_one_workflow(
             }
             run_container_workflow(ctx, &invocation, &item.resolved, &base_env)?
         }
+        #[cfg(feature = "integrations")]
         WorkflowSource::Actions(actions) => run_actions_workflow(
             ctx,
             &invocation,
@@ -518,7 +523,11 @@ fn run_one_workflow(
     };
 
     let mut stored = artifacts.take_pending_artifacts(&item.workflow.name);
-    if status == 0 && !matches!(&item.workflow.source, WorkflowSource::Actions(_)) {
+    #[cfg(feature = "integrations")]
+    let capture_declared = !matches!(&item.workflow.source, WorkflowSource::Actions(_));
+    #[cfg(not(feature = "integrations"))]
+    let capture_declared = true;
+    if status == 0 && capture_declared {
         stored.extend(artifacts.capture_declared(
             &item.workflow.name,
             &item.resolved.artifacts,

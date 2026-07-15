@@ -1,5 +1,6 @@
 #![cfg(unix)]
 
+#[cfg(feature = "integrations")]
 pub mod actions;
 pub mod artifacts;
 pub mod cli;

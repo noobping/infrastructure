@@ -8,7 +8,6 @@ use crate::containers::{sh_single_quote, ContainerBackend};
 use crate::error::{CiError, Result};
 use crate::runner::AppContext;
 
-use super::action_metadata::strip_action_ref;
 use super::cache::{restore_cache, CacheState, PendingCache};
 use super::cleanup::{cleanup_repo_paths, parse_cleanup_ignored_mode};
 use super::env::{resolve_workdir, run_shell};
@@ -57,6 +56,11 @@ const EXPORT_ACTION_NAMES: &[&str] = &[
 const LINK_ACTION_NAMES: &[&str] = &["link", "ci/link", "symlink", "ci/symlink"];
 const COMMIT_ACTION_NAMES: &[&str] = &["commit", "ci/commit"];
 const SYNC_ACTION_NAMES: &[&str] = &["sync", "ci/sync"];
+
+fn strip_action_ref(value: &str) -> &str {
+    value.split('@').next().unwrap_or(value)
+}
+
 const PODMAN_ACTION_NAMES: &[&str] = &["podman", "ci/podman", "docker", "ci/docker"];
 const COMMIT_PATH_INPUT_KEYS: &[&str] = &[
     "path", "paths", "file", "files", "pattern", "patterns", "source", "sources", "src", "srcs",

@@ -1,6 +1,8 @@
 use std::env;
 use std::ffi::OsString;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+#[cfg(feature = "integrations")]
+use std::path::PathBuf;
 use std::process::{Command, Output, Stdio};
 
 use crate::cli::GlobalOptions;
@@ -152,6 +154,7 @@ impl GitService {
         }
     }
 
+    #[cfg(feature = "integrations")]
     pub fn clone_action_repo(
         &self,
         cache_root: &Path,

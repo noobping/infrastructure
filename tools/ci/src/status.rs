@@ -50,6 +50,7 @@ pub fn cmd_status(ctx: &AppContext, _args: &StatusArgs) -> crate::error::Result<
     println!("OK   found {} workflow(s)", workflows.len());
     for workflow in &workflows {
         let details = match &workflow.source {
+            #[cfg(feature = "integrations")]
             WorkflowSource::Actions(action) => format!(
                 "events: {:?}",
                 action

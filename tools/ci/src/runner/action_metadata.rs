@@ -6,10 +6,6 @@ use serde::Deserialize;
 use crate::actions::ActionRunStep;
 use crate::error::{CiError, Result};
 
-pub(crate) fn strip_action_ref(value: &str) -> &str {
-    value.split('@').next().unwrap_or(value)
-}
-
 pub(crate) struct RemoteActionSpec {
     pub(crate) owner: String,
     pub(crate) repo: String,

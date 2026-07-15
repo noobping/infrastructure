@@ -6,13 +6,16 @@ use std::path::Path;
 
 use crate::config::Architecture;
 use crate::error::Result;
+#[cfg(feature = "integrations")]
 use crate::workflow::canonical_events;
 
 pub(crate) type ConditionCommandProbe<'a> = dyn Fn(&str) -> Result<bool> + 'a;
 
 #[derive(Clone, Debug)]
 pub(crate) struct ExpressionContext<'a> {
+    #[cfg_attr(not(feature = "integrations"), allow(dead_code))]
     pub event: &'a str,
+    #[cfg_attr(not(feature = "integrations"), allow(dead_code))]
     pub branch: Option<&'a str>,
     pub root: &'a Path,
     pub env: &'a BTreeMap<String, String>,
@@ -171,15 +174,21 @@ pub(crate) fn interpolate_expressions(value: &str, ctx: &ExpressionContext<'_>) 
 
 pub(crate) fn resolve_expr_value(expr: &str, ctx: &ExpressionContext<'_>) -> Option<String> {
     match trim_expr(expr) {
+        #[cfg(feature = "integrations")]
         "github.ref" | "gitea.ref" => ctx.branch.map(|branch| format!("refs/heads/{branch}")),
+        #[cfg(feature = "integrations")]
         "github.ref_name" | "gitea.ref_name" => ctx.branch.map(ToOwned::to_owned),
+        #[cfg(feature = "integrations")]
         "github.event_name" | "gitea.event_name" => Some(
             canonical_events(ctx.event)
                 .last()
                 .cloned()
                 .unwrap_or_else(|| ctx.event.to_string()),
         ),
+        #[cfg(feature = "integrations")]
         "github.workspace" | "gitea.workspace" => ctx.env.get("CI_REPO").cloned(),
+        #[cfg(not(feature = "integrations"))]
+        value if value.starts_with("github.") || value.starts_with("gitea.") => None,
         value if value.starts_with("env.") => {
             ctx.env.get(value.trim_start_matches("env.")).cloned()
         }

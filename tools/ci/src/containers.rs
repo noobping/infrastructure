@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
+#[cfg(feature = "integrations")]
 use crate::actions::ActionService;
 use crate::config::{Architecture, ContainerRuntime};
 use crate::error::{CiError, Result};
@@ -244,6 +245,7 @@ impl ContainerBackend {
         Ok(command.status()?.success())
     }
 
+    #[cfg(feature = "integrations")]
     pub(crate) fn run_action_container(
         &self,
         image: &str,
@@ -284,6 +286,7 @@ impl ContainerBackend {
         Ok(command.status()?.code().unwrap_or(1))
     }
 
+    #[cfg(feature = "integrations")]
     pub(crate) fn start_service(
         &self,
         name: &str,
@@ -322,6 +325,7 @@ impl ContainerBackend {
         }
     }
 
+    #[cfg(feature = "integrations")]
     pub(crate) fn stop_container(&self, name: &str) -> Result<()> {
         let status = self
             .command()
