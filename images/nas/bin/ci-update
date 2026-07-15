@@ -10,7 +10,7 @@ case $(uname -m) in
     ;;
 esac
 
-release=https://github.com/noobping/infrastructure/releases/download/ci-continuous
+release=https://github.com/noobping/infrastructure/releases/download/continuous
 artifacts=/var/srv/ssd/artifacts
 target=$artifacts/ci
 temporary=$(mktemp -d "$artifacts/.ci-update.XXXXXX")

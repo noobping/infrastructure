@@ -81,35 +81,27 @@ jobs:
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    concurrency: continuous-release
 
     permissions:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
       - name: Download binaries
         uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
 
-      - name: Move continuous tag
-        run: |
-          git tag -f ci-continuous "$GITHUB_SHA"
-          git push --force origin refs/tags/ci-continuous
-
       - name: Release binaries
         uses: ncipollo/release-action@v1
         with:
-          tag: ci-continuous
-          name: CI Continuous
+          tag: continuous
+          name: Continuous
           allowUpdates: true
           replacesArtifacts: true
-          makeLatest: false
+          makeLatest: true
           artifacts: "dist/ci-linux-x64,dist/ci-linux-x64.sha256,dist/ci-linux-arm64,dist/ci-linux-arm64.sha256"
           generateReleaseNotes: false
           body: |
-            This release is automatically updated from main.
+            This release is automatically updated.

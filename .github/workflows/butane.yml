@@ -197,6 +197,7 @@ jobs:
       - build
       - guests
     runs-on: ubuntu-latest
+    concurrency: continuous-release
 
     permissions:
       contents: write
