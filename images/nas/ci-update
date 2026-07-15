@@ -1,0 +1,34 @@
+#!/usr/bin/bash
+set -euo pipefail
+
+case $(uname -m) in
+  x86_64) asset=ci-linux-x64 ;;
+  aarch64) asset=ci-linux-arm64 ;;
+  *)
+    echo "Unsupported architecture: $(uname -m)" >&2
+    exit 1
+    ;;
+esac
+
+release=https://github.com/noobping/infrastructure/releases/download/ci-continuous
+artifacts=/var/srv/ssd/artifacts
+target=$artifacts/ci
+temporary=$(mktemp -d "$artifacts/.ci-update.XXXXXX")
+trap 'rm -rf -- "$temporary"' EXIT
+
+curl -fsSL --retry 3 -o "$temporary/$asset" "$release/$asset"
+curl -fsSL --retry 3 -o "$temporary/$asset.sha256" "$release/$asset.sha256"
+
+(
+  cd "$temporary"
+  sha256sum --check "$asset.sha256"
+)
+chmod 0755 "$temporary/$asset"
+
+if [[ -e $target ]] && cmp --silent "$temporary/$asset" "$target"; then
+  echo "ci is already current"
+  exit 0
+fi
+
+mv -f -- "$temporary/$asset" "$target"
+echo "Updated $target"

@@ -44,11 +44,15 @@ COPY --chmod=0600 nftables /etc/nftables/rules
 COPY --chmod=0755 bin/ /usr/bin/
 COPY --chmod=0755 artifacts-prepare /usr/libexec/infrastructure/artifacts-prepare
 COPY --chmod=0755 btrfs-backup /usr/libexec/infrastructure/btrfs-backup
+COPY --chmod=0755 ci-update /usr/libexec/infrastructure/ci-update
 COPY artifacts-prepare.service /etc/systemd/system/artifacts-prepare.service
 COPY --chmod=0755 nut-configure /usr/libexec/infrastructure/nut-configure
 COPY --chmod=0755 todo.sh /usr/bin/todo
 COPY btrfs-backup.service /etc/systemd/system/btrfs-backup.service
 COPY btrfs-backup.timer /etc/systemd/system/btrfs-backup.timer
+COPY ci-update.service /etc/systemd/system/ci-update.service
+COPY ci-update.timer /etc/systemd/system/ci-update.timer
+COPY ci.yml /etc/ci.yml
 COPY containers /etc/containers/systemd
 COPY fstab.txt /etc/fstab
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
@@ -81,6 +85,11 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/multi-user.target.wants/nfs-server.service; \
   ln -sf /etc/systemd/system/nut-configure.service \
     /etc/systemd/system/multi-user.target.wants/nut-configure.service; \
+  ln -sf /etc/systemd/system/ci-update.service \
+    /etc/systemd/system/multi-user.target.wants/ci-update.service; \
   ln -sf /etc/systemd/system/btrfs-backup.timer \
     /etc/systemd/system/timers.target.wants/btrfs-backup.timer; \
+  ln -sf /etc/systemd/system/ci-update.timer \
+    /etc/systemd/system/timers.target.wants/ci-update.timer; \
+  ln -sf /var/srv/ssd/artifacts/ci /usr/bin/ci; \
   ostree container commit

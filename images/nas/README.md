@@ -18,6 +18,16 @@ sudo exportfs -v
 ssh nick@k3s.vm 'findmnt -t nfs,nfs4 && systemctl is-active cachefilesd.service'
 ```
 
+## CI
+
+`ci-update.service` installs the latest verified x64 or arm64 binary at
+`/var/srv/ssd/artifacts/ci`. `/usr/bin/ci` links to it, and the daily timer
+replaces that target atomically. Link a repository to the same executable with:
+
+```sh
+ci install -m link
+```
+
 ## Backups
 
 `btrfs-backup.timer` runs weekly and retains three snapshots by default under

@@ -1,0 +1,12 @@
+[Unit]
+Description=Update the ci executable
+Wants=network-online.target
+Requires=artifacts-prepare.service
+After=network-online.target artifacts-prepare.service
+
+[Service]
+Type=oneshot
+User=nick
+Group=git
+UMask=0022
+ExecStart=/usr/libexec/infrastructure/ci-update
