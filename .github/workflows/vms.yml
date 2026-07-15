@@ -97,8 +97,12 @@ jobs:
     needs: build-base
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       packages: write
+      id-token: write
     steps:
+      - uses: sigstore/cosign-installer@v3
+
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -109,10 +113,14 @@ jobs:
         run: |
           set -euxo pipefail
           image="${IMAGE_NAMESPACE}/vm"
+          metadata="${RUNNER_TEMP}/manifest.json"
           docker buildx imagetools create \
+            --metadata-file "$metadata" \
             -t "${image}:latest" \
             "${image}:amd64-run-${GITHUB_RUN_ID}" \
             "${image}:arm64-run-${GITHUB_RUN_ID}"
+          digest="$(jq -r '."containerimage.descriptor".digest' "$metadata")"
+          cosign sign --yes --recursive "${image}@${digest}"
 
   build-roles:
     name: Build ${{ matrix.role }} ${{ matrix.arch }}
@@ -186,8 +194,12 @@ jobs:
           - k3s
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       packages: write
+      id-token: write
     steps:
+      - uses: sigstore/cosign-installer@v3
+
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -200,7 +212,11 @@ jobs:
         run: |
           set -euxo pipefail
           image="${IMAGE_NAMESPACE}/${ROLE}"
+          metadata="${RUNNER_TEMP}/manifest.json"
           docker buildx imagetools create \
+            --metadata-file "$metadata" \
             -t "${image}:latest" \
             "${image}:amd64-run-${GITHUB_RUN_ID}" \
             "${image}:arm64-run-${GITHUB_RUN_ID}"
+          digest="$(jq -r '."containerimage.descriptor".digest' "$metadata")"
+          cosign sign --yes --recursive "${image}@${digest}"
