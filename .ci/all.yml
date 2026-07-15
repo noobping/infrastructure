@@ -1,0 +1,11 @@
+name: all
+on: manual
+needs:
+  - build
+  - butane
+  - offline
+  - images
+
+steps:
+  - name: Done
+    run: echo "All workflows completed"
