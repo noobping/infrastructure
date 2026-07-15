@@ -1,0 +1,9 @@
+[Unit]
+Description=Prepare the artifacts Btrfs subvolume
+RequiresMountsFor=/var/srv/ssd
+After=local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/libexec/infrastructure/artifacts-prepare

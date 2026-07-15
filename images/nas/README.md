@@ -8,7 +8,9 @@ and services are unchanged.
 The NAS serves NFSv4 only on TCP 2049. `nfs/exports` limits every export to its
 matching VM and uses synchronous writes. K3s application paths use
 `no_root_squash`; shared-document and standalone-VM paths remain root-squashed,
-and Jellyfin media is read-only. Clients use hard NFS 4.2 mounts with `fsc`.
+and Jellyfin media is read-only. Build artifacts at
+`nas.vm:/var/srv/ssd/artifacts` are publicly readable. Clients use hard NFS 4.2
+mounts with `fsc`.
 
 ```sh
 systemctl is-active nfs-server.service

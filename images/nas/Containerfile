@@ -42,7 +42,9 @@ RUN rpm-ostree install -y \
 
 COPY --chmod=0600 nftables /etc/nftables/rules
 COPY --chmod=0755 bin/ /usr/bin/
+COPY --chmod=0755 artifacts-prepare /usr/libexec/infrastructure/artifacts-prepare
 COPY --chmod=0755 btrfs-backup /usr/libexec/infrastructure/btrfs-backup
+COPY artifacts-prepare.service /etc/systemd/system/artifacts-prepare.service
 COPY --chmod=0755 nut-configure /usr/libexec/infrastructure/nut-configure
 COPY --chmod=0755 todo.sh /usr/bin/todo
 COPY btrfs-backup.service /etc/systemd/system/btrfs-backup.service

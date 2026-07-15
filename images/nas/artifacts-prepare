@@ -1,0 +1,13 @@
+#!/usr/bin/bash
+set -euo pipefail
+
+artifacts=/var/srv/ssd/artifacts
+
+if [[ -e $artifacts ]]; then
+  btrfs subvolume show "$artifacts" >/dev/null
+else
+  btrfs subvolume create "$artifacts"
+fi
+
+chown nick:git "$artifacts"
+chmod 2775 "$artifacts"

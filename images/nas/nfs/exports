@@ -20,6 +20,9 @@
 /var/srv/docs/paperless/media k3s.vm(rw,sync,no_subtree_check,root_squash)
 /var/srv/docs/paperless/export k3s.vm(rw,sync,no_subtree_check,root_squash)
 
+# Public read-only build artifacts.
+/var/srv/ssd/artifacts *(ro,sync,no_subtree_check,all_squash)
+
 # VM application data. The containers use the matching numeric NAS users.
 /var/lib/containers/minecraft/java minecraft.vm(rw,sync,no_subtree_check,root_squash)
 /var/lib/containers/minecraft/bedrock minecraft.vm(rw,sync,no_subtree_check,root_squash)
