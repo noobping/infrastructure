@@ -7,6 +7,16 @@ on:
       - master
     paths:
       - "tools/ci/**"
+      - ".ci/build.yml"
+      - ".ci/check.yml"
+      - ".github/workflows/ci.yml"
+      - "!**/*.md"
+
+  pull_request:
+    paths:
+      - "tools/ci/**"
+      - ".ci/build.yml"
+      - ".ci/check.yml"
       - ".github/workflows/ci.yml"
       - "!**/*.md"
 
@@ -14,7 +24,11 @@ env:
   CARGO_TERM_COLOR: always
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: ci
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -25,7 +39,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - arch: amd64
+          - arch: x64
             runner: ubuntu-latest
           - arch: arm64
             runner: ubuntu-24.04-arm
@@ -33,65 +47,67 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: lint
-        run: cargo clippy --all-targets -- -D warnings
+      - name: Bootstrap CI
+        run: cargo build --release --locked --manifest-path tools/ci/Cargo.toml
 
-      - name: test
-        run: cargo test --all --verbose
+      - name: Build with CI
+        run: >-
+          tools/ci/target/release/ci
+          --repo "$GITHUB_WORKSPACE"
+          --no-container
+          --arch "${{ matrix.arch }}"
+          build
+          --no-recursive-checkout
 
-      - name: build
-        run: cargo build --release --verbose
+      - name: Validate infrastructure workflows
+        run: >-
+          tools/ci/target/release/ci
+          --repo "$GITHUB_WORKSPACE"
+          run
+          --all
+          --dry-run
+          --no-recursive-checkout
 
-      - name: package binary
-        run: |
-          mkdir -p dist
-          cp target/release/ci dist/ci-linux-${{ matrix.arch }}
-          chmod +x dist/ci-linux-${{ matrix.arch }}
-
-      - name: upload binary artifact
+      - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
           name: ci-linux-${{ matrix.arch }}
           path: dist/ci-linux-${{ matrix.arch }}
 
   release:
+    name: Release
     needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: download binaries
+      - name: Download binaries
         uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
 
-      - name: move continuous tag
+      - name: Move continuous tag
         run: |
-          git tag -f continuous "$GITHUB_SHA"
-          git push -f origin refs/tags/continuous
+          git tag -f ci-continuous "$GITHUB_SHA"
+          git push --force origin refs/tags/ci-continuous
 
-      - name: create or update release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release view continuous >/dev/null 2>&1 && \
-            gh release edit continuous \
-              --title "Continuous Release" \
-              --notes "Latest build from main: $GITHUB_SHA" \
-              --latest=true || \
-            gh release create continuous \
-              --title "Continuous Release" \
-              --notes "Latest build from main: $GITHUB_SHA" \
-              --latest=true
-
-      - name: upload release assets
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release upload continuous dist/ci-linux-amd64 dist/ci-linux-arm64 --clobber
+      - name: Release binaries
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ci-continuous
+          name: CI Continuous
+          allowUpdates: true
+          replacesArtifacts: true
+          makeLatest: false
+          artifacts: "dist/ci-linux-x64,dist/ci-linux-arm64"
+          generateReleaseNotes: false
+          body: |
+            This release is automatically updated from main.
