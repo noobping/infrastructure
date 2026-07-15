@@ -130,7 +130,7 @@ steps:
             || podman volume create "$registry_volume" >/dev/null
           podman run -d \
             --name "$registry_container" \
-            -p "${registry_port}:5000" \
+            -p "127.0.0.1:${registry_port}:5000" \
             -v "${registry_volume}:/var/lib/registry:Z" \
             docker.io/library/registry:2 >/dev/null
         fi
