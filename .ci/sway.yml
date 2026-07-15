@@ -34,7 +34,7 @@ steps:
         digest_file="$(mktemp)"
 
         podman manifest rm "$image" >/dev/null 2>&1 || true
-        podman manifest create "$image"
+        podman manifest create --replace "$image"
         podman manifest add --tls-verify="$tls_verify" "$image" "docker://${namespace}/sway:amd64${suffix}"
         podman manifest add --tls-verify="$tls_verify" "$image" "docker://${namespace}/sway:arm64${suffix}"
         podman manifest push --all --tls-verify="$tls_verify" --digestfile "$digest_file" "$image" "docker://$image"
