@@ -1,21 +1,16 @@
-# Workflows
-
-Common commands from the `public-infrastructure` repository:
+# CI workflows
 
 ```sh
+ci build
 ci images
-ci ips
-ci nas
-ci workstation
-ci sway
-ci offline
 ci butane
+ci offline
 ```
 
-`images` builds and pushes IPS, NAS, Workstation, and Sway arch tags, then pushes manifest tags. `butane` builds installer ISOs and checksums under `dist/iso` and renders the three guest Ignition configs under `dist/ign`.
-`offline` builds a x64-only Workstation ISO with the bootc image embedded under
-`dist/iso/workstation-offline-x86_64.iso`; it starts `localhost:5000` when the local registry is not already responding.
+`build` checks and builds the CI tool. `images` builds and pushes the IPS,
+hardware, and VM images. `butane` renders installer ISOs and VM Ignition files.
+`offline` builds the x64 Workstation ISO with its image embedded.
 
-Set `CI_REGISTRY_TLS_VERIFY=true` for a TLS registry. The default is `false` for an insecure local registry.
-
-Set `CI_SIGN_IMAGES=1` to run `cosign sign` after each arch image push. By default these local builds are pushed unsigned.
+Image workflows default to `localhost:5000/noobping` with TLS verification off.
+Set `CI_IMAGE_NAMESPACE`, `CI_REGISTRY_TLS_VERIFY=true`, and optionally
+`CI_SIGN_IMAGES=1` for another registry and signed manifests.

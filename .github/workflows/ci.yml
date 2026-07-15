@@ -7,16 +7,14 @@ on:
       - master
     paths:
       - "tools/ci/**"
-      - ".ci/build.yml"
-      - ".ci/check.yml"
+      - ".ci/**"
       - ".github/workflows/ci.yml"
       - "!**/*.md"
 
   pull_request:
     paths:
       - "tools/ci/**"
-      - ".ci/build.yml"
-      - ".ci/check.yml"
+      - ".ci/**"
       - ".github/workflows/ci.yml"
       - "!**/*.md"
 

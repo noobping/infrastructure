@@ -1,0 +1,67 @@
+name: vm-build
+on: manual
+needs: ips
+execution:
+  shell: bash
+container:
+  arch:
+    - x64
+    - arm64
+
+steps:
+  - name: Build and push VM architecture images
+    container: false
+    run: |
+      set -euo pipefail
+
+      namespace="${CI_IMAGE_NAMESPACE:-localhost:5000/noobping}"
+      tls_verify="${CI_REGISTRY_TLS_VERIFY:-false}"
+      isolation="${BUILDAH_ISOLATION:-chroot}"
+      tmpdir="${TMPDIR:-/tmp}"
+      source_url="$(git -C "$CI_REPO" config --get remote.origin.url || printf '%s' "$CI_REPO")"
+      revision="$(git -C "$CI_REPO" rev-parse HEAD)"
+
+      case "$CI_ARCH" in
+        x64) image_arch=amd64 ;;
+        arm64) image_arch=arm64 ;;
+        *) echo "unsupported CI_ARCH: $CI_ARCH" >&2; exit 1 ;;
+      esac
+
+      run_buildah() {
+        if command -v buildah >/dev/null 2>&1; then
+          TMPDIR="$tmpdir" buildah "$@"
+        elif command -v flatpak-spawn >/dev/null 2>&1; then
+          flatpak-spawn --host env TMPDIR="$tmpdir" buildah "$@"
+        else
+          echo "buildah is required to build VM images" >&2
+          exit 1
+        fi
+      }
+
+      build_image() {
+        local role="$1"
+        local context="vms/${role}"
+        shift
+        local image="${namespace}/${role}:${image_arch}"
+
+        run_buildah bud \
+          --pull=always \
+          --tls-verify="$tls_verify" \
+          --arch "$image_arch" \
+          --isolation="$isolation" \
+          -t "$image" \
+          --label "org.opencontainers.image.source=${source_url}" \
+          --label "org.opencontainers.image.revision=${revision}" \
+          --build-arg "IMAGE_NAMESPACE=${namespace}" \
+          "$@" \
+          "$context"
+        run_buildah push --tls-verify="$tls_verify" "$image" "docker://$image"
+        run_buildah rmi "$image" >/dev/null 2>&1 || true
+      }
+
+      cd "$CI_REPO"
+      build_image vm
+      for role in minecraft jellyfin k3s; do
+        build_image "$role" --build-arg "TAG=${image_arch}"
+      done
+      run_buildah prune -f >/dev/null 2>&1 || true

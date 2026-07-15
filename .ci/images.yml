@@ -4,6 +4,7 @@ needs:
   - nas
   - workstation
   - sway
+  - vm
 execution:
   shell: bash
 
