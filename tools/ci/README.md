@@ -1,6 +1,6 @@
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-[![Release](https://github.com/noobping/ci/actions/workflows/release.yml/badge.svg)](https://github.com/noobping/ci/actions/workflows/release.yml)
+[![CI](https://github.com/noobping/infrastructure/actions/workflows/ci.yml/badge.svg)](https://github.com/noobping/infrastructure/actions/workflows/ci.yml)
 
 # ci
 
@@ -17,7 +17,7 @@ If Git can run a hook, Git can run `ci`.
 ## Build from source
 
 ```sh
-cargo build --release
+cargo build --release --locked
 ```
 
 ## Commands
@@ -188,8 +188,6 @@ This repository uses that to keep the workflows small:
 
 - `check`: format, lint, and test
 - `build`: depends on `check`, builds release binaries, and writes `dist/ci-linux-$CI_ARCH`
-- `install-local`: depends on `build` and installs the host binary under `~/.local/bin`
-- `aur`: depends on `build`, generates `.SRCINFO`, and commits AUR metadata when available
 
 To add a fallback step after a failure and still let the workflow recover, mark the failing step with `continue-on-error: true`.
 

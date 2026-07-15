@@ -5,7 +5,7 @@ edition = "2021"
 license = "MIT"
 authors = ["noobping"]
 description = "small Git-native CI runner and build tool"
-repository = "https://github.com/noobping/ci"
+repository = "https://github.com/noobping/infrastructure"
 
 [profile.release]
 lto = true
