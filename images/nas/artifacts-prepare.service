@@ -1,9 +1,10 @@
 [Unit]
 Description=Prepare the artifacts Btrfs subvolume
-RequiresMountsFor=/var/srv/ssd
+RequiresMountsFor=/var/lib/containers /var/srv/docs /var/srv/ssd
 After=local-fs.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
+ExecStart=/usr/bin/systemd-tmpfiles --create /usr/lib/tmpfiles.d/infrastructure-nfs.conf
 ExecStart=/usr/libexec/infrastructure/artifacts-prepare
