@@ -356,11 +356,10 @@ fn execute_run(ctx: &AppContext, request: RunRequest) -> Result<i32> {
 
     if matches.is_empty() {
         if let Some(name) = &request.workflow {
-            return Ok(if workflows.iter().any(|workflow| workflow.name == *name) {
-                0
-            } else {
-                127
-            });
+            if workflows.iter().any(|workflow| workflow.name == *name) {
+                return Ok(0);
+            }
+            return Err(CiError::NotFound(name.clone()));
         }
         ctx.output
             .verbose(format!("no workflows matched event `{}`", request.event));

@@ -390,6 +390,7 @@ fn missing_workflow_returns_not_found_code() {
     let output = output(command);
 
     assert_eq!(output.status.code(), Some(127));
+    assert!(stderr(&output).contains("workflow not found: missing"));
 }
 
 #[test]
