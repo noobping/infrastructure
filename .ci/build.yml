@@ -1,0 +1,16 @@
+name: build
+on: manual
+needs: check
+tech: rust
+container:
+  arch:
+    - x64
+    - arm64
+
+steps:
+  - name: build
+    working-directory: tools/ci
+    run: cargo build --release --locked
+
+  - name: package binary
+    run: install -Dm0755 tools/ci/target/release/ci "dist/ci-linux-$CI_ARCH"

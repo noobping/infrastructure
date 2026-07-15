@@ -1,0 +1,23 @@
+name: check
+on: manual
+tech: rust
+container:
+  arch:
+    - x64
+    - arm64
+  components:
+    - cargo-fmt
+    - cargo-clippy
+
+steps:
+  - name: format
+    working-directory: tools/ci
+    run: cargo fmt --check
+
+  - name: lint
+    working-directory: tools/ci
+    run: cargo clippy --all-targets --locked -- -D warnings
+
+  - name: test
+    working-directory: tools/ci
+    run: cargo test --all --locked
