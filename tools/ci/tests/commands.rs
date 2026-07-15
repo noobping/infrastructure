@@ -569,6 +569,7 @@ steps:
 
     assert!(stdout(&output).contains("would run build"));
     assert!(!repo.exists("dry-run-created.txt"));
+    assert!(!repo.exists(".git/ci"));
 }
 
 #[test]

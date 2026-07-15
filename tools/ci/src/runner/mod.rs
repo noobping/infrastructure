@@ -332,15 +332,18 @@ fn file_content_hash(path: &Path) -> Result<String> {
 }
 
 fn execute_run(ctx: &AppContext, request: RunRequest) -> Result<i32> {
-    ctx.repo.ensure_state_dirs()?;
-
-    let _lock = if request.lock {
-        Some(RunLock::acquire(&ctx.repo.state_dir.join("lock"))?)
-    } else {
+    let _lock = if request.dry_run {
         None
+    } else {
+        ctx.repo.ensure_state_dirs()?;
+        if request.lock {
+            Some(RunLock::acquire(&ctx.repo.state_dir.join("lock"))?)
+        } else {
+            None
+        }
     };
 
-    if request.recursive_checkout {
+    if request.recursive_checkout && !request.dry_run {
         ctx.git.ensure_submodules(&ctx.repo)?;
     }
 
