@@ -8,7 +8,6 @@ description = "small Git-native CI runner and build tool"
 repository = "https://github.com/noobping/infrastructure"
 
 [features]
-default = []
 integrations = []
 
 [profile.release]
