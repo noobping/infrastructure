@@ -1,1 +1,1 @@
-tcp dport 2049 accept
+tcp dport { 111, 2049, 20048 } accept
