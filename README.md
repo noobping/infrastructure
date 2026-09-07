@@ -1,6 +1,5 @@
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-[![Check](https://github.com/noobping/infrastructure/actions/workflows/check.yml/badge.svg)](https://github.com/noobping/infrastructure/actions/workflows/check.yml)
-[![Build](https://github.com/noobping/infrastructure/actions/workflows/build.yml/badge.svg)](https://github.com/noobping/infrastructure/actions/workflows/build.yml)
+[![Continuous](https://github.com/noobping/infrastructure/actions/workflows/continuous.yml/badge.svg)](https://github.com/noobping/infrastructure/actions/workflows/continuous.yml)
 
 # Infrastructure
 
