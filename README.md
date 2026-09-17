@@ -22,6 +22,25 @@ Offline builds start or reuse a local registry and embed the matching OCI image
 inside each installer. Architecture graphs run sequentially while independent
 branches within a graph run in parallel.
 
+## Host policy
+
+Workstation, Sway, and NAS images contain a pinned copy of the restricted
+`policy` container and run it through the `infrastructure-policy.service`
+Quadlet. It has no network, no host PID namespace, no privileged mode, and no
+host-root mount. Only the host paths needed by each profile are mounted.
+
+```sh
+sudo systemctl start infrastructure-policy.service
+sudo journalctl -u infrastructure-policy.service -b
+```
+
+The Workstation profile manages local home ownership, additive skeleton files,
+and NUT client configuration. Sway uses that profile with its own `/etc/skel`.
+The NAS profile manages NUT configuration. SELinux changes, Btrfs subvolumes,
+mounts, backups, Flatpak updates, and IPS runtime preparation stay in native
+host units because those operations need host facilities that should not be
+exposed to the policy container.
+
 ## Publishing and build environment
 
 Online builds default to `IMAGE_NAMESPACE=ghcr.io/noobping`. GitHub Actions

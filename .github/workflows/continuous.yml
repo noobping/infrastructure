@@ -83,9 +83,37 @@ jobs:
           image: ips
           architecture: ${{ matrix.platform.architecture }}
 
+  stable-policy:
+    name: Stable Policy (${{ matrix.platform.architecture }})
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      inputs.target == 'all' ||
+      inputs.target == 'stable'
+    needs: check
+    runs-on: ${{ matrix.platform.runner }}
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - architecture: amd64
+            runner: ubuntu-latest
+          - architecture: arm64
+            runner: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/image-task
+        with:
+          stream: stable
+          image: policy
+          architecture: ${{ matrix.platform.architecture }}
+
   stable-workstation:
     name: Stable Workstation (${{ matrix.platform.architecture }})
-    needs: stable-ips
+    needs: [stable-ips, stable-policy]
     runs-on: ${{ matrix.platform.runner }}
     timeout-minutes: 180
     strategy:
@@ -133,7 +161,7 @@ jobs:
 
   stable-nas:
     name: Stable NAS (${{ matrix.platform.architecture }})
-    needs: stable-ips
+    needs: [stable-ips, stable-policy]
     runs-on: ${{ matrix.platform.runner }}
     timeout-minutes: 180
     strategy:
@@ -208,6 +236,7 @@ jobs:
     name: Verify stable image graph
     needs:
       - stable-ips
+      - stable-policy
       - stable-workstation
       - stable-sway
       - stable-nas
@@ -240,7 +269,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [ips, workstation, sway, nas, vm, k3s, minecraft, jellyfin]
+        image: [ips, policy, workstation, sway, nas, vm, k3s, minecraft, jellyfin]
     permissions:
       contents: read
       id-token: write
@@ -349,12 +378,42 @@ jobs:
           image: ips
           architecture: ${{ matrix.platform.architecture }}
 
+  next-policy:
+    name: Next Policy (${{ matrix.platform.architecture }})
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      inputs.target == 'all' ||
+      inputs.target == 'next'
+    needs: check
+    continue-on-error: true
+    runs-on: ${{ matrix.platform.runner }}
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - architecture: amd64
+            runner: ubuntu-latest
+          - architecture: arm64
+            runner: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/image-task
+        with:
+          stream: next
+          image: policy
+          architecture: ${{ matrix.platform.architecture }}
+
   next-workstation:
     name: Next workstation (${{ matrix.platform.architecture }})
     if: >-
       always() && !cancelled() &&
-      needs.next-ips.result != 'skipped'
-    needs: next-ips
+      needs.next-ips.result != 'skipped' &&
+      needs.next-policy.result != 'skipped'
+    needs: [next-ips, next-policy]
     continue-on-error: true
     runs-on: ${{ matrix.platform.runner }}
     timeout-minutes: 180
@@ -409,8 +468,9 @@ jobs:
     name: Verify next image graph
     if: >-
       always() && !cancelled() &&
-      needs.next-sway.result != 'skipped'
-    needs: next-sway
+      needs.next-sway.result != 'skipped' &&
+      needs.next-policy.result != 'skipped'
+    needs: [next-policy, next-sway]
     continue-on-error: true
     runs-on: ubuntu-latest
     outputs:
@@ -446,7 +506,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [ips, workstation, sway]
+        image: [ips, policy, workstation, sway]
     permissions:
       contents: read
       id-token: write

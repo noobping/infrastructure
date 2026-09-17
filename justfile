@@ -17,10 +17,12 @@ check-just:
     commands=(
         "online::_images stable both all"
         "online::_images stable amd64 nas"
+        "online::_images stable arm64 policy"
         "online::_images stable preflight all"
         "online::_images stable manifests jellyfin"
         "online::_images next both all"
         "online::_images next arm64 workstation"
+        "online::_images next amd64 policy"
         "online::_images next manifests sway"
         "online::_media both all"
         "online::_media amd64 nas"
@@ -92,6 +94,7 @@ _offline target architecture:
     isolation="${BUILDAH_ISOLATION:-chroot}"
     tmpdir="${TMPDIR:-/tmp}"
     source_url="$(git -C "$repo" config --get remote.origin.url || printf '%s' "$repo")"
+    revision="$(git -C "$repo" rev-parse HEAD)"
 
     case "$target" in
         all|workstation|nas|sway) ;;
@@ -389,10 +392,16 @@ _offline target architecture:
         build_image images/ips ips --build-arg FCOS_STREAM=stable
     }
 
+    build_policy() {
+        build_image images/policy policy \
+            --build-arg "POLICY_VERSION=${revision}"
+    }
+
     build_workstation() {
         build_image images/workstation workstation \
             --tls-verify="$tls_verify" \
             --build-arg "IMAGE_NAMESPACE=${namespace}" \
+            --build-arg "POLICY_IMAGE=${namespace}/policy:${image_arch}" \
             --build-arg "TAG=${image_arch}"
     }
 
@@ -400,6 +409,7 @@ _offline target architecture:
         build_image images/nas nas \
             --tls-verify="$tls_verify" \
             --build-arg "IMAGE_NAMESPACE=${namespace}" \
+            --build-arg "POLICY_IMAGE=${namespace}/policy:${image_arch}" \
             --build-arg "TAG=${image_arch}"
     }
 
@@ -580,19 +590,19 @@ _offline target architecture:
     case "$target" in
         all)
             profiles=(nas workstation sway)
-            image_names=(ips workstation sway nas vm k3s minecraft jellyfin)
+            image_names=(ips policy workstation sway nas vm k3s minecraft jellyfin)
             ;;
         workstation)
             profiles=(workstation)
-            image_names=(ips workstation)
+            image_names=(ips policy workstation)
             ;;
         nas)
             profiles=(nas)
-            image_names=(ips nas)
+            image_names=(ips policy nas)
             ;;
         sway)
             profiles=(sway)
-            image_names=(ips workstation sway)
+            image_names=(ips policy workstation sway)
             ;;
     esac
 
@@ -649,7 +659,7 @@ _offline target architecture:
         printf '\n========== Building %s (%s) ==========\n' \
             "$image_arch" "$coreos_arch"
 
-        build_ips
+        run_parallel build_ips build_policy
 
         case "$target" in
             all) run_parallel build_workstation_branch build_nas build_vm_branch ;;

@@ -1,0 +1,42 @@
+#!/usr/bin/bash
+set -euo pipefail
+
+config=/etc/ups/nut.conf
+[[ -r $config ]] || exit 0
+
+mode=$(/usr/bin/sed -n 's/^MODE=//p' "$config")
+
+unit_exists() {
+  /usr/bin/systemctl list-unit-files "$1" --no-legend 2>/dev/null \
+    | /usr/bin/grep -q .
+}
+
+enable_restart() {
+  local unit=$1
+  unit_exists "$unit" || return 0
+  /usr/bin/systemctl enable "$unit" >/dev/null
+  /usr/bin/systemctl restart "$unit"
+}
+
+case "$mode" in
+  netclient)
+    if unit_exists nut-monitor.service; then
+      enable_restart nut-monitor.service
+    else
+      enable_restart nut.target
+    fi
+    ;;
+  standalone|netserver)
+    if command -v upsdrvsvcctl >/dev/null 2>&1; then
+      upsdrvsvcctl reconfigure
+    fi
+    enable_restart nut.target
+    enable_restart nut-driver-enumerator.service
+    enable_restart nut-server.service
+    enable_restart nut-monitor.service
+    ;;
+  *)
+    printf 'invalid generated NUT mode in %s\n' "$config" >&2
+    exit 1
+    ;;
+esac

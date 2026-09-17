@@ -1,9 +1,0 @@
-[Unit]
-Description=Recheck local user home directory ownership after boot
-
-[Timer]
-OnBootSec=30s
-AccuracySec=5s
-
-[Install]
-WantedBy=timers.target

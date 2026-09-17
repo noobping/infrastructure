@@ -121,13 +121,13 @@ _images stream architecture="both" selection="all":
             fcos_stream=stable
             public_tag=latest
             arch_suffix=
-            all_image_names=(ips workstation sway nas vm k3s minecraft jellyfin)
+            all_image_names=(ips policy workstation sway nas vm k3s minecraft jellyfin)
             ;;
         next)
             fcos_stream=next
             public_tag=next
             arch_suffix=-next
-            all_image_names=(ips workstation sway)
+            all_image_names=(ips policy workstation sway)
             ;;
         *)
             echo "unsupported online stream: $stream" >&2
@@ -318,9 +318,15 @@ _images stream architecture="both" selection="all":
         build_image images/ips ips --build-arg "FCOS_STREAM=${fcos_stream}"
     }
 
+    build_policy() {
+        build_image images/policy policy \
+            --build-arg "POLICY_VERSION=${revision}"
+    }
+
     build_workstation() {
         build_image images/workstation workstation \
             --build-arg "IMAGE_NAMESPACE=${namespace}" \
+            --build-arg "POLICY_IMAGE=${namespace}/policy:${stage_tag}" \
             --build-arg "TAG=${stage_tag}"
     }
 
@@ -333,6 +339,7 @@ _images stream architecture="both" selection="all":
     build_nas() {
         build_image images/nas nas \
             --build-arg "IMAGE_NAMESPACE=${namespace}" \
+            --build-arg "POLICY_IMAGE=${namespace}/policy:${stage_tag}" \
             --build-arg "TAG=${stage_tag}"
     }
 
@@ -377,7 +384,7 @@ _images stream architecture="both" selection="all":
             "$stream" "$image_arch" "$selection"
         case "$selection" in
             all)
-                build_ips
+                run_parallel build_ips build_policy
                 if [[ "$stream" == stable ]]; then
                     run_parallel build_workstation_branch build_nas build_vm_branch
                 else
@@ -385,6 +392,7 @@ _images stream architecture="both" selection="all":
                 fi
                 ;;
             ips) build_ips ;;
+            policy) build_policy ;;
             workstation) build_workstation ;;
             sway) build_sway ;;
             nas) build_nas ;;

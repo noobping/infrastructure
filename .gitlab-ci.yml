@@ -146,6 +146,20 @@ stable-ips:
     - job: check
       artifacts: false
 
+stable-policy:
+  extends:
+    - .image-task
+    - .architecture-matrix
+    - .stable-rules
+  stage: base
+  variables:
+    BUILD_ARCHITECTURE: "$ARCH"
+    BUILD_IMAGE_NAME: policy
+    BUILD_STREAM: stable
+  needs:
+    - job: check
+      artifacts: false
+
 stable-workstation:
   extends:
     - .image-task
@@ -158,6 +172,11 @@ stable-workstation:
     BUILD_STREAM: stable
   needs:
     - job: stable-ips
+      artifacts: false
+      parallel:
+        matrix:
+          - ARCH: ['$[[ matrix.ARCH ]]']
+    - job: stable-policy
       artifacts: false
       parallel:
         matrix:
@@ -175,6 +194,11 @@ stable-nas:
     BUILD_STREAM: stable
   needs:
     - job: stable-ips
+      artifacts: false
+      parallel:
+        matrix:
+          - ARCH: ['$[[ matrix.ARCH ]]']
+    - job: stable-policy
       artifacts: false
       parallel:
         matrix:
@@ -247,6 +271,8 @@ stable-preflight:
   needs:
     - job: stable-ips
       artifacts: true
+    - job: stable-policy
+      artifacts: true
     - job: stable-workstation
       artifacts: true
     - job: stable-sway
@@ -275,7 +301,7 @@ stable-manifests:
     - saas-linux-small-amd64
   parallel:
     matrix:
-      - BUILD_IMAGE_NAME: [ips, workstation, sway, nas, vm, k3s, minecraft, jellyfin]
+      - BUILD_IMAGE_NAME: [ips, policy, workstation, sway, nas, vm, k3s, minecraft, jellyfin]
   variables:
     BUILD_STREAM: stable
     COSIGN_YES: "true"
@@ -381,6 +407,21 @@ next-ips:
     - job: check
       artifacts: false
 
+next-policy:
+  extends:
+    - .image-task
+    - .architecture-matrix
+    - .next-rules
+  stage: base
+  allow_failure: true
+  variables:
+    BUILD_ARCHITECTURE: "$ARCH"
+    BUILD_IMAGE_NAME: policy
+    BUILD_STREAM: next
+  needs:
+    - job: check
+      artifacts: false
+
 next-workstation:
   extends:
     - .image-task
@@ -394,6 +435,11 @@ next-workstation:
     BUILD_STREAM: next
   needs:
     - job: next-ips
+      artifacts: false
+      parallel:
+        matrix:
+          - ARCH: ['$[[ matrix.ARCH ]]']
+    - job: next-policy
       artifacts: false
       parallel:
         matrix:
@@ -430,6 +476,8 @@ next-preflight:
   needs:
     - job: next-ips
       artifacts: true
+    - job: next-policy
+      artifacts: true
     - job: next-workstation
       artifacts: true
     - job: next-sway
@@ -460,7 +508,7 @@ next-manifests:
     - saas-linux-small-amd64
   parallel:
     matrix:
-      - BUILD_IMAGE_NAME: [ips, workstation, sway]
+      - BUILD_IMAGE_NAME: [ips, policy, workstation, sway]
   variables:
     BUILD_STREAM: next
     COSIGN_YES: "true"

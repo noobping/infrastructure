@@ -1,0 +1,182 @@
+#!/usr/bin/bash
+set -euo pipefail
+
+policy=${POLICY_BINARY:-/usr/bin/infrastructure-policy}
+fixture=$(mktemp -d)
+
+cleanup() {
+  rm -rf -- "$fixture"
+}
+trap cleanup EXIT HUP INT TERM
+
+mkdir -p \
+  "$fixture/etc/skel/.config" \
+  "$fixture/etc/ups" \
+  "$fixture/run/infrastructure-policy" \
+  "$fixture/var/home"
+ln -s /var/home "$fixture/home"
+
+cat > "$fixture/etc/passwd" <<'EOF'
+root:x:0:0:root:/root:/usr/bin/bash
+alice:x:1000:1000:Alice:/home/alice:/usr/bin/bash
+EOF
+cat > "$fixture/etc/group" <<'EOF'
+root:x:0:
+alice:x:1000:
+nut:x:123:
+EOF
+printf '%s\n' 'additive = true' > "$fixture/etc/skel/.config/example.conf"
+cat > "$fixture/etc/ups/netclient.env" <<'EOF'
+NUT_UPS_HOST=ups.example.test
+NUT_UPS_NAME=UPS
+NUT_MONITOR_USER=monitor
+NUT_MONITOR_PASSWORD=`false`
+NUT_SHUTDOWNCMD=/usr/sbin/shutdown -h +0
+EOF
+
+snapshot() {
+  {
+    find -P "$fixture" -printf '%P|%y|%m|%U|%G|%l\n' | sort
+    find -P "$fixture" -type f -print0 | sort -z | xargs -0 -r sha256sum
+  } | sha256sum
+}
+
+# Initial apply converges ownership, skeleton files, and exact NUT files.
+first_output=$($policy apply workstation --root "$fixture" --report-managed)
+[[ -n $first_output ]]
+[[ $first_output != *'`false`'* ]]
+[[ -f "$fixture/var/home/alice/.config/example.conf" ]]
+[[ $(stat -c '%u:%g:%a' "$fixture/var/home/alice") == 1000:1000:700 ]]
+[[ $(stat -c '%u:%g:%a' "$fixture/etc/ups/upsmon.conf") == 0:123:640 ]]
+mapfile -d '' -t managed_paths \
+  < "$fixture/run/infrastructure-policy/managed-paths"
+[[ " ${managed_paths[*]} " == *' /home/alice '* ]]
+[[ " ${managed_paths[*]} " == *' /home/alice/.config/example.conf '* ]]
+[[ " ${managed_paths[*]} " == *' /etc/ups/upsmon.conf '* ]]
+grep -qF 'password' "$fixture/etc/ups/upsmon.conf" \
+  && { printf 'fixture unexpectedly rendered an upsd password field\n' >&2; exit 1; } \
+  || true
+
+# A second apply is idempotent and therefore reports no changes.
+second_output=$($policy apply workstation --root "$fixture")
+[[ -z $second_output ]]
+
+# A successful check is read-only. Sway must behave as a workstation alias.
+before=$(snapshot)
+check_output=$($policy check sway --root "$fixture" 2>&1)
+after=$(snapshot)
+[[ -z $check_output ]]
+[[ $before == "$after" ]]
+
+# Drift produces status 1, and the check still leaves the root untouched.
+chmod 0755 "$fixture/var/home/alice"
+before=$(snapshot)
+if drift_output=$($policy check workstation --root "$fixture" 2>&1); then
+  printf 'fixture expected drift check to fail\n' >&2
+  exit 1
+else
+  status=$?
+fi
+after=$(snapshot)
+[[ $status -eq 1 ]]
+[[ $drift_output == *'drift:'* ]]
+[[ $before == "$after" ]]
+chmod 0700 "$fixture/var/home/alice"
+
+# NAS standalone and netserver rendering are also exact and idempotent.
+cat > "$fixture/etc/ups/nut.env" <<'EOF'
+NUT_MODE=standalone
+NUT_UPS_NAME=local
+NUT_DRIVER=usbhid-ups
+NUT_DEVICE_PORT=auto
+NUT_MONITOR_USER=primary
+NUT_MONITOR_PASSWORD=local-secret
+NUT_ROLE=primary
+NUT_UPS_DESCRIPTION=Local test UPS
+EOF
+nas_output=$($policy apply nas --root "$fixture")
+[[ -n $nas_output && $nas_output != *'local-secret'* ]]
+grep -qF 'MODE=standalone' "$fixture/etc/ups/nut.conf"
+grep -qF 'LISTEN 127.0.0.1 3493' "$fixture/etc/ups/upsd.conf"
+[[ $($policy apply nas --root "$fixture") == '' ]]
+before=$(snapshot)
+$policy check nas --root "$fixture"
+after=$(snapshot)
+[[ $before == "$after" ]]
+
+cat > "$fixture/etc/ups/nut.env" <<'EOF'
+NUT_MODE=netserver
+NUT_MONITOR_USER=primary
+NUT_MONITOR_PASSWORD=local-secret
+NUT_REMOTE_MONITOR_USER=remote
+NUT_REMOTE_MONITOR_PASSWORD=remote-secret
+EOF
+nas_output=$($policy apply nas --root "$fixture")
+[[ -n $nas_output ]]
+[[ $nas_output != *'local-secret'* && $nas_output != *'remote-secret'* ]]
+grep -qF 'MODE=netserver' "$fixture/etc/ups/nut.conf"
+grep -qF 'LISTEN 0.0.0.0 3493' "$fixture/etc/ups/upsd.conf"
+grep -qF '[remote]' "$fixture/etc/ups/upsd.users"
+[[ $($policy apply nas --root "$fixture") == '' ]]
+
+cat > "$fixture/etc/ups/nut.env" <<'EOF'
+NUT_MODE=netclient
+NUT_UPS_HOST=ups.example.test
+NUT_UPS_PORT=08
+NUT_MONITOR_USER=monitor
+NUT_MONITOR_PASSWORD=secret
+EOF
+before=$(snapshot)
+if invalid_output=$($policy apply nas --root "$fixture" 2>&1); then
+  printf 'fixture expected an invalid port to be rejected\n' >&2
+  exit 1
+else
+  status=$?
+fi
+after=$(snapshot)
+[[ $status -eq 2 ]]
+[[ $invalid_output == *'invalid NUT_UPS_PORT'* ]]
+[[ $before == "$after" ]]
+
+# Missing optional NUT source files are a successful no-op for both profiles.
+rm -f "$fixture/etc/ups/netclient.env" "$fixture/etc/ups/nut.env"
+before=$(snapshot)
+[[ $($policy apply workstation --root "$fixture") == '' ]]
+[[ $($policy apply nas --root "$fixture") == '' ]]
+$policy check workstation --root "$fixture"
+$policy check nas --root "$fixture"
+after=$(snapshot)
+[[ $before == "$after" ]]
+
+# Final home symlinks and skeleton parent symlinks must not redirect writes to
+# another writable host mount.
+rm -rf -- "$fixture/var/home/alice"
+ln -s /etc/ups "$fixture/var/home/alice"
+before=$(snapshot)
+if symlink_output=$($policy apply workstation --root "$fixture" 2>&1); then
+  printf 'fixture expected a final home symlink to be refused\n' >&2
+  exit 1
+else
+  status=$?
+fi
+after=$(snapshot)
+[[ $status -eq 2 ]]
+[[ $symlink_output == *'refusing to follow symbolic link'* ]]
+[[ $before == "$after" ]]
+
+unlink "$fixture/var/home/alice"
+install -d -o 1000 -g 1000 -m 0700 "$fixture/var/home/alice"
+ln -s /etc/ups "$fixture/var/home/alice/.config"
+before=$(snapshot)
+if symlink_output=$($policy apply workstation --root "$fixture" 2>&1); then
+  printf 'fixture expected a skeleton parent symlink to be refused\n' >&2
+  exit 1
+else
+  status=$?
+fi
+after=$(snapshot)
+[[ $status -eq 2 ]]
+[[ $symlink_output == *'blocks an additive skeleton directory'* ]]
+[[ $before == "$after" ]]
+
+printf 'policy fixture passed\n'

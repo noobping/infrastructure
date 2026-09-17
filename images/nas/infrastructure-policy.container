@@ -1,0 +1,39 @@
+[Unit]
+Description=Apply restricted NAS host policy
+After=local-fs.target systemd-sysusers.service systemd-tmpfiles-setup.service
+Wants=systemd-tmpfiles-setup.service
+Before=nut-driver-enumerator.service nut-monitor.service nut-server.service nut.target
+RequiresMountsFor=/etc/ups
+
+[Container]
+ContainerName=infrastructure-policy-nas
+Rootfs=/usr/lib/infrastructure-policy/rootfs
+Exec=/usr/bin/infrastructure-policy apply nas --root /host --report-managed
+Network=none
+ReadOnly=true
+ReadOnlyTmpfs=true
+NoNewPrivileges=true
+DropCapability=all
+AddCapability=CAP_CHOWN
+AddCapability=CAP_DAC_OVERRIDE
+AddCapability=CAP_FOWNER
+PidsLimit=128
+SecurityLabelDisable=true
+Volume=/etc/passwd:/host/etc/passwd:ro
+Volume=/etc/group:/host/etc/group:ro
+Volume=/etc/ups:/host/etc/ups:rw
+Volume=/run/infrastructure-policy:/host/run/infrastructure-policy:rw
+
+[Service]
+Type=oneshot
+RuntimeDirectory=infrastructure-policy
+RuntimeDirectoryMode=0700
+TimeoutStartSec=10min
+ExecStartPost=:/usr/bin/bash -ceu 'while IFS= read -r -d "" path; do case "$path" in *//*|*/./*|*/../*|*/.|*/..) echo "unsafe managed path: $path" >&2; exit 1 ;; esac; parent=${path%%/*}; base=${path##*/}; canonical_parent=$(/usr/bin/realpath -e -- "$parent") || { echo "missing managed parent: $parent" >&2; exit 1; }; candidate=${canonical_parent%%/}/$base; case "$candidate" in /etc/ups|/etc/ups/*) /usr/sbin/restorecon -F -- "$candidate" ;; *) echo "unmanaged relabel path: $path" >&2; exit 1 ;; esac; done < /run/infrastructure-policy/managed-paths'
+ExecStartPost=/usr/bin/systemctl --no-block restart infrastructure-policy-nut-activate.service
+
+[Install]
+WantedBy=multi-user.target
+
+[Quadlet]
+DefaultDependencies=false

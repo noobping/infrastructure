@@ -3,6 +3,21 @@
 Cockpit is at `https://nas.vm/` on port 443. The existing libvirt configuration
 and services are unchanged.
 
+## Host policy
+
+The restricted `infrastructure-policy.service` Quadlet renders NUT files from
+`/etc/ups/nut.env`, then asks the native NUT units to restart. Its policy rootfs
+is embedded in the NAS image, so it works offline and rolls back with bootc.
+
+```sh
+sudo systemctl start infrastructure-policy.service
+sudo journalctl -u infrastructure-policy.service -b
+```
+
+Btrfs subvolume preparation, NFS mounts, backups, and operational containers
+remain native host units; the policy container is not privileged to perform
+those operations.
+
 ## NFS
 
 The NAS serves NFSv4 and NFSv3 for Nautilus. `nfs/exports` limits every export

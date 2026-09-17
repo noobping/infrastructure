@@ -1,0 +1,786 @@
+#!/usr/bin/bash
+set -euo pipefail
+
+shopt -s extglob
+
+readonly PROGRAM=infrastructure-policy
+if [[ -n ${INFRASTRUCTURE_POLICY_VERSION:-} ]]; then
+  readonly VERSION=$INFRASTRUCTURE_POLICY_VERSION
+elif [[ -r /usr/lib/infrastructure-policy/version ]]; then
+  IFS= read -r VERSION < /usr/lib/infrastructure-policy/version
+  readonly VERSION
+else
+  readonly VERSION=dev
+fi
+
+MODE=
+ROOT=
+PROFILE=
+DRIFT=0
+TEMP_FILE=
+REPORT_MANAGED=false
+MANAGED_FILE=
+declare -A ENV_DATA=()
+
+cleanup() {
+  if [[ -n "$TEMP_FILE" && -e "$TEMP_FILE" ]]; then
+    rm -f -- "$TEMP_FILE"
+  fi
+}
+trap cleanup EXIT HUP INT TERM
+
+usage() {
+  cat <<'EOF'
+Usage:
+  infrastructure-policy apply PROFILE [--root ROOT]
+  infrastructure-policy check PROFILE [--root ROOT]
+  infrastructure-policy list
+  infrastructure-policy version
+
+Profiles:
+  workstation
+  sway
+  nas
+EOF
+}
+
+die() {
+  printf '%s: %s\n' "$PROGRAM" "$*" >&2
+  exit 2
+}
+
+drift() {
+  printf 'drift: %s\n' "$*" >&2
+  DRIFT=1
+}
+
+changed() {
+  printf 'changed: %s\n' "$*"
+}
+
+record_managed() {
+  local virtual=$1
+  [[ -z $MANAGED_FILE ]] || printf '%s\0' "$virtual" >> "$MANAGED_FILE"
+}
+
+trim() {
+  local value=$1
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  REPLY=$value
+}
+
+# Resolve paths as they resolve below the mounted host root. Absolute symlink
+# targets stay anchored below ROOT instead of escaping into the container root.
+rooted_path() {
+  local virtual=$1 component physical target part
+  local links=0
+  local -a pending=() resolved=() link_parts=()
+
+  [[ $virtual == /* ]] || die "policy path must be absolute"
+  [[ $virtual != *$'\n'* ]] || die "policy path contains a newline"
+
+  IFS=/ read -r -a pending <<< "${virtual#/}"
+  while (( ${#pending[@]} > 0 )); do
+    component=${pending[0]}
+    pending=("${pending[@]:1}")
+
+    case "$component" in
+      ''|.)
+        continue
+        ;;
+      ..)
+        (( ${#resolved[@]} > 0 )) \
+          || die "policy path escapes the supplied root"
+        resolved=("${resolved[@]:0:${#resolved[@]}-1}")
+        continue
+        ;;
+    esac
+
+    physical=$ROOT
+    for part in "${resolved[@]}"; do
+      physical+="/$part"
+    done
+    physical+="/$component"
+
+    if [[ -L $physical ]]; then
+      links=$((links + 1))
+      (( links <= 40 )) || die "too many symbolic links in policy path"
+      target=$(readlink -- "$physical") \
+        || die "cannot read a symbolic link in the supplied root"
+      [[ -n $target ]] || die "empty symbolic link in policy path"
+      IFS=/ read -r -a link_parts <<< "${target#/}"
+      if [[ $target == /* ]]; then
+        resolved=()
+      fi
+      pending=("${link_parts[@]}" "${pending[@]}")
+    else
+      resolved+=("$component")
+    fi
+  done
+
+  physical=$ROOT
+  for part in "${resolved[@]}"; do
+    physical+="/$part"
+  done
+
+  case "$physical" in
+    "$ROOT"|"$ROOT"/*)
+      printf '%s\n' "$physical"
+      ;;
+    *)
+      die "policy path escapes the supplied root"
+      ;;
+  esac
+}
+
+# Resolve only a path's parent. Callers can then inspect or atomically replace
+# the final entry without following a final symlink.
+rooted_leaf_path() {
+  local virtual=$1 parent base actual_parent
+  [[ $virtual == /* ]] || die "policy path must be absolute"
+  base=${virtual##*/}
+  parent=${virtual%/*}
+  [[ -n $base && $base != . && $base != .. ]] \
+    || die "invalid final policy path component"
+  [[ -n $parent ]] || parent=/
+  actual_parent=$(rooted_path "$parent")
+  printf '%s/%s\n' "${actual_parent%/}" "$base"
+}
+
+validate_root() {
+  [[ -n $ROOT ]] || die "missing --root"
+  [[ $ROOT == /* ]] || die "--root must be an absolute path"
+  [[ -d $ROOT ]] || die "root is not a directory: $ROOT"
+  ROOT=$(realpath -e -- "$ROOT")
+}
+
+metadata_is() {
+  local path=$1 uid=$2 gid=$3 mode=$4 actual
+  actual=$(stat -c '%u:%g:%a' -- "$path") || return 1
+  [[ $actual == "$uid:$gid:${mode#0}" ]]
+}
+
+ensure_directory() {
+  local virtual=$1 uid=$2 gid=$3 mode=$4 path
+  path=$(rooted_leaf_path "$virtual")
+
+  if [[ -L $path ]]; then
+    if [[ $MODE == check ]]; then
+      drift "$virtual is a symbolic link"
+      return
+    fi
+    die "refusing to follow symbolic link $virtual"
+  fi
+
+  if [[ ! -e $path ]]; then
+    if [[ $MODE == check ]]; then
+      drift "$virtual is missing"
+      return
+    fi
+    install -d -o "$uid" -g "$gid" -m "$mode" -- "$path"
+    record_managed "$virtual"
+    changed "$virtual"
+    return
+  fi
+
+  if [[ ! -d $path ]]; then
+    if [[ $MODE == check ]]; then
+      drift "$virtual is not a directory"
+      return
+    fi
+    die "$virtual exists but is not a directory"
+  fi
+
+  if ! metadata_is "$path" "$uid" "$gid" "$mode"; then
+    if [[ $MODE == check ]]; then
+      drift "$virtual has incorrect ownership or mode"
+    else
+      chown "$uid:$gid" -- "$path"
+      chmod "$mode" -- "$path"
+      changed "$virtual metadata"
+    fi
+  fi
+  record_managed "$virtual"
+}
+
+exact_file() {
+  local virtual=$1 uid=$2 gid=$3 mode=$4 content=$5
+  local path parent base
+  path=$(rooted_leaf_path "$virtual")
+  parent=${path%/*}
+  base=${path##*/}
+
+  if [[ -L $path ]]; then
+    if [[ $MODE == check ]]; then
+      drift "$virtual is a symbolic link"
+      return
+    fi
+    die "refusing to replace symbolic link $virtual"
+  fi
+  if [[ -e $path && ! -f $path ]]; then
+    if [[ $MODE == check ]]; then
+      drift "$virtual is not a regular file"
+      return
+    fi
+    die "$virtual exists but is not a regular file"
+  fi
+
+  record_managed "$virtual"
+
+  if [[ -f $path ]] \
+    && cmp -s -- "$path" <(printf '%s' "$content") \
+    && metadata_is "$path" "$uid" "$gid" "$mode"; then
+    return
+  fi
+
+  if [[ $MODE == check ]]; then
+    drift "$virtual differs from policy"
+    return
+  fi
+
+  [[ -d $parent ]] || die "parent directory for $virtual is missing"
+  TEMP_FILE=$(mktemp --tmpdir="$parent" ".${base}.policy.XXXXXX")
+  printf '%s' "$content" > "$TEMP_FILE"
+  chown "$uid:$gid" -- "$TEMP_FILE"
+  chmod "$mode" -- "$TEMP_FILE"
+  mv -fT -- "$TEMP_FILE" "$path"
+  TEMP_FILE=
+  changed "$virtual"
+}
+
+group_gid() {
+  local wanted=$1 group_file name _ gid rest
+  group_file=$(rooted_path /etc/group)
+  [[ -r $group_file ]] || die "cannot read /etc/group below the supplied root"
+
+  while IFS=: read -r name _ gid rest; do
+    [[ $name == "$wanted" ]] || continue
+    [[ $gid =~ ^[0-9]+$ ]] || die "group $wanted has an invalid numeric id"
+    printf '%s\n' "$gid"
+    return
+  done < "$group_file"
+  die "required host group is missing: $wanted"
+}
+
+valid_home() {
+  local home=$1
+  [[ $home != *//* && $home != */./* && $home != */../* \
+    && $home != */. && $home != */.. ]] || return 1
+  case "$home" in
+    /home/*|/var/home/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+user_is_local() {
+  local uid=$1 gid=$2
+  [[ $uid =~ ^[0-9]+$ && $gid =~ ^[0-9]+$ ]] || return 1
+  (( uid >= 1000 && uid < 60000 ))
+}
+
+policy_home_ownership() {
+  local passwd user uid gid home shell mode home_base home_path
+  passwd=$(rooted_path /etc/passwd)
+  [[ -r $passwd ]] || die "cannot read /etc/passwd below the supplied root"
+  home_base=$(rooted_path /var/home)
+
+  while IFS=: read -r user _ uid gid _ home shell; do
+    user_is_local "$uid" "$gid" || continue
+    valid_home "$home" || continue
+    case "$shell" in
+      */false|*/nologin) mode=0750 ;;
+      *) mode=0700 ;;
+    esac
+    home_path=$(rooted_leaf_path "$home")
+    case "$home_path" in
+      "$home_base"/*) ;;
+      *)
+        if [[ $MODE == check ]]; then
+          drift "$home resolves outside /var/home"
+          continue
+        fi
+        die "$home resolves outside /var/home"
+        ;;
+    esac
+    ensure_directory "$home" "$uid" "$gid" "$mode"
+  done < "$passwd"
+}
+
+entry_owner_is() {
+  local path=$1 uid=$2 gid=$3 actual
+  actual=$(stat -c '%u:%g' -- "$path") || return 1
+  [[ $actual == "$uid:$gid" ]]
+}
+
+ensure_skeleton_entry() {
+  local source=$1 virtual=$2 uid=$3 gid=$4 home_root=$5 target source_mode
+  target=$(rooted_leaf_path "$virtual")
+
+  case "$target" in
+    "$home_root"/*) ;;
+    *)
+      if [[ $MODE == check ]]; then
+        drift "$virtual resolves outside its home"
+        return
+      fi
+      die "$virtual resolves outside its home"
+      ;;
+  esac
+
+  if [[ -d $source && ! -L $source ]]; then
+    if [[ -e $target || -L $target ]]; then
+      if [[ ! -d $target || -L $target ]]; then
+        if [[ $MODE == check ]]; then
+          drift "$virtual blocks an additive skeleton directory"
+          return
+        fi
+        die "$virtual blocks an additive skeleton directory"
+      fi
+    else
+      if [[ $MODE == check ]]; then
+        drift "$virtual is missing from the additive skeleton"
+        return
+      fi
+      source_mode=$(stat -c '%a' -- "$source")
+      install -d -o "$uid" -g "$gid" -m "$source_mode" -- "$target"
+      record_managed "$virtual"
+      changed "$virtual"
+      return
+    fi
+  elif [[ ! -e $target && ! -L $target ]]; then
+    if [[ $MODE == check ]]; then
+      drift "$virtual is missing from the additive skeleton"
+      return
+    fi
+    if [[ -f $source || -L $source ]]; then
+      cp -a --no-preserve=context -- "$source" "$target"
+      chown -h "$uid:$gid" -- "$target"
+      record_managed "$virtual"
+      changed "$virtual"
+      return
+    fi
+    die "unsupported skeleton entry type for $virtual"
+  fi
+
+  if ! entry_owner_is "$target" "$uid" "$gid"; then
+    if [[ $MODE == check ]]; then
+      drift "$virtual has incorrect ownership"
+    else
+      chown -h "$uid:$gid" -- "$target"
+      changed "$virtual ownership"
+    fi
+  fi
+  record_managed "$virtual"
+}
+
+apply_skeleton_to_home() {
+  local skel=$1 home=$2 home_root=$3 uid=$4 gid=$5 source relative virtual
+  local -a entries=()
+
+  mapfile -d '' -t entries < <(find "$skel" -mindepth 1 -print0 | sort -z)
+  for source in "${entries[@]}"; do
+    relative=${source#"$skel"/}
+    virtual="${home%/}/$relative"
+    ensure_skeleton_entry "$source" "$virtual" "$uid" "$gid" "$home_root"
+  done
+}
+
+policy_additive_skel() {
+  local passwd skel user uid gid home shell home_base home_leaf home_path
+  skel=$(rooted_path /etc/skel)
+  [[ -d $skel ]] || return 0
+  home_base=$(rooted_path /var/home)
+
+  passwd=$(rooted_path /etc/passwd)
+  [[ -r $passwd ]] || die "cannot read /etc/passwd below the supplied root"
+  while IFS=: read -r user _ uid gid _ home shell; do
+    user_is_local "$uid" "$gid" || continue
+    case "$home" in /home/*|/var/home/*) ;; *) continue ;; esac
+    case "$shell" in */false|*/nologin) continue ;; esac
+    valid_home "$home" || continue
+    home_leaf=$(rooted_leaf_path "$home")
+    [[ ! -L $home_leaf ]] || continue
+    home_path=$(rooted_path "$home")
+    case "$home_path" in "$home_base"/*) ;; *) continue ;; esac
+    [[ -d $home_path ]] || continue
+    apply_skeleton_to_home "$skel" "$home" "$home_path" "$uid" "$gid"
+  done < "$passwd"
+}
+
+load_env_data() {
+  local file=$1
+  shift
+  local line key value quote
+  local line_number=0
+  local -A allowed=()
+  ENV_DATA=()
+
+  for key in "$@"; do
+    allowed["$key"]=1
+  done
+
+  while IFS= read -r line || [[ -n $line ]]; do
+    line_number=$((line_number + 1))
+    line=${line%$'\r'}
+    trim "$line"
+    line=$REPLY
+    [[ -z $line || $line == \#* ]] && continue
+
+    if [[ $line == export[[:space:]]* ]]; then
+      line=${line#export}
+      trim "$line"
+      line=$REPLY
+    fi
+    if [[ ! $line =~ ^([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=(.*)$ ]]; then
+      die "invalid environment assignment at line $line_number"
+    fi
+    key=${BASH_REMATCH[1]}
+    value=${BASH_REMATCH[2]}
+    [[ -n ${allowed[$key]+x} ]] \
+      || die "unsupported environment key at line $line_number: $key"
+    [[ -z ${ENV_DATA[$key]+x} ]] \
+      || die "duplicate environment key at line $line_number: $key"
+
+    trim "$value"
+    value=$REPLY
+    if [[ $value == \"* || $value == \'* ]]; then
+      quote=${value:0:1}
+      [[ ${#value} -ge 2 && ${value: -1} == "$quote" ]] \
+        || die "unterminated quoted value for $key"
+      value=${value:1:${#value}-2}
+    fi
+    [[ $value != *[[:cntrl:]]* ]] \
+      || die "control character in environment value for $key"
+    ENV_DATA["$key"]=$value
+  done < "$file"
+}
+
+env_default() {
+  local key=$1 default=$2
+  if [[ -n ${ENV_DATA[$key]+x} ]]; then
+    REPLY=${ENV_DATA[$key]}
+  else
+    REPLY=$default
+  fi
+}
+
+env_required() {
+  local key=$1
+  [[ -n ${ENV_DATA[$key]:-} ]] || die "missing required environment key: $key"
+  REPLY=${ENV_DATA[$key]}
+}
+
+validate_identifier() {
+  local key=$1 value=$2
+  [[ $value =~ ^[A-Za-z0-9_.-]+$ ]] \
+    || die "invalid identifier in environment key: $key"
+}
+
+validate_endpoint() {
+  local key=$1 value=$2
+  [[ -n $value && $value != *[[:space:]@\#]* ]] \
+    || die "invalid endpoint in environment key: $key"
+}
+
+validate_password() {
+  local key=$1 value=$2
+  [[ -n $value && $value != *[[:space:]\#\[\]=\"\']* \
+    && $value != *\\* ]] \
+    || die "invalid password syntax in environment key: $key"
+}
+
+validate_port() {
+  local value=$1 number
+  [[ $value =~ ^[1-9][0-9]{0,4}$ ]] || die "invalid NUT_UPS_PORT"
+  number=$((10#$value))
+  (( number >= 1 && number <= 65535 )) \
+    || die "invalid NUT_UPS_PORT"
+}
+
+validate_power_value() {
+  local value=$1
+  [[ $value =~ ^[1-9][0-9]*$ ]] || die "invalid NUT_POWER_VALUE"
+}
+
+quoted_value() {
+  local value=$1
+  value=${value//\\/\\\\}
+  value=${value//\"/\\\"}
+  REPLY=$value
+}
+
+common_upsmon() {
+  local shutdown=$1
+  quoted_value "$shutdown"
+  printf '%s\n' \
+    'MINSUPPLIES 1' \
+    "SHUTDOWNCMD \"$REPLY\"" \
+    'POLLFREQ 5' \
+    'POLLFREQALERT 5' \
+    'HOSTSYNC 15' \
+    'DEADTIME 15' \
+    'POWERDOWNFLAG /run/nut/killpower' \
+    'RBWARNTIME 43200' \
+    'NOCOMMWARNTIME 300' \
+    'FINALDELAY 5'
+}
+
+ensure_nut_directory() {
+  local gid=$1
+  ensure_directory /etc/ups 0 "$gid" 0750
+}
+
+policy_nut_netclient() {
+  local config gid ups_host ups_name ups_port monitor_user monitor_password
+  local power role shutdown nut_conf upsmon_conf common
+  config=$(rooted_leaf_path /etc/ups/netclient.env)
+  [[ -e $config ]] || return 0
+  [[ ! -L $config ]] || die "refusing symbolic link /etc/ups/netclient.env"
+  [[ -f $config && -r $config ]] \
+    || die "/etc/ups/netclient.env is not a readable regular file"
+
+  load_env_data "$config" \
+    NUT_UPS_HOST NUT_UPS_NAME NUT_UPS_PORT NUT_MONITOR_USER \
+    NUT_MONITOR_PASSWORD NUT_POWER_VALUE NUT_ROLE NUT_SHUTDOWNCMD
+
+  env_required NUT_UPS_HOST; ups_host=$REPLY
+  env_default NUT_UPS_NAME UPS; ups_name=$REPLY
+  env_default NUT_UPS_PORT 3493; ups_port=$REPLY
+  env_required NUT_MONITOR_USER; monitor_user=$REPLY
+  env_required NUT_MONITOR_PASSWORD; monitor_password=$REPLY
+  env_default NUT_POWER_VALUE 1; power=$REPLY
+  env_default NUT_ROLE secondary; role=$REPLY
+  env_default NUT_SHUTDOWNCMD '/usr/sbin/shutdown -h +0'; shutdown=$REPLY
+
+  validate_endpoint NUT_UPS_HOST "$ups_host"
+  validate_identifier NUT_UPS_NAME "$ups_name"
+  validate_port "$ups_port"
+  validate_identifier NUT_MONITOR_USER "$monitor_user"
+  validate_password NUT_MONITOR_PASSWORD "$monitor_password"
+  validate_power_value "$power"
+  [[ $role == primary || $role == secondary ]] || die "invalid NUT_ROLE"
+
+  gid=$(group_gid nut)
+  ensure_nut_directory "$gid"
+  nut_conf=$'MODE=netclient\n'
+  common=$(common_upsmon "$shutdown")
+  printf -v upsmon_conf \
+    'MONITOR %s@%s:%s %s %s %s %s\n%s\n' \
+    "$ups_name" "$ups_host" "$ups_port" "$power" \
+    "$monitor_user" "$monitor_password" "$role" "$common"
+  exact_file /etc/ups/nut.conf 0 "$gid" 0640 "$nut_conf"
+  exact_file /etc/ups/upsmon.conf 0 "$gid" 0640 "$upsmon_conf"
+}
+
+policy_nut_nas() {
+  local config gid mode ups_name ups_port power shutdown monitor_user
+  local monitor_password role ups_host driver device description remote_user
+  local remote_password nut_conf ups_conf upsd_conf users_conf upsmon_conf common
+  config=$(rooted_leaf_path /etc/ups/nut.env)
+  [[ -e $config ]] || return 0
+  [[ ! -L $config ]] || die "refusing symbolic link /etc/ups/nut.env"
+  [[ -f $config && -r $config ]] \
+    || die "/etc/ups/nut.env is not a readable regular file"
+
+  load_env_data "$config" \
+    NUT_MODE NUT_UPS_HOST NUT_UPS_NAME NUT_UPS_PORT NUT_POWER_VALUE \
+    NUT_SHUTDOWNCMD NUT_MONITOR_USER NUT_MONITOR_PASSWORD NUT_ROLE \
+    NUT_DRIVER NUT_DEVICE_PORT NUT_UPS_DESCRIPTION \
+    NUT_REMOTE_MONITOR_USER NUT_REMOTE_MONITOR_PASSWORD
+
+  env_required NUT_MODE; mode=$REPLY
+  env_default NUT_UPS_NAME UPS; ups_name=$REPLY
+  env_default NUT_UPS_PORT 3493; ups_port=$REPLY
+  env_default NUT_POWER_VALUE 1; power=$REPLY
+  env_default NUT_SHUTDOWNCMD '/usr/sbin/shutdown -h +0'; shutdown=$REPLY
+  validate_identifier NUT_UPS_NAME "$ups_name"
+  validate_port "$ups_port"
+  validate_power_value "$power"
+
+  gid=$(group_gid nut)
+  common=$(common_upsmon "$shutdown")
+
+  case "$mode" in
+    netclient)
+      env_required NUT_UPS_HOST; ups_host=$REPLY
+      env_required NUT_MONITOR_USER; monitor_user=$REPLY
+      env_required NUT_MONITOR_PASSWORD; monitor_password=$REPLY
+      env_default NUT_ROLE secondary; role=$REPLY
+      validate_endpoint NUT_UPS_HOST "$ups_host"
+      validate_identifier NUT_MONITOR_USER "$monitor_user"
+      validate_password NUT_MONITOR_PASSWORD "$monitor_password"
+      [[ $role == primary || $role == secondary ]] || die "invalid NUT_ROLE"
+
+      nut_conf=$'MODE=netclient\n'
+      printf -v upsmon_conf \
+        'MONITOR %s@%s:%s %s %s %s %s\n%s\n' \
+        "$ups_name" "$ups_host" "$ups_port" "$power" \
+        "$monitor_user" "$monitor_password" "$role" "$common"
+      ensure_nut_directory "$gid"
+      exact_file /etc/ups/nut.conf 0 "$gid" 0640 "$nut_conf"
+      exact_file /etc/ups/upsmon.conf 0 "$gid" 0640 "$upsmon_conf"
+      ;;
+
+    standalone|netserver)
+      env_default NUT_DRIVER usbhid-ups; driver=$REPLY
+      env_default NUT_DEVICE_PORT auto; device=$REPLY
+      env_required NUT_MONITOR_USER; monitor_user=$REPLY
+      env_required NUT_MONITOR_PASSWORD; monitor_password=$REPLY
+      env_default NUT_ROLE primary; role=$REPLY
+      env_default NUT_UPS_DESCRIPTION 'Local USB UPS'; description=$REPLY
+      validate_identifier NUT_DRIVER "$driver"
+      validate_endpoint NUT_DEVICE_PORT "$device"
+      validate_identifier NUT_MONITOR_USER "$monitor_user"
+      validate_password NUT_MONITOR_PASSWORD "$monitor_password"
+      [[ $role == primary || $role == secondary ]] || die "invalid NUT_ROLE"
+      quoted_value "$description"; description=$REPLY
+
+      printf -v nut_conf 'MODE=%s\n' "$mode"
+      printf -v ups_conf \
+        '[%s]\n  driver = %s\n  port = %s\n  desc = "%s"\n' \
+        "$ups_name" "$driver" "$device" "$description"
+      if [[ $mode == netserver ]]; then
+        printf -v upsd_conf \
+          'LISTEN 127.0.0.1 %s\nLISTEN 0.0.0.0 %s\n' \
+          "$ups_port" "$ups_port"
+      else
+        printf -v upsd_conf 'LISTEN 127.0.0.1 %s\n' "$ups_port"
+      fi
+      printf -v users_conf \
+        '[%s]\n  password = %s\n  upsmon %s\n' \
+        "$monitor_user" "$monitor_password" "$role"
+
+      remote_user=${ENV_DATA[NUT_REMOTE_MONITOR_USER]:-}
+      remote_password=${ENV_DATA[NUT_REMOTE_MONITOR_PASSWORD]:-}
+      if [[ $mode == netserver && ( -n $remote_user || -n $remote_password ) ]]; then
+        [[ -n $remote_user && -n $remote_password ]] \
+          || die "both remote NUT monitor credentials are required"
+        validate_identifier NUT_REMOTE_MONITOR_USER "$remote_user"
+        validate_password NUT_REMOTE_MONITOR_PASSWORD "$remote_password"
+        printf -v users_conf '%s\n\n[%s]\n  password = %s\n  upsmon secondary\n' \
+          "${users_conf%$'\n'}" "$remote_user" "$remote_password"
+      fi
+      printf -v upsmon_conf \
+        'MONITOR %s@localhost:%s %s %s %s %s\n%s\n' \
+        "$ups_name" "$ups_port" "$power" "$monitor_user" \
+        "$monitor_password" "$role" "$common"
+
+      ensure_nut_directory "$gid"
+      exact_file /etc/ups/nut.conf 0 "$gid" 0640 "$nut_conf"
+      exact_file /etc/ups/ups.conf 0 "$gid" 0640 "$ups_conf"
+      exact_file /etc/ups/upsd.conf 0 "$gid" 0640 "$upsd_conf"
+      exact_file /etc/ups/upsd.users 0 "$gid" 0640 "$users_conf"
+      exact_file /etc/ups/upsmon.conf 0 "$gid" 0640 "$upsmon_conf"
+      ;;
+    *)
+      die "unsupported NUT_MODE"
+      ;;
+  esac
+}
+
+policy_workstation() {
+  policy_home_ownership
+  policy_additive_skel
+  policy_nut_netclient
+}
+
+policy_nas() {
+  policy_nut_nas
+}
+
+parse_policy_arguments() {
+  local profile=
+  ROOT=/host
+
+  while (( $# > 0 )); do
+    case "$1" in
+      --root)
+        (( $# >= 2 )) || die "--root requires a path"
+        ROOT=$2
+        shift 2
+        ;;
+      --root=*)
+        ROOT=${1#--root=}
+        shift
+        ;;
+      --report-managed)
+        REPORT_MANAGED=true
+        shift
+        ;;
+      --help|-h)
+        usage
+        exit 0
+        ;;
+      --*)
+        die "unknown option: $1"
+        ;;
+      *)
+        [[ -z $profile ]] || die "only one profile may be selected"
+        profile=$1
+        shift
+        ;;
+    esac
+  done
+
+  [[ -n $profile ]] || die "missing profile"
+  case "$profile" in
+    workstation|sway) PROFILE=workstation ;;
+    nas) PROFILE=nas ;;
+    *) die "unknown profile: $profile" ;;
+  esac
+  validate_root
+}
+
+initialize_managed_report() {
+  local path parent
+  [[ $REPORT_MANAGED == true ]] || return 0
+  [[ $MODE == apply ]] \
+    || die "--report-managed is only valid with apply"
+  path=$(rooted_leaf_path /run/infrastructure-policy/managed-paths)
+  parent=${path%/*}
+  [[ -d $parent ]] \
+    || die "managed-path report directory is not mounted"
+  [[ ! -L $path ]] \
+    || die "managed-path report is a symbolic link"
+  TEMP_FILE=$(mktemp --tmpdir="$parent" .managed-paths.XXXXXX)
+  chmod 0600 "$TEMP_FILE"
+  mv -fT -- "$TEMP_FILE" "$path"
+  TEMP_FILE=
+  MANAGED_FILE=$path
+}
+
+main() {
+  local command=${1:-}
+  [[ -n $command ]] || { usage >&2; exit 2; }
+  shift || true
+
+  case "$command" in
+    apply|check)
+      MODE=$command
+      parse_policy_arguments "$@"
+      initialize_managed_report
+      "policy_$PROFILE"
+      if [[ $MODE == check && $DRIFT -ne 0 ]]; then
+        return 1
+      fi
+      ;;
+    list)
+      (( $# == 0 )) || die "list takes no arguments"
+      printf '%s\n' workstation sway nas
+      ;;
+    version|--version|-V)
+      (( $# == 0 )) || die "version takes no arguments"
+      printf '%s %s\n' "$PROGRAM" "$VERSION"
+      ;;
+    help|--help|-h)
+      (( $# == 0 )) || die "help takes no arguments"
+      usage
+      ;;
+    *)
+      die "unknown command: $command"
+      ;;
+  esac
+}
+
+main "$@"

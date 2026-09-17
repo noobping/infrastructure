@@ -1,5 +1,8 @@
 ARG IMAGE_NAMESPACE=ghcr.io/noobping
 ARG TAG=latest
+ARG POLICY_IMAGE=ghcr.io/noobping/policy:latest
+FROM ${POLICY_IMAGE} AS policy
+
 FROM ${IMAGE_NAMESPACE}/ips:${TAG}
 
 LABEL org.opencontainers.image.title="NAS"
@@ -35,6 +38,7 @@ RUN set -euxo pipefail; \
   /etc/systemd/system/nfs-server.service.d \
   /etc/systemd/system/timers.target.wants \
   /usr/libexec/infrastructure \
+  /usr/share/containers/systemd \
   /var/lib/suricata \
   /var/log/suricata \
   /var/www; \
@@ -44,7 +48,9 @@ RUN set -euxo pipefail; \
 
 COPY --chmod=0600 nftables /etc/nftables/rules
 COPY --chmod=0755 bin/todo bin/vm-bridge bin/vm-deploy /usr/bin/
-COPY --chmod=0755 bin/artifacts-prepare bin/btrfs-backup bin/nut-configure /usr/libexec/infrastructure/
+COPY --from=policy / /usr/lib/infrastructure-policy/rootfs/
+COPY --chmod=0644 infrastructure-policy.container /usr/share/containers/systemd/
+COPY --chmod=0755 bin/artifacts-prepare bin/btrfs-backup bin/nut-activate /usr/libexec/infrastructure/
 COPY artifacts-prepare.service /etc/systemd/system/artifacts-prepare.service
 COPY btrfs-backup.service /etc/systemd/system/btrfs-backup.service
 COPY btrfs-backup.timer /etc/systemd/system/btrfs-backup.timer
@@ -58,7 +64,7 @@ COPY nfs/nfs.conf /etc/nfs.conf.d/infrastructure.conf
 COPY nfs/nfs-root-prepare.service /etc/systemd/system/nfs-root-prepare.service
 COPY nfs/nfs-server.conf /etc/systemd/system/nfs-server.service.d/10-infrastructure.conf
 COPY nfs/storage.conf /usr/lib/tmpfiles.d/infrastructure-nfs.conf
-COPY nut-configure.service /etc/systemd/system/nut-configure.service
+COPY --chmod=0644 nut-activate.service /usr/lib/systemd/system/infrastructure-policy-nut-activate.service
 COPY nut.env.example /etc/ups/nut.env.example
 COPY --chmod=0644 pipeline.sh /etc/profile.d/pipeline.sh
 COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
@@ -80,8 +86,6 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/multi-user.target.wants/virtlogd.service; \
   ln -sf /usr/lib/systemd/system/nfs-server.service \
     /etc/systemd/system/multi-user.target.wants/nfs-server.service; \
-  ln -sf /etc/systemd/system/nut-configure.service \
-    /etc/systemd/system/multi-user.target.wants/nut-configure.service; \
   ln -sf /etc/systemd/system/btrfs-backup.timer \
     /etc/systemd/system/timers.target.wants/btrfs-backup.timer; \
   if test -d /sysroot/ostree/repo; then ostree container commit; fi

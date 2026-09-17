@@ -1,0 +1,32 @@
+ARG FEDORA_VERSION=latest
+FROM registry.fedoraproject.org/fedora:${FEDORA_VERSION}
+
+ARG POLICY_VERSION=dev
+
+LABEL org.opencontainers.image.title="Infrastructure policy"
+LABEL org.opencontainers.image.description="Apply declarative infrastructure policy to a mounted host root"
+LABEL org.opencontainers.image.version="${POLICY_VERSION}"
+
+RUN set -eux; \
+    dnf install -y bash coreutils diffutils findutils; \
+    dnf clean all; \
+    rm -rf /var/cache/dnf; \
+    install -d -m 0755 \
+      /host/etc/skel \
+      /host/etc/ups \
+      /host/run/infrastructure-policy \
+      /host/var/home \
+      /usr/lib/infrastructure-policy; \
+    touch /host/etc/passwd /host/etc/group; \
+    ln -s /var/home /host/home; \
+    printf '%s\n' "$POLICY_VERSION" > /usr/lib/infrastructure-policy/version
+
+COPY --chmod=0755 bin/infrastructure-policy /usr/bin/infrastructure-policy
+COPY --chmod=0755 test/fixture /usr/libexec/infrastructure-policy/fixture
+
+RUN /usr/libexec/infrastructure-policy/fixture
+
+ENV INFRASTRUCTURE_POLICY_VERSION="${POLICY_VERSION}"
+
+ENTRYPOINT ["/usr/bin/infrastructure-policy"]
+CMD ["list"]

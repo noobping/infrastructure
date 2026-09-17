@@ -1,0 +1,9 @@
+[Unit]
+Description=Activate NUT after restricted host policy
+Documentation=man:nut.conf(5) man:ups.conf(5) man:upsmon.conf(5)
+After=infrastructure-policy.service
+ConditionPathExists=/etc/ups/nut.env
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/infrastructure/nut-activate

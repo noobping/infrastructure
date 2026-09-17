@@ -1,58 +1,24 @@
-
 # Workstation
 
-Build the operating systyem:
+Build the bootable image as part of the repository graph:
 
 ```sh
-podman build -t ghcr.io/noobping/workstation:latest .
+just offline workstation amd64
 ```
 
-Test the bootable container:
+At boot, `infrastructure-policy.service` applies local home ownership, missing
+`/etc/skel` files, and `/etc/ups/netclient.env` as a NUT client configuration.
+The embedded policy rootfs is updated and rolled back with this image.
 
 ```sh
-podman run --rm -it \
-  --entrypoint /bin/bash \
-  ghcr.io/noobping/workstation
+sudo systemctl start infrastructure-policy.service
+sudo journalctl -u infrastructure-policy.service -b
 ```
 
-## Test IPS
-
-Confirm Suricata is running and its rules are present:
+IPS remains a native host service. A quick health check is:
 
 ```sh
 sudo systemctl status suricata.service
-sudo journalctl -u suricata.service -b --no-pager | tail -n 50
 sudo systemctl status suricata-update.timer
-```
-
-Confirm the workstation firewall is queueing host traffic to NFQUEUE:
-
-```sh
-sudo firewall-cmd --permanent --direct --get-all-rules | grep SURICATA
 sudo nft list ruleset | grep -E 'SURICATA_HOST|queue num 0'
-```
-
-Test detection with a temporary rule:
-
-```sh
-sudo cp /var/lib/suricata/rules/suricata.rules /var/lib/suricata/rules/suricata.rules.bak
-echo 'alert icmp any any -> any any (msg:"WORKSTATION SURICATA TEST"; sid:9900001; rev:1;)' | sudo tee -a /var/lib/suricata/rules/suricata.rules
-sudo systemctl restart suricata
-ping -c1 1.1.1.1
-sudo tail -n 20 /var/log/suricata/fast.log
-```
-
-Test inline blocking by changing `alert` to `drop`:
-
-```sh
-echo 'drop icmp any any -> any any (msg:"WORKSTATION SURICATA DROP TEST"; sid:9900002; rev:1;)' | sudo tee -a /var/lib/suricata/rules/suricata.rules
-sudo systemctl restart suricata
-ping -c1 1.1.1.1
-```
-
-Restore the original rules after testing:
-
-```sh
-sudo mv /var/lib/suricata/rules/suricata.rules.bak /var/lib/suricata/rules/suricata.rules
-sudo systemctl restart suricata
 ```
