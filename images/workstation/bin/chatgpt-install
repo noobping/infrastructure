@@ -1,0 +1,237 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+umask 077
+
+release_file="${CHATGPT_RELEASE_FILE:-/usr/lib/infrastructure/chatgpt-release.env}"
+key_file="${CHATGPT_KEY_FILE:-/usr/lib/infrastructure/chatgpt-signing-key.asc}"
+cache_dir="${CHATGPT_CACHE_DIR:-/var/cache/chatgpt-installer}"
+runtime_dir="${CHATGPT_RUNTIME_DIR:-/run/chatgpt-installer}"
+chatgpt_binary="${CHATGPT_BINARY:-/usr/bin/chatgpt}"
+
+rpm_bin="${CHATGPT_RPM:-rpm}"
+rpmkeys_bin="${CHATGPT_RPMKEYS:-rpmkeys}"
+rpm_ostree_bin="${CHATGPT_RPM_OSTREE:-rpm-ostree}"
+curl_bin="${CHATGPT_CURL:-curl}"
+gpg_bin="${CHATGPT_GPG:-gpg}"
+sha256sum_bin="${CHATGPT_SHA256SUM:-sha256sum}"
+
+die() {
+  printf 'chatgpt-install: %s\n' "$*" >&2
+  exit 1
+}
+
+for command in "$rpm_bin" "$rpmkeys_bin" "$rpm_ostree_bin" "$curl_bin" "$gpg_bin" "$sha256sum_bin"; do
+  command -v "$command" >/dev/null 2>&1 || die "required command not found: $command"
+done
+
+[[ -r "$release_file" ]] || die "release manifest is not readable: $release_file"
+[[ -r "$key_file" ]] || die "signing key is not readable: $key_file"
+
+# The manifest is part of the immutable image and contains only fixed assignments.
+# shellcheck disable=SC1090
+source "$release_file"
+
+required_release_values=(
+  CHATGPT_VERSION_RELEASE
+  CHATGPT_X86_64_URL
+  CHATGPT_X86_64_SHA256
+  CHATGPT_AARCH64_URL
+  CHATGPT_AARCH64_SHA256
+  CHATGPT_KEY_FINGERPRINT
+  CHATGPT_KEY_SHA256
+)
+for name in "${required_release_values[@]}"; do
+  [[ -n "${!name:-}" ]] || die "release manifest is missing $name"
+done
+
+[[ "$CHATGPT_VERSION_RELEASE" =~ ^[0-9][0-9A-Za-z._+~-]*-[0-9A-Za-z._+~]+$ ]] \
+  || die "invalid release version"
+[[ "$CHATGPT_KEY_FINGERPRINT" =~ ^[0-9A-F]{40}$ ]] \
+  || die "invalid signing-key fingerprint"
+[[ "$CHATGPT_KEY_SHA256" =~ ^[0-9a-f]{64}$ ]] \
+  || die "invalid signing-key SHA-256"
+
+rpm_arch="$($rpm_bin --eval '%{_arch}')"
+case "$rpm_arch" in
+  x86_64)
+    package_url="$CHATGPT_X86_64_URL"
+    package_sha256="$CHATGPT_X86_64_SHA256"
+    ;;
+  aarch64)
+    package_url="$CHATGPT_AARCH64_URL"
+    package_sha256="$CHATGPT_AARCH64_SHA256"
+    ;;
+  *)
+    die "unsupported architecture: $rpm_arch"
+    ;;
+esac
+
+[[ "$package_url" == "https://persistent.oaistatic.com/codex-app-prod/linux/rpm/$rpm_arch/"* ]] \
+  || die "release URL is not an architecture-specific OpenAI RPM URL"
+[[ "$package_sha256" =~ ^[0-9a-f]{64}$ ]] || die "invalid package SHA-256"
+
+mkdir -p -m 0700 "$cache_dir" "$runtime_dir"
+package_file="$cache_dir/chatgpt-$CHATGPT_VERSION_RELEASE.$rpm_arch.rpm"
+partial_file="$package_file.part"
+
+installed_name=
+installed_version_release=
+installed_arch=
+if installed_metadata="$($rpm_bin -q \
+  --qf $'%{NAME}\t%{VERSION}-%{RELEASE}\t%{ARCH}\n' \
+  chatgpt 2>/dev/null)"; then
+  IFS=$'\t' read -r \
+    installed_name installed_version_release installed_arch \
+    <<< "$installed_metadata"
+fi
+
+if [[ "$installed_name" == chatgpt \
+  && "$installed_version_release" == "$CHATGPT_VERSION_RELEASE" \
+  && "$installed_arch" == "$rpm_arch" ]]; then
+  [[ -x "$chatgpt_binary" ]] || die "$chatgpt_binary is missing from the installed package"
+  rm -f -- "$package_file" "$partial_file"
+  printf 'ChatGPT %s is already installed.\n' "$CHATGPT_VERSION_RELEASE"
+  exit 0
+fi
+
+verification_dir=
+cleanup() {
+  if [[ -n "$verification_dir" ]]; then
+    rm -rf -- "$verification_dir"
+  fi
+}
+trap cleanup EXIT
+
+verify_package() {
+  local candidate="$1"
+  local fingerprint metadata package_name package_version_release package_arch
+  local signature_output signature_output_lower signing_key_id
+
+  printf '%s  %s\n' "$package_sha256" "$candidate" \
+    | "$sha256sum_bin" --check --strict >/dev/null \
+    || return 1
+  printf '%s  %s\n' "$CHATGPT_KEY_SHA256" "$key_file" \
+    | "$sha256sum_bin" --check --strict >/dev/null \
+    || return 1
+
+  verification_dir="$(mktemp -d "$runtime_dir/verify.XXXXXX")"
+  mkdir -m 0700 "$verification_dir/gnupg" "$verification_dir/rpmdb"
+  fingerprint="$(GNUPGHOME="$verification_dir/gnupg" \
+    "$gpg_bin" --batch --quiet --show-keys --with-colons "$key_file" \
+    | awk -F: '$1 == "fpr" { print toupper($10); exit }')"
+  [[ "$fingerprint" == "$CHATGPT_KEY_FINGERPRINT" ]] || return 1
+
+  "$rpm_bin" --dbpath "$verification_dir/rpmdb" --initdb >/dev/null \
+    || return 1
+  "$rpmkeys_bin" --dbpath "$verification_dir/rpmdb" --import "$key_file" \
+    || return 1
+  signature_output="$($rpmkeys_bin --dbpath "$verification_dir/rpmdb" \
+    --checksig --verbose "$candidate" 2>&1)" || return 1
+  signature_output_lower="${signature_output,,}"
+  signing_key_id="${CHATGPT_KEY_FINGERPRINT: -16}"
+  signing_key_id="${signing_key_id,,}"
+  [[ "$signature_output_lower" == *signature* ]] || return 1
+  [[ "$signature_output_lower" == *"${CHATGPT_KEY_FINGERPRINT,,}"* \
+    || "$signature_output_lower" == *"$signing_key_id"* ]] || return 1
+  [[ "$signature_output_lower" == *': ok'* ]] || return 1
+  printf '%s\n' "$signature_output"
+
+  metadata="$($rpm_bin -qp --nosignature \
+    --qf $'%{NAME}\t%{VERSION}-%{RELEASE}\t%{ARCH}\n' \
+    "$candidate")" || return 1
+  IFS=$'\t' read -r package_name package_version_release package_arch <<< "$metadata"
+  [[ "$package_name" == chatgpt ]] || return 1
+  [[ "$package_version_release" == "$CHATGPT_VERSION_RELEASE" ]] || return 1
+  [[ "$package_arch" == "$rpm_arch" ]] || return 1
+
+  rm -rf -- "$verification_dir"
+  verification_dir=
+}
+
+if [[ -f "$package_file" ]] && ! verify_package "$package_file"; then
+  printf 'Discarding invalid cached package.\n' >&2
+  rm -f -- "$package_file"
+fi
+
+if [[ ! -f "$package_file" ]]; then
+  printf 'Downloading ChatGPT %s for %s from OpenAI...\n' \
+    "$CHATGPT_VERSION_RELEASE" "$rpm_arch"
+  download_status=0
+  "$curl_bin" \
+      --proto '=https' \
+      --tlsv1.2 \
+      --fail \
+      --show-error \
+      --location \
+      --retry 5 \
+      --retry-all-errors \
+      --connect-timeout 30 \
+      --max-time 3600 \
+      --continue-at - \
+      --output "$partial_file" \
+      "$package_url" \
+    || download_status=$?
+  if [[ "$download_status" == 33 || "$download_status" == 36 ]]; then
+    printf 'OpenAI declined the resumed download; restarting it.\n' >&2
+    rm -f -- "$partial_file"
+    "$curl_bin" \
+      --proto '=https' \
+      --tlsv1.2 \
+      --fail \
+      --show-error \
+      --location \
+      --retry 5 \
+      --retry-all-errors \
+      --connect-timeout 30 \
+      --max-time 3600 \
+      --output "$partial_file" \
+      "$package_url" \
+      || die "download failed"
+  elif [[ "$download_status" != 0 ]]; then
+    die "download failed"
+  fi
+  if ! verify_package "$partial_file"; then
+    rm -f -- "$partial_file"
+    die "downloaded package failed integrity, signature, or metadata verification"
+  fi
+  mv -f -- "$partial_file" "$package_file"
+fi
+
+pending_status=0
+"$rpm_ostree_bin" status --pending-exit-77 >/dev/null || pending_status=$?
+case "$pending_status" in
+  0)
+    had_pending_deployment=false
+    ;;
+  77)
+    had_pending_deployment=true
+    ;;
+  *)
+    die "could not inspect rpm-ostree deployment state"
+    ;;
+esac
+
+if [[ -n "$installed_name" ]]; then
+  [[ "$installed_name" == chatgpt ]] || die "unexpected installed package metadata"
+  printf 'Replacing ChatGPT %s with %s for the next boot...\n' \
+    "$installed_version_release" "$CHATGPT_VERSION_RELEASE"
+  "$rpm_ostree_bin" install --assumeyes \
+    --uninstall chatgpt "$package_file"
+  rm -f -- "$package_file"
+  printf 'ChatGPT %s is staged; reboot to use it.\n' "$CHATGPT_VERSION_RELEASE"
+  exit 0
+fi
+
+printf 'Installing ChatGPT %s...\n' "$CHATGPT_VERSION_RELEASE"
+"$rpm_ostree_bin" install --assumeyes --idempotent "$package_file"
+rm -f -- "$package_file"
+
+if [[ "$had_pending_deployment" == true ]]; then
+  printf 'ChatGPT %s is staged; reboot to use it.\n' "$CHATGPT_VERSION_RELEASE"
+elif "$rpm_ostree_bin" apply-live; then
+  printf 'ChatGPT %s is installed and available as chatgpt.\n' "$CHATGPT_VERSION_RELEASE"
+else
+  printf 'Live apply was unavailable; ChatGPT %s is staged for the next boot.\n' \
+    "$CHATGPT_VERSION_RELEASE"
+fi

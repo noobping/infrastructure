@@ -63,6 +63,9 @@ check-shell:
     done < <(git ls-files -z)
     exit "$failed"
 
+check-workstation:
+    bash images/workstation/test/chatgpt-install
+
 offline selection="all" architecture="native": (_offline selection architecture)
 
 # Build every offline image and installer for both supported architectures.

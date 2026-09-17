@@ -39,7 +39,7 @@ RUN set -euxo pipefail; \
     gvfs-goa gvfs-gphoto2 gvfs-mtp gvfs-nfs gvfs-smb \
     sane-airscan sane-backends sane-backends-drivers-scanners \
     system-config-printer system-config-printer-applet system-config-printer-udev \
-    toolbox git \
+    curl git toolbox \
     mesa-dri-drivers switcheroo-control virglrenderer \
     libhid hidapi openrgb-udev-rules \
     steam-devices; \
@@ -91,6 +91,7 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/sysinit.target.wants \
     /etc/systemd/system/timers.target.wants \
     /usr/lib/udev/rules.d \
+    /usr/lib/infrastructure \
     /usr/local/sbin \
     /usr/libexec/infrastructure \
     /usr/share/containers/systemd \
@@ -109,6 +110,8 @@ COPY firewall.xml /etc/firewalld/zones/public.xml
 COPY keychron-webhid.rules /usr/lib/udev/rules.d/70-keychron-webhid.rules
 COPY --from=policy / /usr/lib/infrastructure-policy/rootfs/
 COPY --chmod=0644 infrastructure-policy.container /usr/share/containers/systemd/
+COPY --chmod=0644 chatgpt-release.env chatgpt-signing-key.asc /usr/lib/infrastructure/
+COPY --chmod=0755 bin/chatgpt-install /usr/libexec/infrastructure/
 COPY --chmod=0755 bin/system-flatpaks /usr/libexec/infrastructure/
 COPY --chmod=0755 bin/switch-to-silverblue /usr/local/sbin/
 COPY suricata-direct.xml /etc/firewalld/direct.xml
@@ -119,6 +122,7 @@ COPY polkit.rules /etc/polkit-1/rules.d/50-libvirt-access.rules
 COPY profile.conf /var/lib/AccountsService/default
 COPY profile.png /usr/share/pixmaps/faces/noobping.png
 COPY skel /etc/skel
+COPY chatgpt-install.service /etc/systemd/system/chatgpt-install.service
 COPY system-flatpaks.service /etc/systemd/system/system-flatpaks.service
 COPY update-system-flatpaks.service /etc/systemd/system/update-system-flatpaks.service
 COPY update-system-flatpaks.timer /etc/systemd/system/update-system-flatpaks.timer
@@ -136,6 +140,7 @@ RUN set -euxo pipefail; \
     /etc/dconf/profile/user \
     /etc/firewalld/direct.xml \
     /etc/polkit-1/rules.d/50-libvirt-access.rules \
+    /etc/systemd/system/chatgpt-install.service \
     /etc/systemd/system/system-flatpaks.service \
     /etc/systemd/system/update-system-flatpaks.service \
     /etc/systemd/system/update-system-flatpaks.timer \
@@ -163,6 +168,8 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/multi-user.target.wants/firewalld.service; \
   ln -sf /etc/systemd/system/system-flatpaks.service \
     /etc/systemd/system/multi-user.target.wants/system-flatpaks.service; \
+  ln -sf /etc/systemd/system/chatgpt-install.service \
+    /etc/systemd/system/multi-user.target.wants/chatgpt-install.service; \
   ln -sf /etc/systemd/system/update-system-flatpaks.service \
     /etc/systemd/system/multi-user.target.wants/update-system-flatpaks.service; \
   ln -sf /usr/lib/systemd/system/avahi-daemon.service \

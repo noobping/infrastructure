@@ -1,0 +1,230 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+work_dir="$(mktemp -d)"
+trap 'rm -rf -- "$work_dir"' EXIT
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+workstation_dir="$(cd -- "$script_dir/.." && pwd)"
+installer="$workstation_dir/bin/chatgpt-install"
+key_file="$workstation_dir/chatgpt-signing-key.asc"
+fake_bin="$work_dir/bin"
+fake_package="$work_dir/package.rpm"
+fake_chatgpt="$work_dir/chatgpt"
+log_file="$work_dir/commands.log"
+mkdir -p "$fake_bin"
+printf '%s\n' 'mock signed package' > "$fake_package"
+printf '#!/bin/sh\nexit 0\n' > "$fake_chatgpt"
+chmod 0755 "$fake_chatgpt"
+
+package_sha256="$(sha256sum "$fake_package" | awk '{ print $1 }')"
+key_sha256="$(sha256sum "$key_file" | awk '{ print $1 }')"
+
+make_manifest() {
+  local path="$1"
+  local sha256="${2:-$package_sha256}"
+
+  printf '%s\n' \
+    'CHATGPT_VERSION_RELEASE=26.911.61220-1' \
+    'CHATGPT_X86_64_URL=https://persistent.oaistatic.com/codex-app-prod/linux/rpm/x86_64/chatgpt-26.911.61220-1.x86_64.rpm' \
+    "CHATGPT_X86_64_SHA256=$sha256" \
+    'CHATGPT_AARCH64_URL=https://persistent.oaistatic.com/codex-app-prod/linux/rpm/aarch64/chatgpt-26.911.61220-1.aarch64.rpm' \
+    "CHATGPT_AARCH64_SHA256=$sha256" \
+    'CHATGPT_KEY_FINGERPRINT=3BFA0E4AE8B8CC16A2D9BA684A3B4A566C4660E4' \
+    "CHATGPT_KEY_SHA256=$key_sha256" \
+    > "$path"
+}
+
+cat > "$fake_bin/curl" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'curl %s\n' "$*" >> "$FAKE_LOG"
+output=
+resume=false
+while (($#)); do
+  if [[ "$1" == --output ]]; then
+    output="$2"
+    shift 2
+  elif [[ "$1" == --continue-at ]]; then
+    resume=true
+    shift 2
+  else
+    shift
+  fi
+done
+[[ -n "$output" ]]
+if [[ "${FAKE_RESUME_REFUSED:-false}" == true && "$resume" == true ]]; then
+  exit 33
+fi
+cp "$FAKE_PACKAGE" "$output"
+EOF
+
+cat > "$fake_bin/gpg" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' 'fpr:::::::::3BFA0E4AE8B8CC16A2D9BA684A3B4A566C4660E4:'
+EOF
+
+cat > "$fake_bin/rpm" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+case "$1" in
+  --eval)
+    printf '%s\n' "${FAKE_ARCH:-x86_64}"
+    ;;
+  -q)
+    [[ "${FAKE_INSTALLED:-false}" == true ]] || exit 1
+    version="${FAKE_INSTALLED_VERSION:-26.911.61220-1}"
+    arch="${FAKE_ARCH:-x86_64}"
+    printf 'chatgpt\t%s\t%s\n' "$version" "$arch"
+    ;;
+  -qp)
+    printf 'chatgpt\t26.911.61220-1\t%s\n' "${FAKE_ARCH:-x86_64}"
+    ;;
+  --dbpath)
+    ;;
+  *)
+    exit 2
+    ;;
+esac
+EOF
+
+cat > "$fake_bin/rpmkeys" <<'EOF'
+#!/usr/bin/env bash
+if [[ "$*" == *--checksig* ]]; then
+  [[ "${FAKE_UNSIGNED:-false}" != true ]] || exit 0
+  printf '%s\n' \
+    'Header OpenPGP V4 RSA/SHA512 signature, key fingerprint: 3bfa0e4ae8b8cc16a2d9ba684a3b4a566c4660e4: OK'
+fi
+exit 0
+EOF
+
+cat > "$fake_bin/rpm-ostree" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'rpm-ostree %s\n' "$*" >> "$FAKE_LOG"
+case "$1" in
+  status)
+    exit "${FAKE_PENDING_STATUS:-0}"
+    ;;
+  install)
+    exit "${FAKE_INSTALL_STATUS:-0}"
+    ;;
+  apply-live)
+    exit "${FAKE_APPLY_STATUS:-0}"
+    ;;
+  *)
+    exit 2
+    ;;
+esac
+EOF
+
+chmod 0755 "$fake_bin"/*
+
+run_installer() {
+  local case_name="$1"
+  shift
+  local case_dir="$work_dir/$case_name"
+  mkdir -p "$case_dir/cache" "$case_dir/runtime"
+  : > "$log_file"
+  env \
+    PATH="$fake_bin:$PATH" \
+    FAKE_LOG="$log_file" \
+    FAKE_PACKAGE="$fake_package" \
+    CHATGPT_RELEASE_FILE="$case_dir/release.env" \
+    CHATGPT_KEY_FILE="$key_file" \
+    CHATGPT_CACHE_DIR="$case_dir/cache" \
+    CHATGPT_RUNTIME_DIR="$case_dir/runtime" \
+    CHATGPT_BINARY="$fake_chatgpt" \
+    "$@" \
+    bash "$installer" > "$case_dir/output" 2>&1
+}
+
+assert_log_contains() {
+  grep -F -- "$1" "$log_file" >/dev/null || {
+    printf 'missing command log entry: %s\n' "$1" >&2
+    cat "$log_file" >&2
+    exit 1
+  }
+}
+
+assert_log_excludes() {
+  if grep -F -- "$1" "$log_file" >/dev/null; then
+    printf 'unexpected command log entry: %s\n' "$1" >&2
+    cat "$log_file" >&2
+    exit 1
+  fi
+}
+
+make_manifest "$work_dir/fresh-release.env"
+mkdir -p "$work_dir/fresh"
+cp "$work_dir/fresh-release.env" "$work_dir/fresh/release.env"
+run_installer fresh
+assert_log_contains 'curl --proto =https'
+assert_log_contains '/rpm/x86_64/chatgpt-26.911.61220-1.x86_64.rpm'
+assert_log_contains 'rpm-ostree install --assumeyes --idempotent'
+assert_log_contains 'rpm-ostree apply-live'
+
+make_manifest "$work_dir/pending-release.env"
+mkdir -p "$work_dir/pending"
+cp "$work_dir/pending-release.env" "$work_dir/pending/release.env"
+run_installer pending FAKE_ARCH=aarch64 FAKE_PENDING_STATUS=77
+assert_log_contains '/rpm/aarch64/chatgpt-26.911.61220-1.aarch64.rpm'
+assert_log_contains 'rpm-ostree install --assumeyes --idempotent'
+assert_log_excludes 'rpm-ostree apply-live'
+
+make_manifest "$work_dir/current-release.env"
+mkdir -p "$work_dir/current"
+cp "$work_dir/current-release.env" "$work_dir/current/release.env"
+run_installer current FAKE_INSTALLED=true
+assert_log_excludes 'curl '
+assert_log_excludes 'rpm-ostree '
+
+make_manifest "$work_dir/replace-release.env"
+mkdir -p "$work_dir/replace"
+cp "$work_dir/replace-release.env" "$work_dir/replace/release.env"
+run_installer replace FAKE_INSTALLED=true FAKE_INSTALLED_VERSION=25.1-1
+assert_log_contains 'rpm-ostree install --assumeyes --uninstall chatgpt '
+assert_log_excludes 'rpm-ostree apply-live'
+
+make_manifest "$work_dir/live-fallback-release.env"
+mkdir -p "$work_dir/live-fallback"
+cp "$work_dir/live-fallback-release.env" "$work_dir/live-fallback/release.env"
+run_installer live-fallback FAKE_APPLY_STATUS=1
+assert_log_contains 'rpm-ostree apply-live'
+
+make_manifest "$work_dir/resume-release.env"
+mkdir -p "$work_dir/resume"
+cp "$work_dir/resume-release.env" "$work_dir/resume/release.env"
+run_installer resume FAKE_RESUME_REFUSED=true
+[[ "$(grep -c '^curl ' "$log_file")" == 2 ]]
+
+make_manifest "$work_dir/unsigned-release.env"
+mkdir -p "$work_dir/unsigned"
+cp "$work_dir/unsigned-release.env" "$work_dir/unsigned/release.env"
+if run_installer unsigned FAKE_UNSIGNED=true; then
+  echo 'unsigned package unexpectedly succeeded' >&2
+  exit 1
+fi
+assert_log_excludes 'rpm-ostree '
+
+make_manifest "$work_dir/unsupported-release.env"
+mkdir -p "$work_dir/unsupported"
+cp "$work_dir/unsupported-release.env" "$work_dir/unsupported/release.env"
+if run_installer unsupported FAKE_ARCH=s390x; then
+  echo 'unsupported architecture unexpectedly succeeded' >&2
+  exit 1
+fi
+assert_log_excludes 'curl '
+assert_log_excludes 'rpm-ostree '
+
+make_manifest "$work_dir/bad-hash-release.env" "$(printf '0%.0s' {1..64})"
+mkdir -p "$work_dir/bad-hash"
+cp "$work_dir/bad-hash-release.env" "$work_dir/bad-hash/release.env"
+if run_installer bad-hash; then
+  echo 'invalid package unexpectedly succeeded' >&2
+  exit 1
+fi
+assert_log_contains 'curl '
+assert_log_excludes 'rpm-ostree '
+
+printf '%s\n' 'chatgpt-install tests passed'

@@ -12,6 +12,8 @@ pipelines:
         just: check-whitespace
       shell:
         just: check-shell
+      workstation:
+        just: check-workstation
 
   online-images:
     needs: [check]
