@@ -1,0 +1,38 @@
+- name: Converge mounted host policy
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  pre_tasks:
+    - name: Validate mounted paths and read host policy inputs
+      policy_inputs:
+        root: "{{ policy_root }}"
+        profile: "{{ policy_profile }}"
+        report_managed: "{{ policy_report_managed }}"
+      register: policy_data
+      no_log: true
+
+    # Validate NUT before any role mutates the mounted host.
+    - name: Validate NUT configuration
+      ansible.builtin.import_role:
+        name: nut
+        tasks_from: validate
+      when: policy_data.nut_enabled
+
+  roles:
+    - role: homes
+      when: policy_profile == 'workstation'
+    - role: skeleton
+      when: policy_profile == 'workstation'
+    - role: nut
+      when: policy_data.nut_enabled
+
+  post_tasks:
+    - name: Report managed paths for native SELinux relabeling
+      ansible.builtin.copy:
+        content: "{{ (policy_data.managed | join('\u0000') ~ '\u0000') if policy_data.managed else '' }}"
+        dest: "{{ policy_data.report_path }}"
+        owner: '0'
+        group: '0'
+        mode: '0600'
+      when: policy_report_managed
+      changed_when: false

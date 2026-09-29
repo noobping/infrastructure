@@ -1,0 +1,20 @@
+- name: Converge NUT directory ownership and permissions
+  ansible.builtin.file:
+    path: "{{ policy_data.nut_directory }}"
+    state: directory
+    owner: '0'
+    group: "{{ policy_data.nut_gid }}"
+    mode: '0750'
+    follow: false
+
+- name: Render NUT configuration
+  ansible.builtin.template:
+    src: "{{ item.name }}.j2"
+    dest: "{{ item.path }}"
+    owner: '0'
+    group: "{{ policy_data.nut_gid }}"
+    mode: '0640'
+    follow: false
+  loop: "{{ policy_data.nut_files }}"
+  no_log: true
+  diff: false

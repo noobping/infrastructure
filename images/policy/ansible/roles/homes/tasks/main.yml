@@ -1,0 +1,11 @@
+- name: Converge local home ownership and permissions
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.uid }}"
+    group: "{{ item.gid }}"
+    mode: "{{ '0700' if item.interactive else '0750' }}"
+    follow: false
+  loop: "{{ policy_data.homes }}"
+  loop_control:
+    label: "{{ item.virtual }}"

@@ -1,0 +1,4 @@
+LISTEN 127.0.0.1 {{ nut_port }}
+{% if nut_mode == 'netserver' %}
+LISTEN 0.0.0.0 {{ nut_port }}
+{% endif %}

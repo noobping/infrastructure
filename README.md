@@ -25,9 +25,11 @@ branches within a graph run in parallel.
 ## Host policy
 
 Workstation, Sway, and NAS images contain a pinned copy of the restricted
-`policy` container and run it through the `infrastructure-policy.service`
-Quadlet. It has no network, no host PID namespace, no privileged mode, and no
-host-root mount. Only the host paths needed by each profile are mounted.
+Ansible `policy` container and run it through the `infrastructure-policy.service`
+Quadlet. The image bundles ansible-core, roles, and templates for offline local
+execution against the mounted host paths. It has no network, no host PID
+namespace, no privileged mode, and no host-root mount. Only the host paths
+needed by each profile are mounted.
 
 ```sh
 sudo systemctl start infrastructure-policy.service

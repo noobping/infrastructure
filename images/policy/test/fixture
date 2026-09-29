@@ -41,6 +41,17 @@ snapshot() {
   } | sha256sum
 }
 
+# A fresh host must be checkable without creating homes or parent directories.
+before=$(snapshot)
+if fresh_output=$($policy check workstation --root "$fixture" 2>&1); then
+  printf 'fixture expected a fresh root to report drift\n' >&2
+  exit 1
+else
+  status=$?
+fi
+[[ $status -eq 1 && $fresh_output == *'drift:'* ]]
+[[ $before == "$(snapshot)" ]]
+
 # Initial apply converges ownership, skeleton files, and exact NUT files.
 first_output=$($policy apply workstation --root "$fixture" --report-managed)
 [[ -n $first_output ]]
@@ -82,6 +93,25 @@ after=$(snapshot)
 [[ $drift_output == *'drift:'* ]]
 [[ $before == "$after" ]]
 chmod 0700 "$fixture/var/home/alice"
+
+# Existing user content and modes survive skeleton updates. Existing links
+# get their own ownership fixed without changing the target.
+printf '%s\n' 'user customization' > "$fixture/var/home/alice/.config/example.conf"
+chmod 0600 "$fixture/var/home/alice/.config/example.conf"
+chmod 0711 "$fixture/var/home/alice/.config"
+printf '%s\n' 'new skeleton default' > "$fixture/etc/skel/.config/example.conf"
+printf '%s\n' 'keep target ownership' > "$fixture/etc/ups/sentinel"
+ln -s /etc/ups/sentinel "$fixture/etc/skel/link"
+$policy apply workstation --root "$fixture"
+[[ $(cat "$fixture/var/home/alice/.config/example.conf") == 'user customization' ]]
+[[ $(stat -c '%a' "$fixture/var/home/alice/.config/example.conf") == 600 ]]
+[[ $(stat -c '%a' "$fixture/var/home/alice/.config") == 711 ]]
+[[ $(readlink "$fixture/var/home/alice/link") == /etc/ups/sentinel ]]
+chown -h 0:0 "$fixture/var/home/alice/link"
+$policy apply workstation --root "$fixture"
+[[ $(stat -c '%u:%g' "$fixture/var/home/alice/link") == 1000:1000 ]]
+[[ $(stat -c '%u:%g' "$fixture/etc/ups/sentinel") == 0:0 ]]
+[[ $($policy apply workstation --root "$fixture") == '' ]]
 
 # NAS standalone and netserver rendering are also exact and idempotent.
 cat > "$fixture/etc/ups/nut.env" <<'EOF'
@@ -135,8 +165,60 @@ else
 fi
 after=$(snapshot)
 [[ $status -eq 2 ]]
-[[ $invalid_output == *'invalid NUT_UPS_PORT'* ]]
+[[ $invalid_output == *'Validate NUT_UPS_PORT'* ]]
 [[ $before == "$after" ]]
+
+# NAS netclient mode and host data containing Jinja syntax remain literal.
+cat > "$fixture/etc/ups/nut.env" <<'EOF'
+NUT_MODE=netclient
+NUT_UPS_HOST=ups.example.test
+NUT_MONITOR_USER=monitor
+NUT_MONITOR_PASSWORD={{7*7}}
+EOF
+literal_output=$($policy apply nas --root "$fixture" 2>&1)
+[[ $literal_output != *'{{7*7}}'* ]]
+grep -qF 'monitor {{7*7}} secondary' "$fixture/etc/ups/upsmon.conf"
+[[ $($policy apply nas --root "$fixture") == '' ]]
+
+# Invalid credentials, duplicate/unknown assignments, and NUT output links
+# must fail without writing files or disclosing environment values.
+for bad_assignment in \
+  'NUT_MONITOR_PASSWORD="invalid secret"' \
+  'NUT_MONITOR_USER=duplicate' \
+  'UNEXPECTED=hidden-secret'; do
+  cat > "$fixture/etc/ups/nut.env" <<'EOF'
+NUT_MODE=netclient
+NUT_UPS_HOST=ups.example.test
+NUT_MONITOR_USER=monitor
+EOF
+  printf '%s\n' "$bad_assignment" >> "$fixture/etc/ups/nut.env"
+  before=$(snapshot)
+  if invalid_output=$($policy apply nas --root "$fixture" 2>&1); then
+    printf 'fixture expected invalid credentials/assignments to fail\n' >&2
+    exit 1
+  else
+    status=$?
+  fi
+  [[ $status -eq 2 && $before == "$(snapshot)" ]]
+  [[ $invalid_output != *'invalid secret'* && $invalid_output != *'hidden-secret'* ]]
+done
+cat > "$fixture/etc/ups/nut.env" <<'EOF'
+NUT_MODE=netclient
+NUT_UPS_HOST=ups.example.test
+NUT_MONITOR_USER=monitor
+NUT_MONITOR_PASSWORD=secret
+EOF
+rm "$fixture/etc/ups/upsmon.conf"
+ln -s /var/home/alice/.config/example.conf "$fixture/etc/ups/upsmon.conf"
+before=$(snapshot)
+if invalid_output=$($policy apply nas --root "$fixture" 2>&1); then
+  printf 'fixture expected NUT output links to fail\n' >&2
+  exit 1
+else
+  status=$?
+fi
+[[ $status -eq 2 && $before == "$(snapshot)" ]]
+unlink "$fixture/etc/ups/upsmon.conf"
 
 # Missing optional NUT source files are a successful no-op for both profiles.
 rm -f "$fixture/etc/ups/netclient.env" "$fixture/etc/ups/nut.env"
@@ -161,7 +243,7 @@ else
 fi
 after=$(snapshot)
 [[ $status -eq 2 ]]
-[[ $symlink_output == *'refusing to follow symbolic link'* ]]
+[[ $symlink_output == *'Validate mounted paths'* ]]
 [[ $before == "$after" ]]
 
 unlink "$fixture/var/home/alice"
@@ -176,7 +258,7 @@ else
 fi
 after=$(snapshot)
 [[ $status -eq 2 ]]
-[[ $symlink_output == *'blocks an additive skeleton directory'* ]]
+[[ $symlink_output == *'Validate mounted paths'* ]]
 [[ $before == "$after" ]]
 
 printf 'policy fixture passed\n'

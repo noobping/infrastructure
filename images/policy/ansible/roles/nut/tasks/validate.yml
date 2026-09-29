@@ -1,0 +1,53 @@
+- name: Validate NUT mode and role
+  ansible.builtin.assert:
+    that:
+      - nut_mode in ['netclient', 'standalone', 'netserver']
+      - nut_role in ['primary', 'secondary']
+    quiet: true
+  no_log: true
+
+- name: Validate NUT_UPS_PORT
+  ansible.builtin.assert:
+    that:
+      - nut_port is match('^[1-9][0-9]{0,4}$')
+      - nut_port | int <= 65535
+    quiet: true
+  no_log: true
+
+- name: Validate NUT power and monitor credentials
+  ansible.builtin.assert:
+    that:
+      - nut_power is match('^[1-9][0-9]*$')
+      - nut_name is match(nut_identifier_pattern)
+      - nut_user is match(nut_identifier_pattern)
+      - nut_password is match(nut_password_pattern)
+    quiet: true
+  no_log: true
+
+- name: Validate NUT client endpoint
+  ansible.builtin.assert:
+    that:
+      - nut_host is match(nut_endpoint_pattern)
+    quiet: true
+  when: nut_mode == 'netclient'
+  no_log: true
+
+- name: Validate NUT driver and device
+  ansible.builtin.assert:
+    that:
+      - nut_driver is match(nut_identifier_pattern)
+      - nut_device is match(nut_endpoint_pattern)
+    quiet: true
+  when: nut_mode != 'netclient'
+  no_log: true
+
+- name: Validate NUT remote monitor credentials
+  ansible.builtin.assert:
+    that:
+      - nut_remote_user is match(nut_identifier_pattern)
+      - nut_remote_password is match(nut_password_pattern)
+    quiet: true
+  when:
+    - nut_mode == 'netserver'
+    - nut_remote_user != '' or nut_remote_password != ''
+  no_log: true

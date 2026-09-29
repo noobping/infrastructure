@@ -1,0 +1,9 @@
+[{{ nut_user }}]
+  password = {{ nut_password }}
+  upsmon {{ nut_role }}
+{% if nut_mode == 'netserver' and nut_remote_user != '' %}
+
+[{{ nut_remote_user }}]
+  password = {{ nut_remote_password }}
+  upsmon secondary
+{% endif %}

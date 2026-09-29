@@ -1,0 +1,48 @@
+- name: Add skeleton directories without changing existing modes
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.uid }}"
+    group: "{{ item.gid }}"
+    mode: "{{ omit if item.exists else item.mode }}"
+    follow: false
+  loop: "{{ policy_data.skeleton | selectattr('kind', 'equalto', 'directory') | list }}"
+  loop_control:
+    label: "{{ item.virtual }}"
+
+- name: Add missing skeleton files without overwriting user content
+  ansible.builtin.copy:
+    src: "{{ item.source }}"
+    dest: "{{ item.path }}"
+    owner: "{{ item.uid }}"
+    group: "{{ item.gid }}"
+    mode: preserve
+    decrypt: false
+    force: false
+    follow: false
+  loop: "{{ policy_data.skeleton | selectattr('kind', 'equalto', 'file') | rejectattr('exists') | list }}"
+  loop_control:
+    label: "{{ item.virtual }}"
+
+- name: Add missing skeleton symbolic links
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    src: "{{ item.link }}"
+    state: link
+    owner: "{{ item.uid }}"
+    group: "{{ item.gid }}"
+    force: true
+    follow: false
+  loop: "{{ policy_data.skeleton | selectattr('kind', 'equalto', 'link') | rejectattr('exists') | list }}"
+  loop_control:
+    label: "{{ item.virtual }}"
+
+- name: Converge ownership of existing skeleton entries
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    owner: "{{ item.uid }}"
+    group: "{{ item.gid }}"
+    follow: false
+  loop: "{{ policy_data.skeleton | selectattr('exists') | rejectattr('kind', 'equalto', 'directory') | list }}"
+  loop_control:
+    label: "{{ item.virtual }}"

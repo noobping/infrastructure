@@ -1,0 +1,11 @@
+MONITOR {{ nut_name }}@{{ nut_host if nut_mode == 'netclient' else 'localhost' }}:{{ nut_port }} {{ nut_power }} {{ nut_user }} {{ nut_password }} {{ nut_role }}
+MINSUPPLIES 1
+SHUTDOWNCMD "{{ nut_shutdown | replace('\\', '\\\\') | replace('"', '\\"') }}"
+POLLFREQ 5
+POLLFREQALERT 5
+HOSTSYNC 15
+DEADTIME 15
+POWERDOWNFLAG /run/nut/killpower
+RBWARNTIME 43200
+NOCOMMWARNTIME 300
+FINALDELAY 5

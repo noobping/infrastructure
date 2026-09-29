@@ -1,0 +1,18 @@
+nut_env: "{{ policy_data.environment }}"
+nut_mode: "{{ nut_env.NUT_MODE | default('netclient' if policy_profile == 'workstation' else '') }}"
+nut_name: "{{ nut_env.NUT_UPS_NAME | default('UPS') }}"
+nut_host: "{{ nut_env.NUT_UPS_HOST | default('') }}"
+nut_port: "{{ nut_env.NUT_UPS_PORT | default('3493') }}"
+nut_power: "{{ nut_env.NUT_POWER_VALUE | default('1') }}"
+nut_user: "{{ nut_env.NUT_MONITOR_USER | default('') }}"
+nut_password: "{{ nut_env.NUT_MONITOR_PASSWORD | default('') }}"
+nut_role: "{{ nut_env.NUT_ROLE | default('secondary' if nut_mode == 'netclient' else 'primary') }}"
+nut_shutdown: "{{ nut_env.NUT_SHUTDOWNCMD | default('/usr/sbin/shutdown -h +0') }}"
+nut_driver: "{{ nut_env.NUT_DRIVER | default('usbhid-ups') }}"
+nut_device: "{{ nut_env.NUT_DEVICE_PORT | default('auto') }}"
+nut_description: "{{ nut_env.NUT_UPS_DESCRIPTION | default('Local USB UPS') }}"
+nut_remote_user: "{{ nut_env.NUT_REMOTE_MONITOR_USER | default('') }}"
+nut_remote_password: "{{ nut_env.NUT_REMOTE_MONITOR_PASSWORD | default('') }}"
+nut_identifier_pattern: '^[A-Za-z0-9_.-]+$'
+nut_endpoint_pattern: '^[^\s@#]+$'
+nut_password_pattern: '^[^\s#\[\]="''\\]+$'

@@ -1,0 +1,4 @@
+[{{ nut_name }}]
+  driver = {{ nut_driver }}
+  port = {{ nut_device }}
+  desc = "{{ nut_description | replace('\\', '\\\\') | replace('"', '\\"') }}"
