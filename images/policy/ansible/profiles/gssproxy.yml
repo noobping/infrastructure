@@ -1,0 +1,7 @@
+state_directories:
+  - {path: /var/lib/gssproxy, owner: root, group: root, mode: '0755'}
+  - {path: /var/lib/gssproxy/clients, owner: root, group: root, mode: '0700'}
+  - {path: /var/lib/gssproxy/rcache, owner: root, group: root, mode: '0700'}
+state_seeds: []
+state_links:
+  - {path: /var/lib/gssproxy/default.sock, target: /run/gssproxy.default.sock, owner: root, group: root}

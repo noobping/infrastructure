@@ -12,7 +12,7 @@ import tempfile
 def main():
     parser = argparse.ArgumentParser(prog="infrastructure-policy")
     parser.add_argument("command", choices=("apply", "check", "list", "version"))
-    parser.add_argument("profile", nargs="?", choices=("workstation", "sway", "nas"))
+    parser.add_argument("profile", nargs="?", choices=("workstation", "sway", "nas", "clamav", "suricata", "gssproxy"))
     parser.add_argument("--root", default="/host")
     parser.add_argument("--report-managed", action="store_true")
     arguments = sys.argv[1:]
@@ -24,7 +24,7 @@ def main():
         if args.profile or args.report_managed:
             parser.error("this command takes no profile or report option")
         if args.command == "list":
-            print("workstation\nsway\nnas")
+            print("workstation\nsway\nnas\nclamav\nsuricata\ngssproxy")
         else:
             version_file = Path("/usr/lib/infrastructure-policy/version")
             version = os.environ.get("INFRASTRUCTURE_POLICY_VERSION") or (
@@ -34,6 +34,8 @@ def main():
         return 0
     if not args.profile:
         parser.error("missing profile")
+    if args.report_managed and args.profile in ("clamav", "suricata", "gssproxy"):
+        parser.error("service profiles use native relabeling, not --report-managed")
     if args.report_managed and args.command != "apply":
         parser.error("--report-managed is only valid with apply")
     if not os.path.isabs(args.root) or not os.path.isdir(args.root):
@@ -48,7 +50,7 @@ def main():
         variables = runtime / "vars.json"
         variables.write_text(json.dumps({
             "policy_root": os.path.realpath(args.root),
-            "policy_profile": "nas" if args.profile == "nas" else "workstation",
+            "policy_profile": "workstation" if args.profile == "sway" else args.profile,
             "policy_report_managed": args.report_managed,
             "ansible_python_interpreter": sys.executable,
         }))
@@ -67,7 +69,8 @@ def main():
             "POLICY_CHECK": "1" if args.command == "check" else "0",
         })
         command = ["ansible-playbook", "-i", "localhost,", "-c", "local",
-                   str(bundle / "site.yml"), "--extra-vars", f"@{variables}"]
+                   str(bundle / ("service-state.yml" if args.profile in ("clamav", "suricata", "gssproxy") else "site.yml")),
+                   "--extra-vars", f"@{variables}"]
         if args.command == "check":
             command.append("--check")
         completed = subprocess.run(command, env=env, cwd=bundle, check=False)

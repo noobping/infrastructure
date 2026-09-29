@@ -1,0 +1,39 @@
+[Unit]
+Description=Prepare suricata state with restricted Ansible policy
+DefaultDependencies=no
+After=local-fs.target systemd-sysusers.service systemd-tmpfiles-setup.service
+Wants=systemd-tmpfiles-setup.service
+Before=suricata.service suricata-update.service
+ConditionPathExists=!/var/lib/suricata/rules/suricata.rules
+
+[Container]
+ContainerName=infrastructure-policy-suricata
+Rootfs=/usr/lib/infrastructure-policy/rootfs
+Exec=/usr/bin/infrastructure-policy apply suricata --root /host
+Network=none
+ReadOnly=true
+ReadOnlyTmpfs=true
+NoNewPrivileges=true
+DropCapability=all
+AddCapability=CAP_CHOWN
+AddCapability=CAP_DAC_OVERRIDE
+AddCapability=CAP_FOWNER
+PidsLimit=128
+SecurityLabelDisable=true
+Volume=/etc/passwd:/host/etc/passwd:ro
+Volume=/etc/group:/host/etc/group:ro
+Volume=/usr/share/suricata/rules:/host/usr/share/suricata/rules:ro
+Volume=/var/lib/suricata:/host/var/lib/suricata:rw
+Volume=/var/log/suricata:/host/var/log/suricata:rw
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+TimeoutStartSec=10min
+ExecStartPost=/usr/sbin/restorecon -RF /var/lib/suricata /var/log/suricata
+
+[Install]
+WantedBy=multi-user.target
+
+[Quadlet]
+DefaultDependencies=false

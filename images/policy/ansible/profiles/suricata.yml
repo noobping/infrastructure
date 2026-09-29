@@ -1,0 +1,6 @@
+state_directories:
+  - {path: /var/lib/suricata, owner: suricata, group: suricata, mode: '0750', recursive: true, directory_mode: '0750', file_mode: '0750'}
+  - {path: /var/log/suricata, owner: suricata, group: suricata, mode: '0750', recursive: true, directory_mode: '0750', file_mode: '0750'}
+state_seeds:
+  - {source: /usr/share/suricata/rules, destination: /var/lib/suricata/rules}
+state_links: []

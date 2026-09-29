@@ -1,0 +1,16 @@
+- name: Converge mounted service state
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - "profiles/{{ policy_profile }}.yml"
+  pre_tasks:
+    - name: Validate service paths and read host ownership
+      policy_state_inputs:
+        root: "{{ policy_root }}"
+        directories: "{{ state_directories }}"
+        seeds: "{{ state_seeds }}"
+        links: "{{ state_links }}"
+      register: state_data
+  roles:
+    - service_state

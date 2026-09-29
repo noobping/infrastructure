@@ -1,0 +1,9 @@
+# Only these state roots are mounted writable in clamav-prepare.container.
+state_directories:
+  - {path: /var/lib/clamav, owner: clamupdate, group: virusgroup, mode: '0755', recursive: true, file_mode: '0644'}
+  - {path: /var/log/clamav, owner: clamupdate, group: virusgroup, mode: '0775', recursive: true, file_mode: '0664'}
+  - {path: /run/clamd.scan, owner: clamscan, group: virusgroup, mode: '0755'}
+  - {path: /run/clamd.scan/tmp, owner: clamscan, group: virusgroup, mode: '0700'}
+state_seeds:
+  - {source: /usr/share/clamav, destination: /var/lib/clamav}
+state_links: []

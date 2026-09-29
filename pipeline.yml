@@ -4,6 +4,11 @@ on:
   pre-receive: [check]
 
 pipelines:
+  test-policy:
+    jobs:
+      policy:
+        just: test-policy
+
   check:
     jobs:
       just:

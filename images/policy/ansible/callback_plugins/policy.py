@@ -21,7 +21,7 @@ class CallbackModule(CallbackBase):
         # contain host credentials, even when an upstream module fails.
         message = result._task.get_name()
         # This local module emits only fixed, value-free validation errors.
-        if result._task.action == 'policy_inputs' and result._result.get('policy_error'):
+        if result._task.action in ('policy_inputs', 'policy_state_inputs') and result._result.get('policy_error'):
             message += ': ' + result._result['policy_error']
         self._display.error(f"infrastructure-policy: {message}", wrap_text=False)
 

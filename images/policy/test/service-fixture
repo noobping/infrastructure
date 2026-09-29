@@ -1,0 +1,124 @@
+#!/usr/bin/python3
+"""Exercise service policies against disposable host trees, with real Ansible."""
+import os
+from pathlib import Path
+import socket
+import stat
+import subprocess
+import tempfile
+
+POLICY = os.environ.get('POLICY_BINARY', '/usr/bin/infrastructure-policy')
+
+
+def snapshot(root):
+    result = {}
+    for parent, dirs, files in os.walk(root, followlinks=False):
+        for name in dirs + files:
+            path = Path(parent) / name
+            info = path.lstat()
+            value = (os.readlink(path) if path.is_symlink() else
+                     path.read_bytes() if stat.S_ISREG(info.st_mode) else None)
+            result[str(path.relative_to(root))] = (info.st_mode, info.st_uid, info.st_gid, value)
+    return result
+
+
+def run(root, profile, mode='apply', expected=0):
+    before = snapshot(root)
+    completed = subprocess.run([POLICY, mode, profile, '--root', str(root)],
+                               text=True, capture_output=True, check=False)
+    assert completed.returncode == expected, (profile, mode, completed.returncode,
+                                              completed.stdout, completed.stderr)
+    if mode == 'check' or expected == 2:
+        assert snapshot(root) == before, f'{profile}: check or rejected input mutated host data'
+    return completed.stdout
+
+
+def metadata(path):
+    info = path.lstat()
+    return info.st_uid, info.st_gid, stat.S_IMODE(info.st_mode)
+
+
+with tempfile.TemporaryDirectory(prefix='service-policy-fixture-') as temporary:
+    root = Path(temporary)
+    for name in ('etc', 'usr/share/clamav', 'usr/share/suricata/rules', 'var/lib', 'var/log', 'run'):
+        (root / name).mkdir(parents=True, exist_ok=True)
+    (root / 'etc/passwd').write_text(
+        'root:x:0:0:root:/root:/bin/sh\n'
+        'clamupdate:x:170:171:Clam updater:/:/sbin/nologin\n'
+        'clamscan:x:172:171:Clam scanner:/:/sbin/nologin\n'
+        'suricata:x:180:181:Suricata:/:/sbin/nologin\n')
+    (root / 'etc/group').write_text('root:x:0:\nvirusgroup:x:171:\nsuricata:x:181:\n')
+    (root / 'usr/share/clamav/main.cvd').write_text('bundled signatures\n')
+    (root / 'usr/share/suricata/rules/suricata.rules').write_text('bundled rules\n')
+    (root / 'usr/share/suricata/rules/sub').mkdir()
+    (root / 'usr/share/suricata/rules/sub/additional.rules').write_text('additional rules\n')
+
+    for profile in ('clamav', 'suricata', 'gssproxy'):
+        assert 'drift:' in run(root, profile, mode='check', expected=1)
+        assert 'changed:' in run(root, profile)
+        assert run(root, profile) == '', f'{profile}: repeated apply is not idempotent'
+        assert run(root, profile, mode='check') == ''
+
+    assert metadata(root / 'var/lib/clamav') == (170, 171, 0o755)
+    assert metadata(root / 'var/lib/clamav/main.cvd') == (170, 171, 0o644)
+    assert metadata(root / 'var/log/clamav') == (170, 171, 0o775)
+    assert metadata(root / 'run/clamd.scan/tmp') == (172, 171, 0o700)
+    assert metadata(root / 'var/lib/suricata/rules/sub/additional.rules') == (180, 181, 0o750)
+    assert metadata(root / 'var/lib/gssproxy/clients') == (0, 0, 0o700)
+    assert metadata(root / 'var/lib/gssproxy/rcache') == (0, 0, 0o700)
+    link = root / 'var/lib/gssproxy/default.sock'
+    assert link.is_symlink() and os.readlink(link) == '/run/gssproxy.default.sock'
+
+    # Mutable signatures and rules win over bundled seeds, even if their
+    # ownership/mode drifted. Existing log files are also converged.
+    for profile, path in (('clamav', root / 'var/lib/clamav/main.cvd'),
+                          ('suricata', root / 'var/lib/suricata/rules/suricata.rules')):
+        path.write_text('newer downloaded data\n')
+        path.chmod(0o600)
+        os.chown(path, 0, 0)
+        run(root, profile, mode='check', expected=1)
+        run(root, profile)
+        assert path.read_text() == 'newer downloaded data\n'
+        assert run(root, profile) == ''
+    log = root / 'var/log/clamav/freshclam.log'
+    log.write_text('log data\n')
+    log.chmod(0o600)
+    run(root, 'clamav')
+    assert metadata(log) == (170, 171, 0o664)
+
+    # gssproxy used to remove/recreate its compatibility link on every run.
+    # Exercise migration of a real stale Unix socket, plus read-only checks.
+    link.unlink()
+    with socket.socket(socket.AF_UNIX) as stale:
+        stale.bind(str(link))
+    run(root, 'gssproxy', mode='check', expected=1)
+    run(root, 'gssproxy')
+    assert link.is_symlink()
+    assert run(root, 'gssproxy') == ''
+
+    # Preflight is complete before any mutation: a redirected child, mount
+    # root, seed file, or directory obstructing a link must fail unchanged.
+    bad = root / 'var/lib/clamav/escape'
+    bad.symlink_to('/etc')
+    run(root, 'clamav', expected=2)
+    run(root, 'clamav', mode='check', expected=2)
+    bad.unlink()
+    base = root / 'var/log/suricata'
+    base.rmdir()
+    base.symlink_to('/var/lib/clamav')
+    run(root, 'suricata', expected=2)
+    base.unlink()
+    base.mkdir()
+    bad = root / 'usr/share/clamav/escape'
+    bad.symlink_to('/etc/passwd')
+    run(root, 'clamav', expected=2)
+    bad.unlink()
+    link.unlink()
+    link.mkdir()
+    run(root, 'gssproxy', expected=2)
+    link.rmdir()
+    (root / 'etc/group').write_text('root:x:0:\n')
+    run(root, 'clamav', expected=2)
+    run(root, 'suricata', expected=2)
+
+print('service policy fixture passed: clamav, suricata, gssproxy')

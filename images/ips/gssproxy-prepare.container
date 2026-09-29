@@ -1,0 +1,33 @@
+[Unit]
+Description=Prepare gssproxy state with restricted Ansible policy
+DefaultDependencies=no
+After=local-fs.target systemd-sysusers.service systemd-tmpfiles-setup.service
+Wants=systemd-tmpfiles-setup.service
+Before=gssproxy.service
+
+[Container]
+ContainerName=infrastructure-policy-gssproxy
+Rootfs=/usr/lib/infrastructure-policy/rootfs
+Exec=/usr/bin/infrastructure-policy apply gssproxy --root /host
+Network=none
+ReadOnly=true
+ReadOnlyTmpfs=true
+NoNewPrivileges=true
+DropCapability=all
+AddCapability=CAP_CHOWN
+AddCapability=CAP_DAC_OVERRIDE
+AddCapability=CAP_FOWNER
+PidsLimit=128
+SecurityLabelDisable=true
+Volume=/etc/passwd:/host/etc/passwd:ro
+Volume=/etc/group:/host/etc/group:ro
+Volume=/var/lib/gssproxy:/host/var/lib/gssproxy:rw
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+TimeoutStartSec=10min
+ExecStartPost=-/usr/sbin/restorecon -RF /var/lib/gssproxy
+
+[Quadlet]
+DefaultDependencies=false

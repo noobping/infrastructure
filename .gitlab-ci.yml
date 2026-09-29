@@ -143,8 +143,17 @@ stable-ips:
     BUILD_IMAGE_NAME: ips
     BUILD_STREAM: stable
   needs:
-    - job: check
+    - job: stable-policy
       artifacts: false
+
+policy-test:
+  extends:
+    - .pipeline-job
+    - .architecture-matrix
+  stage: check
+  timeout: 30 minutes
+  script:
+    - pipeline test-policy
 
 stable-policy:
   extends:
@@ -404,7 +413,7 @@ next-ips:
     BUILD_IMAGE_NAME: ips
     BUILD_STREAM: next
   needs:
-    - job: check
+    - job: next-policy
       artifacts: false
 
 next-policy:

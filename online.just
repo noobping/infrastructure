@@ -315,7 +315,8 @@ _images stream architecture="both" selection="all":
     }
 
     build_ips() {
-        build_image images/ips ips --build-arg "FCOS_STREAM=${fcos_stream}"
+        build_image images/ips ips --build-arg "FCOS_STREAM=${fcos_stream}" \
+            --build-arg "POLICY_IMAGE=${namespace}/policy:${stage_tag}"
     }
 
     build_policy() {
@@ -326,7 +327,6 @@ _images stream architecture="both" selection="all":
     build_workstation() {
         build_image images/workstation workstation \
             --build-arg "IMAGE_NAMESPACE=${namespace}" \
-            --build-arg "POLICY_IMAGE=${namespace}/policy:${stage_tag}" \
             --build-arg "TAG=${stage_tag}"
     }
 
@@ -339,7 +339,6 @@ _images stream architecture="both" selection="all":
     build_nas() {
         build_image images/nas nas \
             --build-arg "IMAGE_NAMESPACE=${namespace}" \
-            --build-arg "POLICY_IMAGE=${namespace}/policy:${stage_tag}" \
             --build-arg "TAG=${stage_tag}"
     }
 
@@ -384,7 +383,8 @@ _images stream architecture="both" selection="all":
             "$stream" "$image_arch" "$selection"
         case "$selection" in
             all)
-                run_parallel build_ips build_policy
+                build_policy
+                build_ips
                 if [[ "$stream" == stable ]]; then
                     run_parallel build_workstation_branch build_nas build_vm_branch
                 else

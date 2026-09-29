@@ -1,7 +1,5 @@
 ARG IMAGE_NAMESPACE=ghcr.io/noobping
 ARG TAG=latest
-ARG POLICY_IMAGE=ghcr.io/noobping/policy:latest
-FROM ${POLICY_IMAGE} AS policy
 
 FROM ${IMAGE_NAMESPACE}/ips:${TAG}
 
@@ -48,7 +46,6 @@ RUN set -euxo pipefail; \
 
 COPY --chmod=0600 nftables /etc/nftables/rules
 COPY --chmod=0755 bin/todo bin/vm-bridge bin/vm-deploy /usr/bin/
-COPY --from=policy / /usr/lib/infrastructure-policy/rootfs/
 COPY --chmod=0644 infrastructure-policy.container /usr/share/containers/systemd/
 COPY --chmod=0755 bin/artifacts-prepare bin/btrfs-backup bin/nut-activate /usr/libexec/infrastructure/
 COPY artifacts-prepare.service /etc/systemd/system/artifacts-prepare.service

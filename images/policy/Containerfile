@@ -16,6 +16,9 @@ RUN set -eux; \
       /host/etc/ups \
       /host/run/infrastructure-policy \
       /host/var/home \
+      /host/var/lib/clamav /host/var/log/clamav /host/run/clamd.scan \
+      /host/var/lib/suricata /host/var/log/suricata /host/var/lib/gssproxy \
+      /host/usr/share/clamav /host/usr/share/suricata/rules \
       /usr/lib/infrastructure-policy; \
     touch /host/etc/passwd /host/etc/group; \
     ln -s /var/home /host/home; \
@@ -23,9 +26,10 @@ RUN set -eux; \
 
 COPY --chmod=0755 bin/infrastructure-policy /usr/bin/infrastructure-policy
 COPY ansible/ /usr/lib/infrastructure-policy/ansible/
-COPY --chmod=0755 test/fixture /usr/libexec/infrastructure-policy/fixture
+COPY --chmod=0755 test/ /usr/libexec/infrastructure-policy/
 
-RUN /usr/libexec/infrastructure-policy/fixture
+RUN /usr/libexec/infrastructure-policy/fixture \
+    && /usr/libexec/infrastructure-policy/service-fixture
 
 ENV INFRASTRUCTURE_POLICY_VERSION="${POLICY_VERSION}"
 

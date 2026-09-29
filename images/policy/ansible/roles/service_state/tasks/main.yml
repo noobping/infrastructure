@@ -1,0 +1,60 @@
+- name: Converge service directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.uid }}"
+    group: "{{ item.gid }}"
+    mode: "{{ item.mode }}"
+    follow: false
+  loop: "{{ state_data.directories }}"
+  loop_control:
+    label: "{{ item.virtual }}"
+
+- name: Seed missing service files without replacing downloaded data
+  ansible.builtin.copy:
+    src: "{{ item.source }}"
+    dest: "{{ item.path }}"
+    owner: "{{ item.uid }}"
+    group: "{{ item.gid }}"
+    mode: "{{ item.mode }}"
+    force: false
+    follow: false
+    decrypt: false
+  loop: "{{ state_data.seeds }}"
+  loop_control:
+    label: "{{ item.virtual }}"
+
+- name: Converge existing service file ownership and permissions
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    owner: "{{ item.uid }}"
+    group: "{{ item.gid }}"
+    mode: "{{ item.mode }}"
+    follow: false
+  loop: "{{ state_data.files }}"
+  loop_control:
+    label: "{{ item.virtual }}"
+
+- name: Remove a stale socket entry before creating its compatibility link
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ state_data.links | selectattr('remove') | list }}"
+  loop_control:
+    label: "{{ item.virtual }}"
+
+- name: Converge service compatibility links
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    src: "{{ item.target }}"
+    state: link
+    owner: "{{ item.uid }}"
+    group: "{{ item.gid }}"
+    force: true
+    follow: false
+  loop: "{{ state_data.links }}"
+  loop_control:
+    label: "{{ item.virtual }}"
+  # Check mode cannot remove the stale socket first; the preceding task has
+  # already reported that drift without touching it.
+  when: not (ansible_check_mode and item.remove)

@@ -10,6 +10,15 @@ adds missing skeleton entries while preserving existing user content and
 modes; `nut` validates settings and renders the NUT templates. Only
 `ansible-core` is needed: there are no Galaxy downloads or runtime Git pulls.
 
+The `clamav`, `suricata`, and `gssproxy` profiles use
+`ansible/service-state.yml` with declarative definitions under
+`ansible/profiles/`. The shared `service_state` role manages directories,
+numeric host ownership, permissions, missing seed files, and the gssproxy
+socket compatibility link. Updated signatures and rules are preserved. A
+read-only preflight rejects symlinks in recursive state/seed trees before
+any task mutates them. Service profiles use native relabeling of their exact
+mounted state roots instead of `--report-managed`.
+
 The Python CLI preserves `apply`, `check`, `list`, `version`, profile aliases,
 and the managed-path report consumed by the host units. `check` invokes
 Ansible's check mode and translates its change count into exit status 1;
@@ -31,9 +40,9 @@ podman run --rm ghcr.io/noobping/policy:latest list
 podman run --rm ghcr.io/noobping/policy:latest version
 ```
 
-The bootc Workstation, Sway, and NAS images embed a pinned copy and expose it as
-`infrastructure-policy.service`. That is the preferred way to apply policy on
-those hosts:
+The IPS base embeds the pinned runtime. Workstation, Sway, and NAS inherit it
+and expose their main profile as `infrastructure-policy.service`. That is the
+preferred way to apply the main policy on those hosts:
 
 ```sh
 sudo systemctl start infrastructure-policy.service
@@ -71,19 +80,34 @@ an alias for Workstation and consumes the Sway image's `/etc/skel`. NUT secrets
 remain in the host's `netclient.env` or `nut.env`; they are parsed as data and
 are never copied into the image or printed in change logs.
 
+Service-state profiles have separate Quadlets with read-only host account
+files and seed directories. Their writable mounts are limited to the
+corresponding `/var/lib`, `/var/log`, and (for ClamAV) `/run/clamd.scan` roots.
+Host tmpfiles rules create the mount roots and shared scan directories before
+the containers start. SELinux labeling and the antivirus boolean are applied
+by the native service after successful convergence. Run these preparation
+services while their daemons are stopped, as at boot; preflight is not a
+lock against a concurrently changing daemon-owned tree.
+
 The policy deliberately does not manage SELinux booleans, mounts, Btrfs,
 backups, Flatpak, systemd itself, or operational containers. Those operations
 remain in narrowly scoped native host units.
 
 ## Validation
 
-The image build runs `test/fixture` against a disposable host tree. It checks
+The image build runs `test/fixture` and `test/service-fixture` against
+disposable host trees. They check
 convergence, repeated applies, read-only drift checks, profile selection,
-credential redaction, and rejected inputs and symlinks. To run it from a
-checkout with ansible-core installed, use a disposable container as root
-(the fixture exercises numeric ownership):
+credential redaction, rejected inputs and symlinks, preservation of downloaded
+data, and migration of a stale Unix socket. The repository test command also
+runs both fixtures with no network, a read-only root, and the same three
+capabilities as the production Quadlets:
 
 ```sh
-POLICY_BINARY="$PWD/images/policy/bin/infrastructure-policy" \
-  bash images/policy/test/fixture
+just test-policy
 ```
+
+`pipeline test-policy` runs the same recipe. Both CI providers exercise it on
+native AMD64 and ARM64 runners. The fixtures validate file convergence and
+container restrictions; a booted-host smoke test is still needed to validate
+real daemon startup, SELinux enforcement, and the full systemd boot graph.

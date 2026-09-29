@@ -1,6 +1,5 @@
 ARG TAG=latest
 ARG IMAGE_NAMESPACE=ghcr.io/noobping
-ARG POLICY_IMAGE=ghcr.io/noobping/policy:latest
 FROM registry.fedoraproject.org/fedora:latest AS pkgs
 RUN dnf -y install dnf-plugins-core \
   && dnf repoquery --available --qf '%{name}\n' \
@@ -9,8 +8,6 @@ RUN dnf -y install dnf-plugins-core \
   | grep -vE '^(gnome-firmware)$' \
   > /tmp/firmware-packages.txt \
   && wc -l /tmp/firmware-packages.txt
-
-FROM ${POLICY_IMAGE} AS policy
 
 FROM ${IMAGE_NAMESPACE}/ips:${TAG}
 LABEL org.opencontainers.image.title="Workstation"
@@ -108,7 +105,6 @@ COPY dconf-profile-user /etc/dconf/profile/user
 COPY flathub.txt /etc/recommended/flathub
 COPY firewall.xml /etc/firewalld/zones/public.xml
 COPY keychron-webhid.rules /usr/lib/udev/rules.d/70-keychron-webhid.rules
-COPY --from=policy / /usr/lib/infrastructure-policy/rootfs/
 COPY --chmod=0644 infrastructure-policy.container /usr/share/containers/systemd/
 COPY --chmod=0644 chatgpt-release.env chatgpt-signing-key.asc /usr/lib/infrastructure/
 COPY --chmod=0755 bin/chatgpt-install /usr/libexec/infrastructure/

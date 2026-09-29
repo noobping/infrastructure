@@ -24,10 +24,9 @@ branches within a graph run in parallel.
 
 ## Host policy
 
-Workstation, Sway, and NAS images contain a pinned copy of the restricted
-Ansible `policy` container and run it through the `infrastructure-policy.service`
-Quadlet. The image bundles ansible-core, roles, and templates for offline local
-execution against the mounted host paths. It has no network, no host PID
+The IPS base embeds a pinned copy of the restricted Ansible `policy` runtime;
+Workstation, Sway, and NAS inherit it. The image bundles ansible-core, roles,
+and templates for offline local execution against the mounted host paths. It has no network, no host PID
 namespace, no privileged mode, and no host-root mount. Only the host paths
 needed by each profile are mounted.
 
@@ -39,9 +38,15 @@ sudo journalctl -u infrastructure-policy.service -b
 The Workstation profile manages local home ownership, additive skeleton files,
 and NUT client configuration. Sway uses that profile with its own `/etc/skel`.
 The NAS profile manages NUT configuration. SELinux changes, Btrfs subvolumes,
-mounts, backups, Flatpak updates, and IPS runtime preparation stay in native
-host units because those operations need host facilities that should not be
-exposed to the policy container.
+mounts, backups, and Flatpak updates stay in native host units. Separate
+restricted `clamav-prepare`, `suricata-prepare`, and `gssproxy-prepare` Quadlets
+use Ansible for service directories, bundled seed files, and compatibility
+links. Signature/rule downloads and SELinux activation remain native.
+
+Run `just test-policy` (or `pipeline test-policy`) to build the policy image
+and exercise all profiles in disposable host trees under runtime restrictions.
+GitHub and GitLab CI run these tests on AMD64 and ARM64. Image builds run the
+same fixtures before publishing the runtime.
 
 ## Publishing and build environment
 

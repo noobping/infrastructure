@@ -1,7 +1,7 @@
 [Unit]
 Description=Update Suricata rules
-Wants=network-online.target
-After=network-online.target
+Wants=network-online.target suricata-prepare.service
+After=network-online.target suricata-prepare.service
 
 [Service]
 Type=oneshot

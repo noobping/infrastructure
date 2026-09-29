@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# Check the actual embedded runtime and shipped seeds with exact bind mounts.
+set -euo pipefail
+image=${1:?usage: policy-seeds IMAGE}
+fixture=$(mktemp -d "${TMPDIR:-/tmp}/ips-policy-seeds.XXXXXXXX")
+container=
+cleanup() {
+  if [[ -n "$container" ]]; then
+    podman rm "$container" >/dev/null
+  fi
+  podman unshare rm -rf -- "$fixture"
+}
+trap cleanup EXIT
+
+container=$(podman create --entrypoint /bin/true "$image")
+mkdir -p "$fixture/runtime" "$fixture/data/etc" \
+  "$fixture/data/usr/share/clamav" "$fixture/data/usr/share/suricata/rules" \
+  "$fixture/data/var/lib/clamav" "$fixture/data/var/log/clamav" "$fixture/data/run/clamd.scan" \
+  "$fixture/data/var/lib/suricata" "$fixture/data/var/log/suricata" "$fixture/data/var/lib/gssproxy"
+podman cp --archive=false "$container:/usr/lib/infrastructure-policy/rootfs/." "$fixture/runtime/"
+podman cp --archive=false "$container:/etc/passwd" "$fixture/data/etc/passwd"
+podman cp --archive=false "$container:/etc/group" "$fixture/data/etc/group"
+podman cp --archive=false "$container:/usr/share/clamav/." "$fixture/data/usr/share/clamav/"
+podman cp --archive=false "$container:/usr/share/suricata/rules/." "$fixture/data/usr/share/suricata/rules/"
+# This catches accidentally nesting a rules directory during image assembly.
+test -s "$fixture/data/usr/share/suricata/rules/suricata.rules"
+
+for profile in clamav suricata gssproxy; do
+  mounts=(
+    -v "$fixture/data/etc/passwd:/host/etc/passwd:ro"
+    -v "$fixture/data/etc/group:/host/etc/group:ro"
+  )
+  case "$profile" in
+    clamav)
+      paths=(usr/share/clamav:ro var/lib/clamav:rw var/log/clamav:rw run/clamd.scan:rw)
+      ;;
+    suricata)
+      paths=(usr/share/suricata/rules:ro var/lib/suricata:rw var/log/suricata:rw)
+      ;;
+    gssproxy)
+      paths=(var/lib/gssproxy:rw)
+      ;;
+  esac
+  for entry in "${paths[@]}"; do
+    path=${entry%:*}
+    access=${entry##*:}
+    mounts+=(-v "$fixture/data/$path:/host/$path:$access")
+  done
+  policy() {
+    podman run --rm --network none --read-only --read-only-tmpfs \
+      --security-opt no-new-privileges --security-opt label=disable \
+      --cap-drop all --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER \
+      --pids-limit 128 "${mounts[@]}" --rootfs "$fixture/runtime" \
+      /usr/bin/infrastructure-policy "$1" "$profile" --root /host
+  }
+  policy apply
+  [[ $(policy apply) == '' ]]
+  [[ $(policy check) == '' ]]
+done
+podman unshare test -s "$fixture/data/var/lib/suricata/rules/suricata.rules"
+podman unshare test -s "$fixture/data/var/lib/clamav/main.cvd"
+[[ $(readlink "$fixture/data/var/lib/gssproxy/default.sock") == /run/gssproxy.default.sock ]]
+printf 'IPS embedded-runtime and real-seed integration passed\n'

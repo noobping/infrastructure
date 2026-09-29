@@ -66,6 +66,31 @@ check-shell:
 check-workstation:
     bash images/workstation/test/chatgpt-install
 
+# Run real Ansible in a disposable image, then repeat under runtime restrictions.
+test-policy:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    case "$(uname -m)" in
+        x86_64) architecture=amd64 ;;
+        aarch64|arm64) architecture=arm64 ;;
+        *) echo "unsupported policy-test architecture" >&2; exit 2 ;;
+    esac
+    image_id=$(mktemp)
+    trap 'rm -f -- "$image_id"' EXIT
+    podman build --platform "linux/$architecture" --iidfile "$image_id" images/policy
+    for fixture in fixture service-fixture; do
+        podman run --rm --network none --read-only --read-only-tmpfs \
+            --security-opt no-new-privileges --security-opt label=disable \
+            --cap-drop all --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER \
+            --pids-limit 128 \
+            --entrypoint "/usr/libexec/infrastructure-policy/$fixture" \
+            "$(cat "$image_id")"
+    done
+
+# Validate an already-built IPS image using its embedded runtime and real seeds.
+test-ips-policy image:
+    bash images/ips/test/policy-seeds {{ quote(image) }}
+
 offline selection="all" architecture="native": (_offline selection architecture)
 
 # Build every offline image and installer for both supported architectures.
@@ -392,7 +417,9 @@ _offline target architecture:
     }
 
     build_ips() {
-        build_image images/ips ips --build-arg FCOS_STREAM=stable
+        build_image images/ips ips --build-arg FCOS_STREAM=stable \
+            --tls-verify="$tls_verify" \
+            --build-arg "POLICY_IMAGE=${namespace}/policy:${image_arch}"
     }
 
     build_policy() {
@@ -404,7 +431,6 @@ _offline target architecture:
         build_image images/workstation workstation \
             --tls-verify="$tls_verify" \
             --build-arg "IMAGE_NAMESPACE=${namespace}" \
-            --build-arg "POLICY_IMAGE=${namespace}/policy:${image_arch}" \
             --build-arg "TAG=${image_arch}"
     }
 
@@ -412,7 +438,6 @@ _offline target architecture:
         build_image images/nas nas \
             --tls-verify="$tls_verify" \
             --build-arg "IMAGE_NAMESPACE=${namespace}" \
-            --build-arg "POLICY_IMAGE=${namespace}/policy:${image_arch}" \
             --build-arg "TAG=${image_arch}"
     }
 
@@ -662,7 +687,8 @@ _offline target architecture:
         printf '\n========== Building %s (%s) ==========\n' \
             "$image_arch" "$coreos_arch"
 
-        run_parallel build_ips build_policy
+        build_policy
+        build_ips
 
         case "$target" in
             all) run_parallel build_workstation_branch build_nas build_vm_branch ;;
