@@ -33,10 +33,20 @@ runs:
         runroot = "/mnt/runcontainers/storage"
         graphroot = "/mnt/containers/storage"
 
-        [storage.options]
-        mount_program = "/usr/bin/fuse-overlayfs"
+        # Native overlay avoids RPM SQLite corruption with older fuse-overlayfs.
+        # https://github.com/containers/fuse-overlayfs/issues/475
+        [storage.options.overlay]
+        mount_program = ""
         EOF
-        buildah info
+        storage_info="$(buildah info)"
+        printf '%s\n' "$storage_info"
+        if ! jq -e '
+          .store.GraphDriverName == "overlay" and
+          all(.store.GraphOptions[]?; test("mount_program=.") | not)
+        ' <<< "$storage_info" >/dev/null; then
+          echo "Native overlay storage is required for RPM image builds." >&2
+          exit 1
+        fi
         podman --version
 
     - name: Run Pipeline

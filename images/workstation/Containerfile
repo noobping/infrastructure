@@ -1,21 +1,18 @@
 ARG TAG=latest
 ARG IMAGE_NAMESPACE=ghcr.io/noobping
-FROM registry.fedoraproject.org/fedora:latest AS pkgs
-RUN dnf -y install dnf-plugins-core \
-  && dnf repoquery --available --qf '%{name}\n' \
-  | sort -u \
-  | grep -E '(^linux-firmware$|^[[:alnum:]_.+-]+-firmware$)' \
-  | grep -vE '^(gnome-firmware)$' \
-  > /tmp/firmware-packages.txt \
-  && wc -l /tmp/firmware-packages.txt
-
 FROM ${IMAGE_NAMESPACE}/ips:${TAG}
 LABEL org.opencontainers.image.title="Workstation"
 LABEL org.opencontainers.image.description="a bootable container"
 
-COPY --from=pkgs /tmp/firmware-packages.txt /tmp/firmware-packages.txt
 RUN set -euxo pipefail; \
+  dnf repoquery --available --qf '%{name}\n' \
+    | sort -u \
+    | grep -E '(^linux-firmware$|^[[:alnum:]_.+-]+-firmware$)' \
+    | grep -vE '^(gnome-firmware)$' \
+    > /tmp/firmware-packages.txt; \
+  test -s /tmp/firmware-packages.txt; \
   xargs -r dnf install -y < /tmp/firmware-packages.txt; \
+  rm /tmp/firmware-packages.txt; \
   if rpm -q nfs-utils-coreos >/dev/null 2>&1; then \
     dnf remove -y --no-autoremove nfs-utils-coreos; \
   fi; \
