@@ -638,6 +638,25 @@ _media architecture="both" profile="all":
         fi
     }
 
+    retry_download() {
+        local attempt status
+
+        # Retry the whole download, including failures while reading its body.
+        for attempt in 1 2 3; do
+            if "$@"; then
+                return 0
+            else
+                status=$?
+            fi
+            if (( attempt < 3 )); then
+                printf 'Download attempt %s/3 failed; retrying in %s seconds.\n' \
+                    "$attempt" "$(( attempt * 5 ))" >&2
+                sleep "$(( attempt * 5 ))"
+            fi
+        done
+        return "$status"
+    }
+
     run_yq() {
         if command -v yq >/dev/null 2>&1; then
             yq "$@"
@@ -734,7 +753,7 @@ _media architecture="both" profile="all":
         local coreos_arch="$1"
         local base_iso profile out_iso
 
-        run_podman run --rm --pull=never \
+        retry_download run_podman run --rm --pull=never \
             --userns=keep-id \
             --user "$(id -u):$(id -g)" \
             -v "$repo:/work:z" -w /work \
@@ -814,9 +833,9 @@ _media architecture="both" profile="all":
         exit 1
     fi
 
-    run_podman pull --quiet quay.io/coreos/butane:release >/dev/null
-    run_podman pull --quiet quay.io/coreos/ignition-validate:release >/dev/null
-    run_podman pull --quiet quay.io/coreos/coreos-installer:release >/dev/null
+    retry_download run_podman pull --quiet quay.io/coreos/butane:release >/dev/null
+    retry_download run_podman pull --quiet quay.io/coreos/ignition-validate:release >/dev/null
+    retry_download run_podman pull --quiet quay.io/coreos/coreos-installer:release >/dev/null
 
     run_yq ea '. as $item ireduce ({}; . *+ $item)' \
         butane/base.yml \

@@ -86,7 +86,6 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/timers.target.wants \
     /usr/lib/udev/rules.d \
     /usr/lib/infrastructure \
-    /usr/local/sbin \
     /usr/libexec/infrastructure \
     /usr/share/containers/systemd \
     /usr/share/gnome-background-properties \
@@ -106,7 +105,7 @@ COPY --chmod=0644 infrastructure-policy.container /usr/share/containers/systemd/
 COPY --chmod=0644 chatgpt-release.env chatgpt-signing-key.asc /usr/lib/infrastructure/
 COPY --chmod=0755 bin/chatgpt-install /usr/libexec/infrastructure/
 COPY --chmod=0755 bin/system-flatpaks /usr/libexec/infrastructure/
-COPY --chmod=0755 bin/switch-to-silverblue /usr/local/sbin/
+COPY --chmod=0755 bin/switch-to-silverblue /usr/bin/
 COPY suricata-direct.xml /etc/firewalld/direct.xml
 COPY libvirtd.conf /etc/libvirt/libvirtd.conf
 COPY nut-netclient.env.example /etc/ups/netclient.env.example
