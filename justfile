@@ -48,6 +48,8 @@ check-just:
         "_offline workstation both"
         "_offline nas both"
         "_offline sway both"
+        "vm workstation offline"
+        "vm-install workstation online"
     )
     for command in "${commands[@]}"; do
         read -r -a arguments <<< "$command"
@@ -85,6 +87,17 @@ test-flatpak-cache image:
 check-online:
     bash test/online-build {{ quote(just_executable()) }}
     bash test/commit-hook {{ quote(just_executable()) }}
+
+check-vm:
+    bash test/vm-command
+
+# Boot a persistent AMD64 test VM; install from the ISO when its disk is new.
+vm profile="workstation" media="offline":
+    @bash {{ quote(justfile_directory() / "test/run-vm") }} run {{ quote(profile) }} {{ quote(media) }}
+
+# Install into a new test VM; refuses to overwrite an existing VM disk.
+vm-install profile="workstation" media="offline":
+    @bash {{ quote(justfile_directory() / "test/run-vm") }} install {{ quote(profile) }} {{ quote(media) }}
 
 # Run real Ansible in a disposable image, then repeat under runtime restrictions.
 test-policy:

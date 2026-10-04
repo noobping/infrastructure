@@ -16,11 +16,21 @@ just offline [selection] [architecture]
 # architecture: native (default), both, amd64, arm64
 just offline workstation amd64
 just offline amd64
+
+# Boot a persistent AMD64 test VM from an already-built installer:
+just vm workstation
+just vm workstation online
 ```
 
 Offline builds start or reuse a local registry and embed the matching OCI image
 inside each installer. Architecture graphs run sequentially while independent
 branches within a graph run in parallel.
+
+`just vm` installs into a new virtual disk on its first run and boots that disk
+on subsequent runs. It includes a virtual TPM for the installer's encrypted
+disk, and keeps the ISO attached for the offline image rebase. Offline VMs have
+no network; online VMs use user networking. See
+[Workstation VM testing](images/workstation/README.md) for requirements and settings.
 
 ## Host policy
 

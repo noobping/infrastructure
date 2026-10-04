@@ -21,6 +21,8 @@ pipelines:
         just: check-workstation
       online:
         just: check-online
+      vm:
+        just: check-vm
 
   online-images:
     needs: [check]

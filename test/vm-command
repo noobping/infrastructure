@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+source_repo="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+work="$(mktemp -d)"
+trap 'rm -rf -- "$work"' EXIT
+trap 'echo "VM command test failed at line $LINENO: $BASH_COMMAND" >&2; cat "$work/output" >&2' ERR
+for variable in "${!VM_@}"; do unset "$variable"; done
+repo="$work/repo with spaces"
+mkdir -p "$repo/test" "$repo/dist/iso" "$repo/dist/online/iso" "$work/bin"
+cp "$source_repo/test/run-vm" "$repo/test/"
+printf 'offline ISO\n' > "$repo/dist/iso/workstation-offline-x86_64.iso"
+printf 'online ISO\n' > "$repo/dist/online/iso/workstation-x86_64.iso"
+printf 'firmware\n' > "$work/code.fd"
+printf 'variables\n' > "$work/vars.fd"
+export VM_UEFI_CODE="$work/code.fd" VM_UEFI_VARS="$work/vars.fd"
+export VM_ACCEL=tcg VM_DISPLAY=none
+export TEST_LOG="$work/commands" TEST_TPM_PID="$work/tpm-pid"
+
+cat > "$work/bin/qemu-img" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'qemu-img %s\n' "$*" >> "$TEST_LOG"
+printf 'virtual disk\n' > "$4"
+EOF
+cat > "$work/bin/qemu-system-x86_64" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$@" > "$TEST_LOG.qemu"
+[[ "${TEST_QEMU_FAIL:-false}" != true ]]
+EOF
+cat > "$work/bin/swtpm" <<'EOF'
+#!/usr/bin/env python3
+import os
+import signal
+import socket
+import sys
+from pathlib import Path
+
+Path(os.environ['TEST_TPM_PID']).write_text(str(os.getpid()))
+Path('tpm/persistent-state').touch(exist_ok=True)
+options = sys.argv[sys.argv.index('--ctrl') + 1]
+path = options.split('path=', 1)[1]
+server = socket.socket(socket.AF_UNIX)
+server.bind(path)
+server.listen()
+signal.pause()
+EOF
+chmod +x "$work/bin/"*
+export PATH="$work/bin:$PATH"
+
+run_vm() { bash "$repo/test/run-vm" "$@" > "$work/output" 2>&1; }
+expect_failure() {
+    if run_vm "$@"; then echo "Expected failure: $*" >&2; exit 1; fi
+}
+assert_tpm_stopped() { ! kill -0 "$(cat "$TEST_TPM_PID")" 2>/dev/null; }
+state="$repo/dist/vm/workstation-offline-amd64"
+
+run_vm run workstation offline
+[[ -f "$state/disk.qcow2" && -f "$state/tpm/persistent-state" ]]
+grep -qx 'ide-hd,drive=os,bus=ide.0,bootindex=1' "$TEST_LOG.qemu"
+grep -qx 'ide-cd,drive=installer,bus=ide.1,bootindex=2' "$TEST_LOG.qemu"
+grep -qx 'menu=on,strict=on' "$TEST_LOG.qemu"
+! grep -q 'order=\|once=' "$TEST_LOG.qemu"
+grep -A1 -x -- -nic "$TEST_LOG.qemu" | grep -qx none
+grep -q 'media=cdrom,format=raw,readonly=on' "$TEST_LOG.qemu"
+grep -qx 'tpm-tis,tpmdev=tpm0' "$TEST_LOG.qemu"
+[[ "$(grep -c '^qemu-img create ' "$TEST_LOG")" == 1 ]]
+assert_tpm_stopped
+
+printf 'installed system\n' > "$state/disk.qcow2"
+printf 'enrolled TPM\n' > "$state/tpm/persistent-state"
+printf 'persistent firmware variables\n' > "$state/uefi-vars.fd"
+run_vm run workstation offline
+grep -qx 'ide-hd,drive=os,bus=ide.0,bootindex=1' "$TEST_LOG.qemu"
+grep -qx 'ide-cd,drive=installer,bus=ide.1' "$TEST_LOG.qemu"
+grep -qx 'menu=on,strict=on' "$TEST_LOG.qemu"
+[[ "$(grep -c '^qemu-img create ' "$TEST_LOG")" == 1 ]]
+[[ "$(cat "$state/disk.qcow2")" == 'installed system' ]]
+[[ "$(cat "$state/tpm/persistent-state")" == 'enrolled TPM' ]]
+[[ "$(cat "$state/uefi-vars.fd")" == 'persistent firmware variables' ]]
+assert_tpm_stopped
+
+expect_failure install workstation offline
+grep -q 'already has a disk' "$work/output"
+run_vm run workstation online
+grep -A1 -x -- -nic "$TEST_LOG.qemu" | grep -qx user,model=virtio-net-pci
+[[ -f "$repo/dist/vm/workstation-online-amd64/disk.qcow2" ]]
+assert_tpm_stopped
+
+export VM_NETWORK=user
+run_vm run workstation offline
+grep -A1 -x -- -nic "$TEST_LOG.qemu" | grep -qx user,model=virtio-net-pci
+unset VM_NETWORK
+export TEST_QEMU_FAIL=true
+expect_failure run workstation offline
+assert_tpm_stopped
+unset TEST_QEMU_FAIL
+
+expect_failure run sway offline
+grep -q 'Installer not found' "$work/output"
+[[ ! -f "$repo/dist/vm/sway-offline-amd64/disk.qcow2" ]]
+rm "$repo/dist/iso/workstation-offline-x86_64.iso"
+run_vm run workstation offline
+! grep -q 'media=cdrom' "$TEST_LOG.qemu"
+rm "$state/uefi-vars.fd"
+expect_failure run workstation offline
+grep -q 'firmware or TPM state is missing' "$work/output"
+expect_failure run unknown offline
+expect_failure run workstation invalid
+export VM_NAME=../outside
+expect_failure run workstation offline
+[[ ! -e "$repo/dist/outside" ]]
+echo 'VM command tests passed'

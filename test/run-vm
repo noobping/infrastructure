@@ -1,0 +1,157 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+
+repo="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+action="${1:-run}"
+profile="${2:-workstation}"
+media="${3:-offline}"
+case "$action" in run|install) ;; *) echo "Unknown VM action: $action" >&2; exit 2 ;; esac
+case "$profile" in workstation|sway|nas) ;; *) echo "Unknown VM profile: $profile" >&2; exit 2 ;; esac
+case "$media" in
+    offline) iso="$repo/dist/iso/$profile-offline-x86_64.iso"; network=none ;;
+    online) iso="$repo/dist/online/iso/$profile-x86_64.iso"; network=user ;;
+    *) echo "Expected offline or online, got: $media" >&2; exit 2 ;;
+esac
+iso="${VM_ISO:-$iso}"
+network="${VM_NETWORK:-$network}"
+name="${VM_NAME:-$profile-$media-amd64}"
+memory="${VM_MEMORY:-8192}"
+cpus="${VM_CPUS:-4}"
+disk_size="${VM_DISK_SIZE:-64G}"
+display="${VM_DISPLAY:-gtk}"
+accel="${VM_ACCEL:-auto}"
+[[ "$name" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]] || { echo 'Invalid VM_NAME' >&2; exit 2; }
+[[ "$memory" =~ ^[1-9][0-9]*$ && "$cpus" =~ ^[1-9][0-9]*$ ]] || { echo 'VM_MEMORY (MiB) and VM_CPUS must be positive integers' >&2; exit 2; }
+[[ "$disk_size" =~ ^[1-9][0-9]*[MGT]$ ]] || { echo 'VM_DISK_SIZE must be a size such as 64G' >&2; exit 2; }
+case "$network" in none|user) ;; *) echo 'VM_NETWORK must be none or user' >&2; exit 2 ;; esac
+case "$accel" in auto|kvm|tcg) ;; *) echo 'VM_ACCEL must be auto, kvm, or tcg' >&2; exit 2 ;; esac
+
+for tool in qemu-system-x86_64 qemu-img swtpm flock; do
+    command -v "$tool" >/dev/null || { echo "Missing $tool; install QEMU, swtpm, and UEFI firmware on the host." >&2; exit 1; }
+done
+if [[ "$accel" == auto ]]; then
+    accel=tcg
+    if [[ "$(uname -m)" == x86_64 && -r /dev/kvm && -w /dev/kvm ]]; then accel=kvm; fi
+fi
+cpu=max
+if [[ "$accel" == kvm ]]; then
+    cpu=host
+else
+    echo 'Using software CPU emulation; VM installation will be slower.' >&2
+fi
+
+state="$repo/dist/vm/$name"
+disk="$state/disk.qcow2"
+mkdir -p "$state"
+exec 9>"$state/.lock"
+flock -n 9 || { echo "VM $name is already running" >&2; exit 1; }
+new_disk=false
+if [[ ! -e "$disk" ]]; then
+    new_disk=true
+elif [[ "$action" == install ]]; then
+    echo "VM $name already has a disk. Use 'just vm $profile $media' to resume it," >&2
+    echo 'or set VM_NAME to a new name for another installation.' >&2
+    exit 1
+fi
+if [[ "$new_disk" == true && ! -f "$iso" ]]; then
+    echo "Installer not found: $iso" >&2
+    echo "Build the $media $profile installer first, or set VM_ISO to an existing ISO." >&2
+    exit 1
+fi
+
+if [[ "$new_disk" == true ]]; then
+    # Keep firmware and TPM state with the disk so TPM-bound encryption survives
+    # restarts and host firmware package updates. Use matching raw OVMF pairs.
+    code="${VM_UEFI_CODE:-}"
+    vars="${VM_UEFI_VARS:-}"
+    if [[ -z "$code" && -z "$vars" ]]; then
+        for firmware in /usr/share/edk2/ovmf /usr/share/OVMF; do
+            if [[ -f "$firmware/OVMF_CODE.fd" && -f "$firmware/OVMF_VARS.fd" ]]; then
+                code="$firmware/OVMF_CODE.fd"
+                vars="$firmware/OVMF_VARS.fd"
+                break
+            fi
+            if [[ -f "$firmware/OVMF_CODE_4M.fd" && -f "$firmware/OVMF_VARS_4M.fd" ]]; then
+                code="$firmware/OVMF_CODE_4M.fd"
+                vars="$firmware/OVMF_VARS_4M.fd"
+                break
+            fi
+        done
+    fi
+    if [[ ! -f "$code" || ! -f "$vars" ]]; then
+        echo 'UEFI firmware not found; install edk2-ovmf (Fedora) or ovmf (Debian/Ubuntu),' >&2
+        echo 'or set VM_UEFI_CODE and VM_UEFI_VARS to a matching pair of raw firmware files.' >&2
+        exit 1
+    fi
+    cp "$code" "$state/uefi-code.fd"
+    cp "$vars" "$state/uefi-vars.fd"
+    mkdir -p "$state/tpm"
+    qemu-img create -f qcow2 "$disk.new" "$disk_size"
+    mv "$disk.new" "$disk"
+else
+    if [[ ! -f "$state/uefi-code.fd" || ! -f "$state/uefi-vars.fd" || ! -d "$state/tpm" ]]; then
+        echo "VM firmware or TPM state is missing in $state; restore it together with the disk." >&2
+        exit 1
+    fi
+fi
+
+# Short private paths avoid the Unix socket path-length limit in deep checkouts.
+runtime="$(mktemp -d /tmp/infrastructure-vm.XXXXXX)"
+qemu_pid=
+tpm_pid=
+cleanup() {
+    if [[ -n "$qemu_pid" ]]; then kill "$qemu_pid" 2>/dev/null || true; wait "$qemu_pid" 2>/dev/null || true; fi
+    if [[ -n "$tpm_pid" ]]; then kill "$tpm_pid" 2>/dev/null || true; wait "$tpm_pid" 2>/dev/null || true; fi
+    rm -rf -- "$runtime"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+# QEMU's option syntax treats commas as separators, including in file paths.
+escape_option() { printf '%s' "${1//,/,,}"; }
+(
+    cd "$state"
+    exec swtpm socket --tpm2 --tpmstate dir=tpm \
+        --ctrl "type=unixio,path=$runtime/tpm.sock" --log file=tpm.log
+) > "$state/tpm-output.log" 2>&1 &
+tpm_pid=$!
+for ((attempt=0; attempt<100; attempt++)); do
+    [[ ! -S "$runtime/tpm.sock" ]] || break
+    if ! kill -0 "$tpm_pid" 2>/dev/null; then cat "$state/tpm-output.log" >&2; exit 1; fi
+    sleep 0.05
+done
+[[ -S "$runtime/tpm.sock" ]] || { echo 'Virtual TPM did not start' >&2; exit 1; }
+
+args=(
+    -name "$name" -machine q35 -accel "$accel" -cpu "$cpu" -m "$memory" -smp "$cpus"
+    -drive "if=pflash,format=raw,readonly=on,file=$(escape_option "$state/uefi-code.fd")"
+    -drive "if=pflash,format=raw,file=$(escape_option "$state/uefi-vars.fd")"
+    -drive "if=none,id=os,format=qcow2,file=$(escape_option "$disk")"
+    # SATA is recognized by the existing installer's automatic disk selection.
+    -device ide-hd,drive=os,bus=ide.0,bootindex=1
+    -boot menu=on,strict=on
+    -chardev "socket,id=chrtpm,path=$runtime/tpm.sock"
+    -tpmdev emulator,id=tpm0,chardev=chrtpm -device tpm-tis,tpmdev=tpm0
+    -vga virtio -display "$display" -device qemu-xhci -device usb-tablet -device usb-kbd
+    -serial "file:$state/serial.log" -monitor none
+    -qmp "unix:$runtime/qmp.sock,server=on,wait=off"
+)
+if [[ -f "$iso" ]]; then
+    cd_device=ide-cd,drive=installer,bus=ide.1
+    # A blank disk falls through to the installer, but the same disk takes
+    # priority immediately after installation, including the first reboot.
+    if [[ "$new_disk" == true ]]; then cd_device+=,bootindex=2; fi
+    args+=(
+        -drive "if=none,id=installer,media=cdrom,format=raw,readonly=on,file=$(escape_option "$iso")"
+        -device "$cd_device"
+    )
+fi
+# On subsequent runs the CD has no boot index. Strict boot prevents firmware
+# from falling back to it, but it remains readable for the offline image rebase.
+if [[ "$network" == none ]]; then args+=(-nic none); else args+=(-nic user,model=virtio-net-pci); fi
+printf 'Starting %s: %s MiB RAM, %s CPUs, network=%s\n' "$name" "$memory" "$cpus" "$network"
+printf 'VM state: %s\nQMP socket: %s/qmp.sock\n' "$state" "$runtime"
+qemu-system-x86_64 "${args[@]}" &
+qemu_pid=$!
+wait "$qemu_pid"

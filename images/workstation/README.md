@@ -6,6 +6,35 @@ Build the bootable image as part of the repository graph:
 just offline workstation amd64
 ```
 
+Boot the installer in a persistent AMD64 test VM:
+
+```sh
+just vm workstation
+# Test the online installer instead:
+just vm workstation online
+```
+
+The first run creates a 64 GiB sparse disk and starts the installer. Later runs
+boot that disk and keep the ISO attached for the offline image rebase. The VM
+has 8 GiB RAM, four CPUs, UEFI, and a persistent virtual TPM for disk encryption.
+Offline VMs have networking disabled; online VMs use QEMU user networking.
+The graphical window opens on the host, and the guest uses the same account
+configuration as a physical workstation installation.
+
+Install host QEMU, `swtpm`, and UEFI firmware (`edk2-ovmf` on Fedora). Run Just
+on the host so it can access KVM and the display. VM disks, firmware, and TPM
+state live together under `dist/vm/`; keep all three to retain access to the
+encrypted installation. Shut down from inside the guest when finished.
+
+`VM_MEMORY` (MiB), `VM_CPUS`, and `VM_DISK_SIZE` override the defaults; disk size
+only applies to new VMs. Set `VM_NETWORK=user` to enable networking on the same
+offline VM, or `VM_DISPLAY=none` for a headless run. `VM_ISO` selects a custom
+installer. For a fresh installation without replacing the existing VM:
+
+```sh
+VM_NAME=workstation-test2 just vm-install workstation
+```
+
 Build and publish the image and its parents, then create an online installer:
 
 ```sh
