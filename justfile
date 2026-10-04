@@ -84,6 +84,7 @@ test-flatpak-cache image:
 # Exercise build selection and publication with isolated container-tool fixtures.
 check-online:
     bash test/online-build {{ quote(just_executable()) }}
+    bash test/commit-hook {{ quote(just_executable()) }}
 
 # Run real Ansible in a disposable image, then repeat under runtime restrictions.
 test-policy:
@@ -140,8 +141,8 @@ _offline target architecture:
     tls_verify="${REGISTRY_TLS_VERIFY:-false}"
     isolation="${BUILDAH_ISOLATION:-chroot}"
     tmpdir="${TMPDIR:-/tmp}"
-    source_url="$(git -C "$repo" config --get remote.origin.url || printf '%s' "$repo")"
-    revision="$(git -C "$repo" rev-parse HEAD)"
+    source_url="${SOURCE_URL:-$(git -C "$repo" config --get remote.origin.url || printf '%s' "$repo")}"
+    revision="${REVISION:-$(git -C "$repo" rev-parse HEAD)}"
 
     case "$target" in
         all|workstation|nas|sway) ;;

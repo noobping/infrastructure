@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+just="${1:?pass the Just executable path}"
+repo="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+work="$(mktemp -d)"
+trap 'rm -rf -- "$work"' EXIT
+trap 'echo "commit-hook test failed at line $LINENO: $BASH_COMMAND" >&2; cat "$work/output" >&2' ERR
+
+# This regression itself may run in a hook. Detach every inherited Git setting
+# before creating its disposable repository, including alternate index paths.
+for variable in "${!GIT_@}"; do
+    unset "$variable"
+done
+mkdir -p "$work/repo" "$work/hooks" "$work/template"
+git init -q --template="$work/template" "$work/repo"
+cd "$work/repo"
+git config user.name Test
+git config user.email test@example.invalid
+git config commit.gpgsign false
+git config core.hooksPath "$work/hooks"
+
+export BUILD_SELECTION_TEST="$repo/test/online-build"
+export TEST_JUST="$just"
+cat > "$work/hooks/pre-commit" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+# Match Pipeline's hook environment, including an explicitly selected index.
+export GIT_DIR="$PWD/.git"
+export GIT_WORK_TREE="$PWD"
+export GIT_INDEX_FILE="${GIT_INDEX_FILE:-$GIT_DIR/index}"
+export GIT_COMMON_DIR="$GIT_DIR"
+bash "$BUILD_SELECTION_TEST" "$TEST_JUST"
+EOF
+chmod +x "$work/hooks/pre-commit"
+
+printf 'staged content\n' > change.txt
+git add change.txt
+printf 'unstaged content\n' > change.txt
+# An alternate index also exercises editors and partial-commit workflows.
+cp .git/index "$work/commit-index"
+GIT_INDEX_FILE="$work/commit-index" git commit -qm 'Requested commit message' > "$work/output" 2>&1
+[[ "$(git rev-list --count HEAD)" == 1 ]]
+[[ "$(git log -1 --format=%s)" == 'Requested commit message' ]]
+[[ "$(git show HEAD:change.txt)" == 'staged content' ]]
+[[ "$(cat change.txt)" == 'unstaged content' ]]
+[[ "$(GIT_INDEX_FILE="$work/commit-index" git diff --cached --name-only)" == '' ]]
+echo 'commit-hook isolation tests passed'

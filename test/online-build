@@ -225,9 +225,8 @@ done
 
 # Offline desktop builds must embed the cache before Sway inherits the image
 # and before an installer archives it. NAS and online graphs need no cache.
-git init -q
-git -c user.name=Test -c user.email=test@example.invalid \
-    -c commit.gpgsign=false -c core.hooksPath=/dev/null commit --allow-empty -qm fixture
+# SOURCE_URL and REVISION above supply the fixture's Git metadata. Never create
+# commits here: Git hooks can export paths to the real repository and index.
 cat > "$work_dir/bin/curl" <<'EOF'
 #!/usr/bin/env bash
 [[ "$*" == *http://localhost:5000/v2/* ]]
