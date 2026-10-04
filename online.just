@@ -1,14 +1,51 @@
-# Build and publish the stable image graph for AMD64 and ARM64.
-stable:
-    @{{ quote(just_executable()) }} online::_images stable both
+# Build and publish stable images, including the selected image's parents.
+stable selection="all" architecture="both":
+    @{{ quote(just_executable()) }} online::_images stable {{ quote(architecture) }} {{ quote(selection) }} graph
 
 # Build and publish the experimental FCOS next image graph.
 next:
     @{{ quote(just_executable()) }} online::_images next both
 
-# Build online installers and every Ignition configuration.
-media:
-    @{{ quote(just_executable()) }} online::_media both
+# Build online installers for one profile or all profiles.
+media profile="all" architecture="both":
+    @{{ quote(just_executable()) }} online::_media {{ quote(architecture) }} {{ quote(profile) }}
+
+# Build and publish a profile and its parents, then create its online installer.
+build profile="all" architecture="native":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    profile={{ quote(profile) }}
+    architecture={{ quote(architecture) }}
+    case "$profile" in
+        all|workstation|sway|nas) ;;
+        *) echo "expected all, workstation, sway, or nas; got $profile" >&2; exit 2 ;;
+    esac
+    case "$architecture" in
+        native) architecture="$(uname -m)" ;;
+    esac
+    case "$architecture" in
+        x86_64|amd64) architecture=amd64 ;;
+        aarch64|arm64) architecture=arm64 ;;
+        both) ;;
+        *) echo "expected native, both, amd64, or arm64; got $architecture" >&2; exit 2 ;;
+    esac
+    image_tag="$architecture"
+    [[ "$architecture" != both ]] || image_tag=latest
+    just={{ quote(just_executable()) }}
+    "$just" online::stable "$profile" "$architecture"
+    "$just" online::_media "$architecture" "$profile" "$image_tag"
+
+# Build the Workstation image graph and online installer.
+workstation architecture=env('BUILD_ARCHITECTURE', 'native'):
+    @{{ quote(just_executable()) }} online::build workstation {{ quote(architecture) }}
+
+# Build the Sway image graph and online installer.
+sway architecture=env('BUILD_ARCHITECTURE', 'native'):
+    @{{ quote(just_executable()) }} online::build sway {{ quote(architecture) }}
+
+# Build the NAS image graph and online installer.
+nas architecture=env('BUILD_ARCHITECTURE', 'native'):
+    @{{ quote(just_executable()) }} online::build nas {{ quote(architecture) }}
 
 # Publish the online installers to the continuous GitHub release.
 release:
@@ -84,7 +121,7 @@ media-task:
     exec "$just" online::_media "$architecture" "$profile"
 
 [private]
-_images stream architecture="both" selection="all":
+_images stream architecture="both" selection="all" scope="image":
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -92,6 +129,7 @@ _images stream architecture="both" selection="all":
     stream={{ quote(stream) }}
     architecture={{ quote(architecture) }}
     selection={{ quote(selection) }}
+    scope={{ quote(scope) }}
     namespace="${IMAGE_NAMESPACE:-ghcr.io/noobping}"
     isolation="${BUILDAH_ISOLATION:-chroot}"
     tmpdir="${TMPDIR:-/tmp}"
@@ -135,6 +173,11 @@ _images stream architecture="both" selection="all":
             ;;
     esac
 
+    case "$scope" in
+        image|graph) ;;
+        *) echo "unsupported image build scope: $scope" >&2; exit 2 ;;
+    esac
+
     if [[ "$selection" == all ]]; then
         image_names=("${all_image_names[@]}")
     else
@@ -150,6 +193,16 @@ _images stream architecture="both" selection="all":
             exit 2
         fi
         image_names=("$selection")
+    fi
+
+    if [[ "$scope" == graph && "$selection" != all ]]; then
+        case "$selection" in
+            policy) image_names=(policy) ;;
+            ips) image_names=(policy ips) ;;
+            workstation|nas|vm) image_names=(policy ips "$selection") ;;
+            sway) image_names=(policy ips workstation sway) ;;
+            k3s|minecraft|jellyfin) image_names=(policy ips vm "$selection") ;;
+        esac
     fi
 
     case "$architecture" in
@@ -381,6 +434,13 @@ _images stream architecture="both" selection="all":
         stage_tag="${image_arch}-${stream}-run-${run_id}"
         printf '\n========== Building %s %s %s ==========\n' \
             "$stream" "$image_arch" "$selection"
+        if [[ "$scope" == graph && "$selection" != all ]]; then
+            local name
+            for name in "${image_names[@]}"; do
+                "build_$name"
+            done
+            return
+        fi
         case "$selection" in
             all)
                 build_policy
@@ -526,7 +586,7 @@ _images stream architecture="both" selection="all":
             ;;
     esac
     if [[ "$sign_images" == true \
-        && ( "$architecture" == both || "$architecture" == manifests ) ]]; then
+        && ( "$architecture" == both || "$architecture" == manifests || "$scope" == graph ) ]]; then
         run_cosign version >/dev/null
     fi
 
@@ -611,19 +671,30 @@ _images stream architecture="both" selection="all":
         done
         printf '\nPublished %s %s images for AMD64 and ARM64 to %s.\n' \
             "$stream" "$selection" "$namespace"
+    elif [[ "$scope" == graph ]]; then
+        for name in "${image_names[@]}"; do
+            promote_architecture "$name" "$architecture"
+            if [[ "$sign_images" == true ]]; then
+                digest="$(tr -d '\r\n' < "$state_dir/${name}-${architecture}-public.digest")"
+                run_cosign sign --yes "${namespace}/${name}@${digest}"
+            fi
+        done
+        printf '\nPublished %s %s %s image(s) to %s (multi-architecture tags unchanged).\n' \
+            "$stream" "$architecture" "$selection" "$namespace"
     else
         printf '\nBuilt and staged %s %s %s image(s) at %s.\n' \
             "$stream" "$architecture" "$selection" "$namespace"
     fi
 
 [private]
-_media architecture="both" profile="all":
+_media architecture="both" profile="all" image_tag="latest":
     #!/usr/bin/env bash
     set -euo pipefail
 
     repo={{ quote(justfile_directory()) }}
     architecture={{ quote(architecture) }}
     selected_profile={{ quote(profile) }}
+    image_tag={{ quote(image_tag) }}
     namespace="${IMAGE_NAMESPACE:-ghcr.io/noobping}"
     output="$repo/dist/online"
 
@@ -695,6 +766,7 @@ _media architecture="both" profile="all":
 
         sed \
             -e "s#__IMAGE_NAMESPACE__#${namespace}#g" \
+            -e "s#__BOOTC_IMAGE__:latest#${bootc_image}:${image_tag}#g" \
             -e "s#__BOOTC_IMAGE__#${bootc_image}#g" \
             "$input" > "$output_file"
     }
@@ -821,6 +893,16 @@ _media architecture="both" profile="all":
             echo "expected all, nas, workstation, or sway" >&2
             exit 2
             ;;
+    esac
+    case "$image_tag" in
+        latest) ;;
+        amd64|arm64)
+            if [[ "$image_tag" != "$architecture" ]]; then
+                echo "image tag $image_tag does not match media architecture $architecture" >&2
+                exit 2
+            fi
+            ;;
+        *) echo "unsupported installer image tag: $image_tag" >&2; exit 2 ;;
     esac
     mkdir -p "$output/butane" "$output/cache" "$output/ign" "$output/iso"
     command -v flock >/dev/null 2>&1 || {

@@ -1,0 +1,187 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+work_dir="$(mktemp -d)"
+trap 'rm -rf -- "$work_dir"' EXIT
+mkdir -p "$work_dir/bin" "$work_dir/repo"
+cp "$repo/justfile" "$repo/online.just" "$work_dir/repo/"
+cp -r "$repo/butane" "$work_dir/repo/"
+just="$(command -v just)"
+
+# Only external container operations are replaced. Run the real Just recipes,
+# dependency selection, digest handling, publication, and installer rendering.
+cat > "$work_dir/bin/buildah" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'buildah %s\n' "$*" >> "$TEST_LOG"
+if [[ "$1" == bud && "${*: -1}" == "${TEST_FAIL_IMAGE:-}" ]]; then
+    exit 42
+fi
+while (($#)); do
+    if [[ "$1" == --digestfile ]]; then
+        printf 'sha256:%064d\n' 0 > "$2"
+        break
+    fi
+    shift
+done
+EOF
+
+cat > "$work_dir/bin/podman" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'podman %s\n' "$*" >> "$TEST_LOG"
+[[ "$1" != pull ]] || exit 0
+arguments=("$@")
+if [[ "${*: -2}" == 'uname -m' ]]; then
+    for ((i=0; i<$#; i++)); do
+        if [[ "${arguments[i]}" == --arch ]]; then
+            case "${arguments[i+1]}" in
+                amd64) echo x86_64 ;;
+                arm64) echo aarch64 ;;
+            esac
+            exit 0
+        fi
+    done
+fi
+case "$*" in
+    *quay.io/coreos/butane:release*) cat "${*: -1}" ;;
+    *quay.io/coreos/ignition-validate:release*) cat >/dev/null ;;
+    *' download '*)
+        for ((i=0; i<$#; i++)); do
+            if [[ "${arguments[i]}" == -a ]]; then
+                printf 'base ISO\n' > "dist/online/cache/fedora-coreos-test-live-iso.${arguments[i+1]}.iso"
+            fi
+        done
+        ;;
+    *' iso customize '*)
+        for ((i=0; i<$#; i++)); do
+            case "${arguments[i]}" in
+                -o) output="${arguments[i+1]}" ;;
+                --dest-ignition) ignition="${arguments[i+1]}" ;;
+            esac
+        done
+        cp "$ignition" "$output"
+        ;;
+    *) echo "unexpected podman command: $*" >&2; exit 1 ;;
+esac
+EOF
+
+cat > "$work_dir/bin/yq" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+shift 2
+cat "$@"
+EOF
+
+cat > "$work_dir/bin/cosign" <<'EOF'
+#!/usr/bin/env bash
+printf 'cosign %s\n' "$*" >> "$TEST_LOG"
+EOF
+
+chmod +x "$work_dir/bin/"*
+export PATH="$work_dir/bin:$PATH"
+export IMAGE_NAMESPACE=localhost:5000/online-test
+export SOURCE_URL=https://example.invalid/infrastructure REVISION=test
+export PIPELINE_RUN_ID=test SIGN_IMAGES=true
+export TEST_LOG="$work_dir/commands.log"
+unset REGISTRY_TOKEN GITHUB_TOKEN REGISTRY_USER TEST_FAIL_IMAGE
+cd "$work_dir/repo"
+
+run_case() {
+    rm -rf dist
+    : > "$TEST_LOG"
+    if ! "$just" "$@" > "$work_dir/output.log" 2>&1; then
+        cat "$work_dir/output.log" >&2
+        exit 1
+    fi
+}
+
+expect_builds() {
+    local expected="$1" actual
+    actual="$(awk '/^buildah bud / { print $NF }' "$TEST_LOG" | paste -sd ' ' -)"
+    if [[ "$actual" != "$expected" ]]; then
+        printf 'expected builds: %s\nactual builds: %s\n' "$expected" "$actual" >&2
+        exit 1
+    fi
+}
+
+run_case online::workstation amd64
+expect_builds 'images/policy images/ips images/workstation'
+[[ "$(grep -c '^buildah tag ' "$TEST_LOG")" == 3 ]]
+[[ "$(grep -c '^cosign sign ' "$TEST_LOG")" == 3 ]]
+! grep -q 'manifest push' "$TEST_LOG"
+grep -q 'localhost:5000/online-test/workstation:amd64$' "$TEST_LOG"
+grep -q 'rebase-to-image workstation:amd64$' dist/online/ign/workstation.ign
+[[ -f dist/online/iso/workstation-x86_64.iso ]]
+[[ "$(find dist/online/iso -name '*.iso' | wc -l)" == 1 ]]
+(cd dist/online/iso && sha256sum --check workstation-x86_64.iso.sha256 >/dev/null)
+
+run_case online::sway arm64
+expect_builds 'images/policy images/ips images/workstation images/sway'
+grep -q 'rebase-to-image sway:arm64$' dist/online/ign/sway.ign
+[[ -f dist/online/iso/sway-aarch64.iso ]]
+[[ "$(find dist/online/iso -name '*.iso' | wc -l)" == 1 ]]
+
+run_case online::nas both
+[[ "$(grep -c '^buildah bud ' "$TEST_LOG")" == 6 ]]
+[[ "$(grep -c '^buildah manifest push ' "$TEST_LOG")" == 3 ]]
+! grep -q 'images/workstation\|vms/' "$TEST_LOG"
+grep -q 'localhost:5000/online-test/nas:latest$' "$TEST_LOG"
+[[ -f dist/online/iso/nas-x86_64.iso && -f dist/online/iso/nas-aarch64.iso ]]
+
+# Defaults preserve the complete two-architecture publication graph.
+run_case online::stable
+[[ "$(grep -c '^buildah bud ' "$TEST_LOG")" == 18 ]]
+[[ "$(grep -c '^buildah manifest push ' "$TEST_LOG")" == 9 ]]
+run_case online::next
+[[ "$(grep -c '^buildah bud ' "$TEST_LOG")" == 8 ]]
+[[ "$(grep -c '^buildah manifest push ' "$TEST_LOG")" == 4 ]]
+
+# CI image tasks still build only one staged image, without promoting tags.
+export BUILD_STREAM=stable BUILD_ARCHITECTURE=amd64 BUILD_IMAGE_NAME=workstation
+run_case online::image-task
+expect_builds images/workstation
+! grep -q '^buildah tag\|^buildah manifest push\|^cosign sign' "$TEST_LOG"
+unset BUILD_STREAM BUILD_ARCHITECTURE BUILD_IMAGE_NAME
+
+export BUILD_ARCHITECTURE=arm64
+run_case online::workstation
+grep -q 'rebase-to-image workstation:arm64$' dist/online/ign/workstation.ign
+unset BUILD_ARCHITECTURE
+
+run_case online::workstation
+case "$(uname -m)" in
+    x86_64) native_tag=amd64 ;;
+    aarch64|arm64) native_tag=arm64 ;;
+esac
+grep -q "rebase-to-image workstation:$native_tag$" dist/online/ign/workstation.ign
+
+run_case online::media workstation amd64
+expect_builds ''
+grep -q 'rebase-to-image workstation:latest$' dist/online/ign/workstation.ign
+[[ "$(find dist/online/iso -name '*.iso' | wc -l)" == 1 ]]
+
+# Failed image builds must not promote tags or produce an installer.
+export TEST_FAIL_IMAGE=images/workstation
+rm -rf dist
+: > "$TEST_LOG"
+if "$just" online::workstation amd64 > "$work_dir/output.log" 2>&1; then
+    echo 'expected workstation build failure' >&2
+    exit 1
+fi
+! grep -q '^buildah tag\|^podman .*coreos-installer' "$TEST_LOG"
+[[ ! -d dist/online/iso ]]
+unset TEST_FAIL_IMAGE
+
+for arguments in 'unknown amd64' 'workstation unknown'; do
+    read -r -a values <<< "$arguments"
+    : > "$TEST_LOG"
+    if "$just" online::build "${values[@]}" > "$work_dir/output.log" 2>&1; then
+        echo "expected invalid selection to fail: $arguments" >&2
+        exit 1
+    fi
+    [[ ! -s "$TEST_LOG" ]]
+done
+
+echo 'online build selection tests passed'

@@ -19,6 +19,8 @@ pipelines:
         just: check-shell
       workstation:
         just: check-workstation
+      online:
+        just: check-online
 
   online-images:
     needs: [check]
@@ -34,6 +36,24 @@ pipelines:
 
   online:
     needs: [online-images, online-media]
+
+  online-workstation:
+    needs: [check]
+    jobs:
+      build:
+        just: online::workstation
+
+  online-sway:
+    needs: [check]
+    jobs:
+      build:
+        just: online::sway
+
+  online-nas:
+    needs: [check]
+    jobs:
+      build:
+        just: online::nas
 
   next:
     needs: [check]

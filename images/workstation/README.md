@@ -6,6 +6,17 @@ Build the bootable image as part of the repository graph:
 just offline workstation amd64
 ```
 
+Build and publish the image and its parents, then create an online installer:
+
+```sh
+PUBLISH=true just online::workstation amd64
+PUBLISH=true pipeline online-workstation
+```
+
+The Pipeline command defaults to the native architecture. Set
+`BUILD_ARCHITECTURE=amd64`, `arm64`, or `both` to override it. Online installers
+are written to `dist/online/iso/` and download the image during installation.
+
 At boot, `infrastructure-policy.service` applies local home ownership, missing
 `/etc/skel` files, and `/etc/ups/netclient.env` as a NUT client configuration.
 The embedded policy rootfs is updated and rolled back with this image.

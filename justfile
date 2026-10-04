@@ -20,12 +20,20 @@ check-just:
         "online::_images stable arm64 policy"
         "online::_images stable preflight all"
         "online::_images stable manifests jellyfin"
+        "online::_images stable amd64 workstation graph"
+        "online::_images stable both sway graph"
+        "online::_images stable arm64 nas graph"
         "online::_images next both all"
         "online::_images next arm64 workstation"
         "online::_images next amd64 policy"
         "online::_images next manifests sway"
         "online::_media both all"
         "online::_media amd64 nas"
+        "online::_media amd64 workstation amd64"
+        "online::build workstation native"
+        "online::build sway both"
+        "online::workstation amd64"
+        "online::nas arm64"
         "online::_release"
         "online::_gitlab_media_publish"
         "online::_gitlab_release"
@@ -65,6 +73,10 @@ check-shell:
 
 check-workstation:
     bash images/workstation/test/chatgpt-install
+
+# Exercise online build selection and publication with isolated container-tool fixtures.
+check-online:
+    bash test/online-build
 
 # Run real Ansible in a disposable image, then repeat under runtime restrictions.
 test-policy:
