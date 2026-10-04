@@ -1,0 +1,12 @@
+[Unit]
+Description=Read-only existing NAS photos
+Wants=network-online.target
+After=network-online.target cachefilesd.service nfs-selinux.service
+Requires=cachefilesd.service nfs-selinux.service
+
+[Volume]
+VolumeName=immich-originals
+Type=nfs
+Device=:/var/srv/photos
+Options=addr=nas.vm,nfsvers=4.2,hard,fsc,ro,nosuid,nodev,noexec
+Copy=false

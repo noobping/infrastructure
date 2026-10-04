@@ -1,0 +1,9 @@
+[Unit]
+Description=Prepare persistent Immich database credentials
+Before=immich-server.service immich-database.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/libexec/infrastructure/immich-prepare
+UMask=0077

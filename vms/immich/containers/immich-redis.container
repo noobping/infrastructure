@@ -1,0 +1,22 @@
+[Unit]
+Description=Immich Valkey queue
+StartLimitIntervalSec=0
+
+[Container]
+Image=docker.io/valkey/valkey:9@sha256:70739f85ad2ee01a726a965584a0f94895f01b0c60b3cc8b0aeef11eaa6888cf
+ContainerName=immich-redis
+Network=immich.network
+NetworkAlias=redis
+HealthCmd=valkey-cli ping
+HealthInterval=15s
+HealthRetries=5
+HealthOnFailure=kill
+Notify=healthy
+
+[Service]
+Restart=always
+RestartSec=15
+TimeoutStartSec=900
+
+[Install]
+WantedBy=multi-user.target

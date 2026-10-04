@@ -1,0 +1,28 @@
+[Unit]
+Description=Immich local photo recognition
+StartLimitIntervalSec=0
+
+[Container]
+Image=ghcr.io/immich-app/immich-machine-learning:v3.2.4@sha256:e16c2f166a8174901959fdf85e2e4c7bd1ebc4b37e0b6655de97c41408a260c4
+ContainerName=immich-machine-learning
+User=1005
+Group=1005
+NoNewPrivileges=true
+Network=immich.network
+NetworkAlias=immich-machine-learning
+Volume=immich-model-cache.volume:/cache:U
+Environment=TZ=Europe/Amsterdam
+HealthCmd=python3 healthcheck.py
+HealthInterval=30s
+HealthStartPeriod=120s
+HealthRetries=5
+HealthOnFailure=kill
+Notify=healthy
+
+[Service]
+Restart=always
+RestartSec=15
+TimeoutStartSec=900
+
+[Install]
+WantedBy=multi-user.target

@@ -3,10 +3,11 @@
 The provisioner keeps the NAS's existing libvirt services, bridge, storage
 pool, NFS server, and host services. It does not mask or replace them.
 
-Each guest has one qcow2 root disk. Application persistence is on NFS:
+Each guest has one qcow2 root disk. Storage placement:
 
 - every Kubernetes claim is a static NFS volume;
 - Minecraft and Jellyfin use Quadlet NFS volumes, not host-path binds;
+- Immich uses NFS for media and local guest volumes for PostgreSQL and ML models;
 - K3s runtime, containerd state, and SQLite stay on the VM root disk;
 - every guest uses `cachefilesd` and the NFS `fsc` option.
 
@@ -16,7 +17,7 @@ Ignition paths.
 ## Prerequisites
 
 - Reserve the inventory MAC addresses and make `nas.vm`, `k3s.vm`,
-  `minecraft.vm`, and `jellyfin.vm` resolvable before starting NFS workloads.
+  `minecraft.vm`, `jellyfin.vm`, and `immich.vm` resolvable before starting NFS workloads.
 - The existing `infrastructure-vms` pool must be active at
   `/var/srv/ssd/vms`.
 - The existing `br0` bridge must be ready.
@@ -30,11 +31,11 @@ vm-bridge status
 ## Provision
 
 Run the installed deployer from the repository root. It regenerates and
-validates all three guest Ignition files before create-only provisioning.
+validates the inventory's guest Ignition files before create-only provisioning.
 
 ```sh
 sudo vm-deploy --all
-for vm in k3s minecraft jellyfin; do
+for vm in k3s minecraft jellyfin immich; do
   sudo virsh domblklist "$vm" --details
 done
 sudo virsh autostart --disable jellyfin
@@ -103,5 +104,7 @@ For an application-consistent snapshot:
 3. Run `sudo /usr/libexec/infrastructure/backup-finish` on every prepared guest,
    even when the NAS backup fails.
 
-The [K3s](k3s/README.md), [Minecraft](minecraft/README.md), and
-[Jellyfin](jellyfin/README.md) notes describe role-specific behavior.
+The [K3s](k3s/README.md), [Minecraft](minecraft/README.md),
+[Jellyfin](jellyfin/README.md), and [Immich](immich/README.md) notes describe
+role-specific behavior. Include Immich's database dump/stop hooks when taking
+an application-consistent NAS snapshot; its live database is on the guest disk.

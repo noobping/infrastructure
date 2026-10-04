@@ -1,0 +1,25 @@
+#!/usr/bin/bash
+set -euo pipefail
+umask 077
+
+state_root=/var/lib/immich
+install -d -o root -g root -m 0700 "$state_root"
+exec 9>"$state_root/prepare.lock"
+flock 9
+
+# Never rotate the password independently of the persistent database.
+if [[ -e "$state_root/database.env" ]]; then
+  test -s "$state_root/database.env"
+  chmod 0600 "$state_root/database.env"
+  exit 0
+fi
+
+temporary=$(mktemp "$state_root/.database.env.XXXXXX")
+trap 'rm -f -- "$temporary"' EXIT
+password=$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')
+[[ ${#password} == 64 ]]
+{
+  printf 'DB_USERNAME=postgres\nDB_DATABASE_NAME=immich\nDB_PASSWORD=%s\n' "$password"
+  printf 'POSTGRES_USER=postgres\nPOSTGRES_DB=immich\nPOSTGRES_PASSWORD=%s\n' "$password"
+} > "$temporary"
+mv "$temporary" "$state_root/database.env"

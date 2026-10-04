@@ -1,0 +1,18 @@
+ARG IMAGE_NAMESPACE=ghcr.io/noobping
+ARG TAG=latest
+FROM ${IMAGE_NAMESPACE}/vm:${TAG}
+
+LABEL org.opencontainers.image.title="Immich VM"
+LABEL org.opencontainers.image.description="Photo library with local search and facial recognition"
+
+COPY containers /etc/containers/systemd
+COPY immich.nft /etc/nftables/rules/20-immich.nft
+COPY immich-prepare.service /etc/systemd/system/immich-prepare.service
+COPY --chmod=0755 bin/ /usr/libexec/infrastructure/
+
+RUN set -euxo pipefail; \
+  grep -qF 'include "/etc/nftables/rules/*.nft"' /etc/nftables/main.nft \
+  || sed -i '/tcp dport @allowed_tcp_dports accept/i\        include "/etc/nftables/rules/*.nft"' /etc/nftables/main.nft
+
+RUN if test -d /sysroot/ostree/repo; then ostree container commit; fi
+RUN if ! test -d /sysroot/ostree/repo; then bootc container lint; fi

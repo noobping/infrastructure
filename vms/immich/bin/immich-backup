@@ -1,0 +1,76 @@
+#!/usr/bin/bash
+set -euo pipefail
+umask 077
+
+state_root=/var/lib/infrastructure/backup/immich
+active_marker="$state_root/server-was-active"
+install -d -o root -g root -m 0700 "$state_root"
+exec 9>"$state_root/lock"
+flock -n 9 || { echo 'Another Immich backup operation is running' >&2; exit 1; }
+
+finish() {
+  [[ -e $active_marker ]] || return 0
+  # Lift the systemd start guard only while attempting recovery.
+  rm "$active_marker"
+  if ! systemctl start immich-server.service; then
+    : > "$active_marker"
+    echo 'Failed to resume Immich; run backup-finish again after recovery' >&2
+    return 1
+  fi
+}
+
+case "${1:-}" in
+  finish) finish; exit ;;
+  prepare) ;;
+  *) echo 'Usage: immich-backup prepare|finish' >&2; exit 2 ;;
+esac
+
+finish
+staging=
+cleanup() {
+  status=$?
+  trap - EXIT INT TERM
+  [[ -z $staging ]] || rm -f -- "$staging"
+  if (( status != 0 )); then
+    finish || status=1
+  fi
+  exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+if systemctl is-active --quiet immich-server.service; then
+  : > "$active_marker"
+  systemctl stop immich-server.service
+fi
+# Stop also clears pending restart jobs on an unhealthy server.
+systemctl stop immich-server.service
+systemctl is-active --quiet immich-database.service
+
+staging=$(mktemp "$state_root/.dump.XXXXXX")
+podman exec immich-database pg_dump --username=postgres --dbname=immich \
+  --format=custom --no-owner --no-acl > "$staging"
+test -s "$staging"
+podman exec --interactive immich-database pg_restore --list < "$staging" > /dev/null
+
+# Use the already-cached server image as UID 1005 to write the root-squashed
+# volume. No host path traversal or privilege bypass on the NAS is necessary.
+[[ $(podman volume inspect immich-data --format '{{.Options.type}}') == nfs ]]
+image=$(sed -n 's/^Image=//p' /etc/containers/systemd/immich-server.container)
+[[ -n $image ]]
+podman run --rm --interactive --pull=never --network=none \
+  --security-opt label=disable --security-opt no-new-privileges --cap-drop=all \
+  --user 1005:1005 --volume immich-data:/data --entrypoint /bin/sh \
+  "$image" -eu -c '
+    umask 077
+    mkdir -p /data/backups/infrastructure
+    temporary=$(mktemp /data/backups/infrastructure/.dump.XXXXXX)
+    trap '\''rm -f -- "$temporary"'\'' EXIT
+    cat > "$temporary"
+    test -s "$temporary"
+    sync -f "$temporary"
+    mv "$temporary" /data/backups/infrastructure/immich.dump
+    sync -f /data/backups/infrastructure
+  ' < "$staging"
+# On success, leave the server stopped until the NAS snapshot has completed.

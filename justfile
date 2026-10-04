@@ -90,6 +90,8 @@ check-online:
 
 check-vm:
     bash test/vm-command
+    python3 test/vm-deploy.py
+    python3 vms/immich/test/hooks.py
 
 # Boot a persistent AMD64 test VM; install from the ISO when its disk is new.
 vm profile="workstation" media="offline":
@@ -524,6 +526,13 @@ _offline target architecture:
             --build-arg "TAG=${image_arch}"
     }
 
+    build_immich() {
+        build_image vms/immich immich \
+            --tls-verify="$tls_verify" \
+            --build-arg "IMAGE_NAMESPACE=${namespace}" \
+            --build-arg "TAG=${image_arch}"
+    }
+
     build_workstation_branch() {
         build_workstation
         build_sway
@@ -531,7 +540,7 @@ _offline target architecture:
 
     build_vm_branch() {
         build_vm
-        run_parallel build_k3s build_minecraft build_jellyfin
+        run_parallel build_k3s build_minecraft build_jellyfin build_immich
     }
 
     run_parallel() {
@@ -666,7 +675,7 @@ _offline target architecture:
     case "$target" in
         all)
             profiles=(nas workstation sway)
-            image_names=(ips policy workstation sway nas vm k3s minecraft jellyfin)
+            image_names=(ips policy workstation sway nas vm k3s minecraft jellyfin immich)
             ;;
         workstation)
             profiles=(workstation)
@@ -717,9 +726,10 @@ _offline target architecture:
         render_profile nas nas
         render_profile workstation workstation
         render_profile sway workstation
-        for guest in k3s minecraft jellyfin; do
+        guest_names="$(run_yq -r '.vms[].name' vms/inventory.json)"
+        while IFS= read -r guest; do
             render_guest "$guest"
-        done
+        done <<< "$guest_names"
     else
         for profile in "${profiles[@]}"; do
             if [[ "$profile" == sway ]]; then

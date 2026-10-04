@@ -137,8 +137,12 @@ kubectl get nodes,pods,pvc,pv -A
 flux get all --all-namespaces
 curl --cacert root.crt https://nextcloud.vm/status.php
 curl --cacert root.crt https://office.vm/healthcheck
+curl --cacert root.crt https://photos.vm/api/server/ping
 curl --cacert root.crt https://registry.vm/v2/
 ```
 
 All PVCs must be `Bound`. Verify service DNS, Paperless ingestion, Office
 editing, Uptime Kuma history, `music.vm`, and registry push/pull.
+`photos.vm` points to this cluster's Caddy and proxies to `immich.vm:2283`.
+Follow the [Immich VM runbook](../vms/immich/README.md) for NFS, phone certificate
+trust, sample imports, and database backups before indexing the whole library.

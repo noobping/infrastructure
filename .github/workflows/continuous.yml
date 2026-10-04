@@ -215,7 +215,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [k3s, minecraft, jellyfin]
+        image: [k3s, minecraft, jellyfin, immich]
         platform:
           - architecture: amd64
             runner: ubuntu-latest
@@ -269,7 +269,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [ips, policy, workstation, sway, nas, vm, k3s, minecraft, jellyfin]
+        image: [ips, policy, workstation, sway, nas, vm, k3s, minecraft, jellyfin, immich]
     permissions:
       contents: read
       id-token: write

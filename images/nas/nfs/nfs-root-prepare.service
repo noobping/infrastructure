@@ -1,6 +1,6 @@
 [Unit]
 Description=Prepare the NFSv4 export root
-RequiresMountsFor=/var/lib/containers /var/srv/ssd /var/srv/docs /var/srv/music/touhou /var/srv/books
+RequiresMountsFor=/var/lib/containers /var/srv/ssd /var/srv/docs /var/srv/music/touhou /var/srv/books /var/srv/photos
 
 [Service]
 Type=oneshot

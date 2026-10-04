@@ -1,0 +1,40 @@
+[Unit]
+Description=Immich photo library
+Requires=immich-prepare.service
+Wants=immich-database.service immich-redis.service immich-machine-learning.service
+After=immich-prepare.service immich-database.service immich-redis.service immich-machine-learning.service
+# An interrupted snapshot must be finished explicitly before resuming writes.
+ConditionPathExists=!/var/lib/infrastructure/backup/immich/server-was-active
+StartLimitIntervalSec=0
+
+[Container]
+Image=ghcr.io/immich-app/immich-server:v3.2.4@sha256:d317916b28090c33eb36b308464ea391f8b7df1d850fcfea227a39ec879718c2
+ContainerName=immich-server
+User=1005
+Group=1005
+NoNewPrivileges=true
+SecurityLabelDisable=true
+Network=immich.network
+PublishPort=2283:2283
+EnvironmentFile=/var/lib/immich/database.env
+Environment=DB_HOSTNAME=database REDIS_HOSTNAME=redis TZ=Europe/Amsterdam
+Environment=IMMICH_MACHINE_LEARNING_URL=http://immich-machine-learning:3003
+Volume=immich-data.volume:/data
+Volume=immich-originals.volume:/mnt/photos:ro
+Volume=/etc/localtime:/etc/localtime:ro
+HealthCmd=immich-healthcheck
+HealthInterval=30s
+HealthStartPeriod=120s
+HealthRetries=5
+HealthOnFailure=kill
+Notify=healthy
+StopTimeout=120
+
+[Service]
+Restart=always
+RestartSec=15
+TimeoutStartSec=900
+TimeoutStopSec=180
+
+[Install]
+WantedBy=multi-user.target

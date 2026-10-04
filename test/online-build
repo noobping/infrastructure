@@ -23,7 +23,7 @@ report_failure() {
 trap 'report_failure "$LINENO" "$BASH_COMMAND"' ERR
 mkdir -p "$work_dir/bin" "$work_dir/repo"
 cp "$repo/justfile" "$repo/online.just" "$work_dir/repo/"
-cp -r "$repo/butane" "$work_dir/repo/"
+cp -r "$repo/butane" "$repo/vms" "$work_dir/repo/"
 
 # Only external container operations are replaced. Run the real Just recipes,
 # dependency selection, digest handling, publication, and installer rendering.
@@ -107,6 +107,9 @@ EOF
 cat > "$work_dir/bin/yq" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+if [[ "$1" == -r ]]; then
+    exec jq "$@"
+fi
 shift 2
 cat "$@"
 EOF
@@ -169,10 +172,23 @@ run_case online::nas both
 grep -q 'localhost:5000/online-test/nas:latest$' "$TEST_LOG"
 [[ -f dist/online/iso/nas-x86_64.iso && -f dist/online/iso/nas-aarch64.iso ]]
 
+run_case online::_images stable amd64 immich graph
+expect_builds 'images/policy images/ips vms/vm vms/immich'
+run_case online::_media amd64 nas
+[[ -f dist/online/ign/immich.ign ]]
+grep -q immich.vm dist/online/ign/immich.ign
+# Guest rendering follows inventory, including future roles.
+jq '.vms += [(.vms[-1] | .name = "fixture" | .ignition = "dist/ign/fixture.ign")]' \
+    vms/inventory.json > vms/fixture.json
+mv vms/fixture.json vms/inventory.json
+cp butane/immich.yml butane/fixture.yml
+run_case online::_media amd64 nas
+[[ -f dist/online/ign/fixture.ign ]]
+
 # Defaults preserve the complete two-architecture publication graph.
 run_case online::stable
-[[ "$(grep -c '^buildah bud ' "$TEST_LOG")" == 18 ]]
-[[ "$(grep -c '^buildah manifest push ' "$TEST_LOG")" == 9 ]]
+[[ "$(grep -c '^buildah bud ' "$TEST_LOG")" == 20 ]]
+[[ "$(grep -c '^buildah manifest push ' "$TEST_LOG")" == 10 ]]
 run_case online::next
 [[ "$(grep -c '^buildah bud ' "$TEST_LOG")" == 8 ]]
 [[ "$(grep -c '^buildah manifest push ' "$TEST_LOG")" == 4 ]]
@@ -264,6 +280,10 @@ grep -q 'podman save .*sway:amd64$' "$TEST_LOG"
 run_case offline nas amd64
 expect_builds 'images/policy images/ips images/nas'
 ! grep -q 'build-flatpak-cache\|Containerfile.offline' "$TEST_LOG"
+run_case offline all amd64
+grep -q '^buildah bud .* vms/immich$' "$TEST_LOG"
+[[ -f dist/ign/immich.ign && -f dist/ign/fixture.ign ]]
+grep -q 'immich.vm' dist/ign/immich.ign
 
 export TEST_CACHE_FAIL=true
 rm -rf dist

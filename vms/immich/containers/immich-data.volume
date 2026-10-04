@@ -1,0 +1,12 @@
+[Unit]
+Description=Immich uploads and generated media on the NAS
+Wants=network-online.target
+After=network-online.target cachefilesd.service nfs-selinux.service
+Requires=cachefilesd.service nfs-selinux.service
+
+[Volume]
+VolumeName=immich-data
+Type=nfs
+Device=:/var/lib/containers/immich/data
+Options=addr=nas.vm,nfsvers=4.2,hard,fsc,nosuid,nodev,noexec
+Copy=false

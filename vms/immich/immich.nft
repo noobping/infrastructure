@@ -1,0 +1,6 @@
+# Only the web service is published. PostgreSQL, Valkey and ML stay on the
+# dedicated Podman bridge; do not add host ports for those services.
+tcp dport 2283 accept
+# Aardvark serves container-name resolution on the bridge's host address.
+iifname "podman-immich" udp dport 53 accept
+iifname "podman-immich" tcp dport 53 accept

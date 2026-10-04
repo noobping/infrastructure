@@ -254,7 +254,7 @@ stable-guests:
   stage: leaf
   parallel:
     matrix:
-      - BUILD_IMAGE_NAME: [k3s, minecraft, jellyfin]
+      - BUILD_IMAGE_NAME: [k3s, minecraft, jellyfin, immich]
         ARCH: [amd64, arm64]
   tags:
     - "saas-linux-small-${ARCH}"
@@ -310,7 +310,7 @@ stable-manifests:
     - saas-linux-small-amd64
   parallel:
     matrix:
-      - BUILD_IMAGE_NAME: [ips, policy, workstation, sway, nas, vm, k3s, minecraft, jellyfin]
+      - BUILD_IMAGE_NAME: [ips, policy, workstation, sway, nas, vm, k3s, minecraft, jellyfin, immich]
   variables:
     BUILD_STREAM: stable
     COSIGN_YES: "true"

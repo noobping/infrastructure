@@ -1,0 +1,10 @@
+[Unit]
+# Load the base firewall before Netavark installs port forwarding rules.
+Requires=nftables.service
+After=nftables.service
+
+[Network]
+NetworkName=immich
+# Dedicated bridge with outbound access for downloading recognition models.
+Driver=bridge
+InterfaceName=podman-immich

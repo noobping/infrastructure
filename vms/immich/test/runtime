@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+# Disposable integration test. Pull the role's pinned images first.
+set -euo pipefail
+umask 077
+role=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+prefix="immich-test-$$"
+work=$(mktemp -d)
+containers=()
+volumes=()
+network_created=false
+cleanup() {
+  status=$?
+  trap - EXIT INT TERM
+  if (( status != 0 )); then
+    for container in "${containers[@]}"; do
+      podman logs --tail=35 "$container" >&2 || true
+    done
+  fi
+  for container in "${containers[@]}"; do podman rm -f "$container" >/dev/null 2>&1 || true; done
+  for volume in "${volumes[@]}"; do podman volume rm "$volume" >/dev/null 2>&1 || true; done
+  if $network_created; then podman network rm "$prefix" >/dev/null 2>&1 || true; fi
+  rm -rf -- "$work"
+  exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+image() { sed -n 's/^Image=//p' "$role/containers/immich-$1.container"; }
+run() {
+  local service=$1
+  shift
+  containers+=("$prefix-$service")
+  podman run -d --pull=never --name "$prefix-$service" --network "$prefix" \
+    "$@" "$(image "$service")" > /dev/null
+}
+wait_health() {
+  local service=$1
+  shift
+  for ((attempt=0; attempt<90; attempt++)); do
+    if podman exec "$prefix-$service" "$@" >/dev/null 2>&1; then return; fi
+    [[ $(podman inspect "$prefix-$service" --format '{{.State.Running}}') == true ]] || return 1
+    sleep 2
+  done
+  echo "Timed out waiting for $service" >&2
+  return 1
+}
+
+podman network create "$prefix" >/dev/null
+network_created=true
+for name in data originals postgres model-cache; do
+  podman volume create "$prefix-$name" >/dev/null
+  volumes+=("$prefix-$name")
+done
+password=$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')
+printf 'POSTGRES_PASSWORD=%s\nPOSTGRES_USER=postgres\nPOSTGRES_DB=immich\n' "$password" > "$work/db.env"
+printf 'DB_PASSWORD=%s\nDB_USERNAME=postgres\nDB_DATABASE_NAME=immich\n' "$password" > "$work/server.env"
+
+run database --network-alias database --env-file "$work/db.env" \
+  -e POSTGRES_INITDB_ARGS=--data-checksums --shm-size=128m \
+  -v "$prefix-postgres:/var/lib/postgresql/data"
+wait_health database pg_isready -U postgres -d immich
+run redis --network-alias redis
+wait_health redis valkey-cli ping
+run machine-learning --network-alias immich-machine-learning --user 1005:1005 \
+  --security-opt no-new-privileges -v "$prefix-model-cache:/cache:U"
+wait_health machine-learning python3 healthcheck.py
+run server --user 1005:1005 --security-opt no-new-privileges --security-opt label=disable \
+  --env-file "$work/server.env" -e DB_HOSTNAME=database -e REDIS_HOSTNAME=redis \
+  -e IMMICH_MACHINE_LEARNING_URL=http://immich-machine-learning:3003 \
+  -v "$prefix-data:/data:U" -v "$prefix-originals:/mnt/photos:ro" \
+  -p 127.0.0.1::2283
+wait_health server immich-healthcheck
+url="http://$(podman port "$prefix-server" 2283/tcp)"
+curl -fsS "$url/api/server/ping" | jq -e '.res == "pong"' >/dev/null
+
+# A real account and upload make the dump/restore test cover application data.
+printf '{"email":"fixture@example.invalid","password":"%s","name":"Fixture"}\n' "$password" > "$work/signup.json"
+curl -fsS -H 'Content-Type: application/json' --data-binary @"$work/signup.json" \
+  "$url/api/auth/admin-sign-up" > "$work/admin.json"
+jq 'del(.name)' "$work/signup.json" > "$work/login.json"
+curl -fsS -H 'Content-Type: application/json' --data-binary @"$work/login.json" \
+  "$url/api/auth/login" > "$work/session.json"
+token=$(jq -er .accessToken "$work/session.json")
+printf 'Authorization: Bearer %s\n' "$token" > "$work/auth-header"
+python3 - "$work/photo.png" <<'PY'
+import struct, sys, zlib
+def chunk(kind, data):
+    return struct.pack('!I', len(data)) + kind + data + struct.pack('!I', zlib.crc32(kind + data))
+pixels = b''.join(b'\x00' + bytes([y * 4, 128, 64]) * 64 for y in range(64))
+png = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('!2I5B', 64, 64, 8, 2, 0, 0, 0))
+png += chunk(b'IDAT', zlib.compress(pixels)) + chunk(b'IEND', b'')
+open(sys.argv[1], 'wb').write(png)
+PY
+curl -fsS -H @"$work/auth-header" -F "assetData=@$work/photo.png" \
+  -F deviceAssetId=fixture -F deviceId=fixture \
+  -F fileCreatedAt=2026-10-04T00:00:00.000Z -F fileModifiedAt=2026-10-04T00:00:00.000Z \
+  "$url/api/assets" > "$work/asset.json"
+asset=$(jq -er .id "$work/asset.json")
+curl -fsS -H @"$work/auth-header" "$url/api/assets/$asset/original" > "$work/download.png"
+cmp "$work/photo.png" "$work/download.png"
+
+podman restart "$prefix-server" >/dev/null
+wait_health server immich-healthcheck
+curl -fsS -H @"$work/auth-header" "$url/api/assets/$asset/original" > "$work/download.png"
+cmp "$work/photo.png" "$work/download.png"
+podman stop --time 120 "$prefix-server" >/dev/null
+podman exec "$prefix-database" pg_dump -U postgres -d immich \
+  --format=custom --no-owner --no-acl > "$work/immich.dump"
+podman exec -i "$prefix-database" pg_restore --list < "$work/immich.dump" > /dev/null
+podman exec "$prefix-database" createdb -U postgres immich_restore
+podman exec -i "$prefix-database" pg_restore -U postgres -d immich_restore \
+  --no-owner --no-acl --single-transaction --exit-on-error < "$work/immich.dump"
+# UUID comes from the API, and is passed as a psql variable rather than SQL text.
+podman exec -i "$prefix-database" psql -U postgres -d immich_restore \
+  --set ON_ERROR_STOP=on --set "asset=$asset" --tuples-only --no-align <<'SQL' > "$work/restored"
+SELECT count(*) FROM asset WHERE id = :'asset';
+SQL
+[[ $(cat "$work/restored") == 1 ]]
+echo 'Immich startup, non-root upload/download, restart, and database restore passed'

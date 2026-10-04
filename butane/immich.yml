@@ -1,0 +1,18 @@
+passwd:
+  groups:
+    - name: photos
+      gid: 1005
+  users:
+    - name: photos
+      uid: 1005
+      primary_group: photos
+      home_dir: /var/lib/immich
+      shell: /usr/bin/nologin
+
+storage:
+  files:
+    - path: /etc/hostname
+      overwrite: true
+      contents:
+        inline: |
+          immich.vm

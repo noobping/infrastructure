@@ -35,6 +35,16 @@
       "memory_mib": 8192,
       "root_gib": 40,
       "autostart": false
+    },
+    {
+      "name": "immich",
+      "hostname": "immich.vm",
+      "mac": "52:54:00:00:00:34",
+      "ignition": "dist/ign/immich.ign",
+      "vcpus": 8,
+      "memory_mib": 16384,
+      "root_gib": 80,
+      "autostart": true
     }
   ]
 }

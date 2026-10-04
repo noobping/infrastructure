@@ -159,7 +159,7 @@ _images stream architecture="both" selection="all" scope="image":
             fcos_stream=stable
             public_tag=latest
             arch_suffix=
-            all_image_names=(ips policy workstation sway nas vm k3s minecraft jellyfin)
+            all_image_names=(ips policy workstation sway nas vm k3s minecraft jellyfin immich)
             ;;
         next)
             fcos_stream=next
@@ -201,7 +201,7 @@ _images stream architecture="both" selection="all" scope="image":
             ips) image_names=(policy ips) ;;
             workstation|nas|vm) image_names=(policy ips "$selection") ;;
             sway) image_names=(policy ips workstation sway) ;;
-            k3s|minecraft|jellyfin) image_names=(policy ips vm "$selection") ;;
+            k3s|minecraft|jellyfin|immich) image_names=(policy ips vm "$selection") ;;
         esac
     fi
 
@@ -419,6 +419,12 @@ _images stream architecture="both" selection="all" scope="image":
             --build-arg "TAG=${stage_tag}"
     }
 
+    build_immich() {
+        build_image vms/immich immich \
+            --build-arg "IMAGE_NAMESPACE=${namespace}" \
+            --build-arg "TAG=${stage_tag}"
+    }
+
     build_workstation_branch() {
         build_workstation
         build_sway
@@ -426,7 +432,7 @@ _images stream architecture="both" selection="all" scope="image":
 
     build_vm_branch() {
         build_vm
-        run_parallel build_k3s build_minecraft build_jellyfin
+        run_parallel build_k3s build_minecraft build_jellyfin build_immich
     }
 
     build_architecture() {
@@ -460,6 +466,7 @@ _images stream architecture="both" selection="all" scope="image":
             k3s) build_k3s ;;
             minecraft) build_minecraft ;;
             jellyfin) build_jellyfin ;;
+            immich) build_immich ;;
         esac
     }
 
@@ -934,9 +941,10 @@ _media architecture="both" profile="all" image_tag="latest":
     render_profile nas nas
     render_profile workstation workstation
     render_profile sway workstation
-    render_guest k3s
-    render_guest minecraft
-    render_guest jellyfin
+    guest_names="$(run_yq -r '.vms[].name' vms/inventory.json)"
+    while IFS= read -r guest; do
+        render_guest "$guest"
+    done <<< "$guest_names"
 
     case "$architecture" in
         both) run_parallel build_x86_64_media build_aarch64_media ;;

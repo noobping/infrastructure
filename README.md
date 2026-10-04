@@ -32,6 +32,10 @@ disk, and keeps the ISO attached for the offline image rebase. Offline VMs have
 no network; online VMs use user networking. See
 [Workstation VM testing](images/workstation/README.md) for requirements and settings.
 
+For NAS-hosted services, see [NAS virtual machines](vms/README.md). The
+[Immich photo VM](vms/immich/README.md) adds photo search, face grouping, and
+phone uploads alongside Minecraft, with home access through `photos.vm`.
+
 ## Host policy
 
 The IPS base embeds a pinned copy of the restricted Ansible `policy` runtime;

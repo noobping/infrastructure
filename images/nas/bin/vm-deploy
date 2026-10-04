@@ -5,6 +5,7 @@ repository_root=$PWD
 inventory="$repository_root/vms/inventory.json"
 template="$repository_root/vms/libvirt/domain.xml.in"
 start_vms=0
+all_vms=0
 declare -a requested=()
 
 usage() {
@@ -31,7 +32,7 @@ while (( $# > 0 )); do
       shift 2
       ;;
     --all)
-      requested=(k3s minecraft jellyfin)
+      all_vms=1
       shift
       ;;
     --help|-h)
@@ -54,7 +55,7 @@ if (( EUID != 0 )); then
   echo "Provisioning must run as root" >&2
   exit 1
 fi
-if (( ${#requested[@]} == 0 )); then
+if (( ${#requested[@]} == 0 && ! all_vms )); then
   usage >&2
   exit 2
 fi
@@ -82,12 +83,19 @@ jq --exit-status '
   and ([.vms[].mac] | length == (unique | length))
   and all(.vms[];
     (.name | test("^[a-z0-9-]+$"))
+    and (.ignition | type == "string" and length > 0)
     and (.mac | test("^52:54:00:([0-9a-f]{2}:){2}[0-9a-f]{2}$"))
     and (.vcpus > 0)
     and (.memory_mib > 0)
     and (.root_gib >= 40)
   )
 ' "$inventory" >/dev/null
+
+guest_names=$(jq --raw-output '.vms[].name' "$inventory")
+mapfile -t guests <<< "$guest_names"
+if (( all_vms )); then
+  requested=("${guests[@]}")
+fi
 
 for name in "${requested[@]}"; do
   jq --exit-status --arg name "$name" \
@@ -98,7 +106,7 @@ for name in "${requested[@]}"; do
 done
 
 render_ignition() (
-  local guest output temporary_directory
+  local guest output destination temporary_directory
 
   install -d -m 0755 "$repository_root/dist/ign"
   chmod 0755 "$repository_root/dist" "$repository_root/dist/ign"
@@ -107,7 +115,7 @@ render_ignition() (
   temporary_directory=$(mktemp -d "$repository_root/dist/.vm-ignition.XXXXXX")
   trap 'rm -rf -- "$temporary_directory"' EXIT
 
-  for guest in k3s minecraft jellyfin; do
+  for guest in "${guests[@]}"; do
     output="$temporary_directory/$guest.ign"
     echo "Rendering Ignition for $guest"
 
@@ -135,11 +143,15 @@ render_ignition() (
     ignition-validate "$output"
   done
 
-  for guest in k3s minecraft jellyfin; do
+  for guest in "${guests[@]}"; do
     output="$temporary_directory/$guest.ign"
     chmod 0644 "$output"
     chown --reference="$repository_root" "$output"
-    mv -f "$output" "$repository_root/dist/ign/$guest.ign"
+    destination=$(jq --raw-output --arg name "$guest" \
+      '.vms[] | select(.name == $name) | .ignition' "$inventory")
+    [[ $destination == /* ]] || destination="$repository_root/$destination"
+    install -d -m 0755 "$(dirname "$destination")"
+    mv -f "$output" "$destination"
   done
 )
 
