@@ -33,6 +33,13 @@ sudo exportfs -v
 ssh nick@k3s.vm 'findmnt -t nfs,nfs4 && systemctl is-active cachefilesd.service'
 ```
 
+## On-demand VMs
+
+The image includes `vm-on-demand`, socket forwarding, and a conservative idle
+controller for Minecraft, Immich, and Jellyfin. K3s is excluded. Follow the
+[rollout and maintenance guide](../../vms/ON-DEMAND.md) before enabling listeners;
+legacy writers must be masked and photo/media API keys stay in the guests.
+
 ## Pipeline
 
 Interactive shells expose `pipeline` through

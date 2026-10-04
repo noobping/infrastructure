@@ -22,7 +22,10 @@ sudo virsh dominfo minecraft       # must report: Managed save: no
 ```
 
 Stop the legacy services before returning to the current deployment, then
-restore autostart with `sudo virsh autostart minecraft`.
+enable the [NAS wake listeners](../ON-DEMAND.md). Autostart stays disabled.
+Connect through `nas.vm` (or a `play.vm` alias pointing there); direct connections
+to `minecraft.vm` bypass activation. Disable the wake listeners before returning
+to a legacy deployment.
 
 Guest consoles:
 

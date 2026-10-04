@@ -1,11 +1,14 @@
 # Jellyfin VM
 
-The NAS Jellyfin service remains authoritative. The guest is a manual trial
-with domain autostart disabled. Its configuration, cache, music, and books are
+The NAS Jellyfin service remains authoritative until the explicit handover.
+The guest has domain autostart disabled and supports
+[on-demand activation](../ON-DEMAND.md). Its configuration, cache, music, and books are
 NFS volumes; music and books are read-only. There is no data copy.
 
 Stop the NAS service before starting the guest, and test the guest directly at
-`jellyfin.vm` (`music.vm` still points to the NAS service):
+`jellyfin.vm:8096`. After testing, mask the legacy NAS service and enable the
+NAS wake listener before applying the Caddy change that routes `music.vm` through
+`nas.vm:18096`:
 
 ```sh
 sudo virsh autostart --disable jellyfin
@@ -21,14 +24,16 @@ ssh nick@jellyfin.vm \
 ```
 
 Never run both Jellyfin instances against the shared configuration. Before
-starting the NAS service or rebooting the NAS, shut down the guest and remove
+returning to the legacy NAS service, shut down the guest and remove
 any managed-save state:
 
 ```sh
+sudo vm-on-demand disable jellyfin  # if activation was enabled
 sudo virsh shutdown jellyfin
 sudo virsh domstate jellyfin       # must report: shut off
 sudo virsh dominfo jellyfin        # must report: Managed save: no
 # If needed: sudo virsh managedsave-remove jellyfin
+sudo systemctl unmask jellyfin.service
 sudo systemctl start jellyfin.service
 ```
 

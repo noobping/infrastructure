@@ -10,5 +10,7 @@ COPY minecraft.nft /etc/nftables/rules/20-minecraft.nft
 COPY --chmod=0755 bin/mc-enter bin/mc-send /usr/bin/
 COPY --chmod=0755 bin/backup-finish bin/backup-prepare /usr/libexec/infrastructure/
 
+RUN systemctl enable vm-idle-report@minecraft.timer
+
 RUN if test -d /sysroot/ostree/repo; then ostree container commit; fi
 RUN if ! test -d /sysroot/ostree/repo; then bootc container lint; fi

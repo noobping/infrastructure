@@ -12,7 +12,8 @@ Each guest has one qcow2 root disk. Storage placement:
 - every guest uses `cachefilesd` and the NFS `fsc` option.
 
 `inventory.json` is authoritative for resources, MAC addresses, autostart, and
-Ignition paths.
+Ignition paths. Minecraft, Jellyfin, and Immich use [on-demand activation](ON-DEMAND.md)
+and a 30-minute application-aware idle shutdown. K3s keeps autostart enabled.
 
 ## Prerequisites
 
@@ -41,9 +42,10 @@ done
 sudo virsh autostart --disable jellyfin
 ```
 
-Each domain must show one guest disk. Start K3s and Minecraft only after NFS is
-available and any legacy writer using the same paths is stopped. Jellyfin stays
-non-autostarted while the NAS Jellyfin service is retained.
+Each domain must show one guest disk. Complete first boot only after NFS is
+available and any legacy writer using the same paths is stopped. Follow the
+[on-demand rollout](ON-DEMAND.md#rollout-on-the-nas) to arm the three application
+VMs; changing inventory alone does not reconcile existing domains.
 
 ```sh
 sudo virsh start k3s
@@ -99,10 +101,13 @@ before NFS and the backing filesystems disappear during NAS shutdown.
 
 For an application-consistent snapshot:
 
-1. Run `sudo /usr/libexec/infrastructure/backup-prepare` on every active guest.
+1. Acquire `sudo vm-on-demand hold NAME` on the NAS for each participating
+   on-demand guest, then run `sudo /usr/libexec/infrastructure/backup-prepare`
+   on every active guest.
 2. Run `sudo systemctl start --wait btrfs-backup.service` once on the NAS.
 3. Run `sudo /usr/libexec/infrastructure/backup-finish` on every prepared guest,
-   even when the NAS backup fails.
+   even when the NAS backup fails. Release each NAS hold only after its finish
+   hook succeeds; preserve holds when recovery fails.
 
 The [K3s](k3s/README.md), [Minecraft](minecraft/README.md),
 [Jellyfin](jellyfin/README.md), and [Immich](immich/README.md) notes describe

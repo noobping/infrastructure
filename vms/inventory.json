@@ -24,7 +24,34 @@
       "vcpus": 8,
       "memory_mib": 12288,
       "root_gib": 40,
-      "autostart": true
+      "autostart": false,
+      "on_demand": {
+        "idle_seconds": 1800,
+        "legacy_services": [
+          "minecraft.service",
+          "bedrock.service"
+        ],
+        "endpoints": [
+          {
+            "name": "java",
+            "protocol": "tcp",
+            "listen_port": 25565,
+            "guest_port": 25565
+          },
+          {
+            "name": "bedrock",
+            "protocol": "udp",
+            "listen_port": 19132,
+            "guest_port": 19132
+          },
+          {
+            "name": "bedrock-v6",
+            "protocol": "udp",
+            "listen_port": 19133,
+            "guest_port": 19132
+          }
+        ]
+      }
     },
     {
       "name": "jellyfin",
@@ -34,7 +61,21 @@
       "vcpus": 4,
       "memory_mib": 8192,
       "root_gib": 40,
-      "autostart": false
+      "autostart": false,
+      "on_demand": {
+        "idle_seconds": 1800,
+        "legacy_services": [
+          "jellyfin.service"
+        ],
+        "endpoints": [
+          {
+            "name": "http",
+            "protocol": "tcp",
+            "listen_port": 18096,
+            "guest_port": 8096
+          }
+        ]
+      }
     },
     {
       "name": "immich",
@@ -44,7 +85,19 @@
       "vcpus": 8,
       "memory_mib": 16384,
       "root_gib": 80,
-      "autostart": true
+      "autostart": false,
+      "on_demand": {
+        "idle_seconds": 1800,
+        "legacy_services": [],
+        "endpoints": [
+          {
+            "name": "http",
+            "protocol": "tcp",
+            "listen_port": 2283,
+            "guest_port": 2283
+          }
+        ]
+      }
     }
   ]
 }

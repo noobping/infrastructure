@@ -1,0 +1,82 @@
+#!/usr/bin/python3
+"""Socket-activated, bounded UDP relay; one backend socket per client."""
+import os
+import selectors
+import socket
+import sys
+import time
+
+
+def relay(listener, backend, peer_timeout=60, exit_idle=1, max_peers=128):
+    selector = selectors.DefaultSelector()
+    listener.setblocking(False)
+    selector.register(listener, selectors.EVENT_READ, None)
+    peers = {}
+    last_activity = time.monotonic()
+
+    def remove(address):
+        entry = peers.pop(address, None)
+        if entry is None:
+            return
+        sock, _ = entry
+        selector.unregister(sock)
+        sock.close()
+
+    try:
+        while True:
+            for key, _ in selector.select(min(exit_idle, peer_timeout, 1)):
+                now = time.monotonic()
+                if key.fileobj is listener:
+                    packet, address = listener.recvfrom(65535)
+                    last_activity = now
+                    if address not in peers:
+                        if len(peers) >= max_peers:
+                            continue
+                        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                        sock.setblocking(False)
+                        sock.connect(backend)
+                        peers[address] = [sock, now]
+                        selector.register(sock, selectors.EVENT_READ, address)
+                    sock, _ = peers[address]
+                    peers[address][1] = now
+                    try:
+                        sock.send(packet)
+                    except OSError:
+                        remove(address)
+                else:
+                    address = key.data
+                    if address not in peers or peers[address][0] is not key.fileobj:
+                        continue
+                    try:
+                        packet = key.fileobj.recv(65535)
+                        listener.sendto(packet, address)
+                        peers[address][1] = now
+                        last_activity = now
+                    except OSError:
+                        remove(address)
+            now = time.monotonic()
+            for address, (_, last_seen) in list(peers.items()):
+                if now-last_seen >= peer_timeout:
+                    remove(address)
+            if not peers and now-last_activity >= exit_idle:
+                return
+    finally:
+        for address in list(peers):
+            remove(address)
+        selector.close()
+        listener.close()
+
+
+def main():
+    if int(os.environ.get('LISTEN_PID', '0')) != os.getpid() or os.environ.get('LISTEN_FDS') != '1':
+        raise RuntimeError('Exactly one systemd listening socket is required')
+    listener = socket.socket(fileno=3)
+    if listener.type != socket.SOCK_DGRAM:
+        raise RuntimeError('Expected a datagram socket')
+    host, port = sys.argv[1:]
+    backend = socket.getaddrinfo(host, int(port), socket.AF_INET, socket.SOCK_DGRAM)[0][4]
+    relay(listener, backend)
+
+
+if __name__ == '__main__':
+    main()

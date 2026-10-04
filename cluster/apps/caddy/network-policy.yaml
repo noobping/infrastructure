@@ -85,13 +85,13 @@ spec:
               app.kubernetes.io/name: registry
       ports:
         - {port: 5000, protocol: TCP}
-    # music.vm proxies to the retained NAS Jellyfin service on the UniFi LAN.
+    # music.vm uses the NAS wake listener for the Jellyfin VM.
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
       ports:
-        - {port: 8096, protocol: TCP}
-    # photos.vm proxies to the dedicated Immich VM on the LAN.
+        - {port: 18096, protocol: TCP}
+    # photos.vm uses the NAS wake listener for the Immich VM.
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0

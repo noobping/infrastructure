@@ -52,7 +52,8 @@ guest free space; Immich's storage indicator does not cover the guest database.
 4. Boot the updated NAS image, then verify the photos filesystem is mounted,
    `/var/lib/containers/immich/data` is owned by 1005:1005, and both new exports
    appear in `sudo exportfs -v`. Apply the Caddy configuration and network policy
-   through the existing Flux workflow.
+   through the existing Flux workflow only after enabling the NAS wake listeners.
+   Caddy forwards photo requests to `nas.vm:2283`, which starts the guest.
 5. From the repository root on the NAS, provision and then boot:
 
    ```sh
@@ -62,7 +63,9 @@ guest free space; Immich's storage indicator does not cover the guest database.
 
    The first boot rebases to the role image and reboots. Image pulls and initial
    model downloads require internet access. Provisioning is create-only and
-   refuses to overwrite an existing domain or disk. Inventory enables autostart.
+   refuses to overwrite an existing domain or disk. Inventory disables autostart. After setup, enable the
+   [NAS wake listener and 30-minute idle policy](../ON-DEMAND.md); this also
+   explains the idle API key and scheduling scans/backups while the VM can sleep.
 
 6. Check the guest:
 
@@ -108,7 +111,8 @@ metadata, not originals. The weekly NAS snapshot timer is crash-consistent and
 does not automatically quiesce guests. For an application-consistent snapshot,
 include this VM in the [shared backup order](../README.md#safety-and-backups):
 
-1. Run `/usr/libexec/infrastructure/backup-prepare` as root in the guest.
+1. Acquire `sudo vm-on-demand hold immich` on the NAS if on-demand mode is
+   enabled, then run `/usr/libexec/infrastructure/backup-prepare` as root in the guest.
    It stops Immich writers, dumps PostgreSQL, checks the archive with
    `pg_restore --list`, and atomically stores
    `/data/backups/infrastructure/immich.dump` as UID 1005.
@@ -116,7 +120,8 @@ include this VM in the [shared backup order](../README.md#safety-and-backups):
    changing external originals during this snapshot window.
 3. Always run `/usr/libexec/infrastructure/backup-finish` as root in every
    prepared guest, even if the NAS backup fails. The server restarts only if it
-   was previously active. A failed prepare attempts recovery automatically.
+   was previously active. Release the NAS hold only after finish succeeds.
+   A failed prepare attempts recovery automatically.
 
 When running the snapshot from a Bash session on the NAS, protect Immich's
 finish step with a trap. Prepare/finish the other active guests as described in
@@ -125,7 +130,8 @@ the shared backup order as well:
 ```sh
 (
   set -e
-  trap 'ssh nick@immich.vm sudo /usr/libexec/infrastructure/backup-finish' EXIT
+  sudo vm-on-demand hold immich
+  trap 'ssh nick@immich.vm sudo /usr/libexec/infrastructure/backup-finish && sudo vm-on-demand release immich' EXIT
   ssh nick@immich.vm sudo /usr/libexec/infrastructure/backup-prepare
   sudo systemctl start --wait btrfs-backup.service
 )

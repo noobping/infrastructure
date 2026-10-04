@@ -16,7 +16,7 @@ RUN set -euxo pipefail; \
 RUN set -euxo pipefail; \
   dnf install -y \
     coreos-installer ignition-validate jq \
-    libvirt nfs-utils qemu-kvm pcp-zeroconf smartmontools \
+    libvirt nfs-utils qemu-kvm pcp-zeroconf smartmontools python3 \
     cockpit-system cockpit-ostree cockpit-podman cockpit-machines cockpit-storaged cockpit-files cockpit-networkmanager cockpit-sosreport cockpit-kdump cockpit-selinux \
     gssproxy \
     nut \
@@ -46,6 +46,10 @@ RUN set -euxo pipefail; \
 
 COPY --chmod=0600 nftables /etc/nftables/rules
 COPY --chmod=0755 bin/todo bin/vm-bridge bin/vm-deploy /usr/bin/
+COPY --chmod=0755 bin/vm-on-demand /usr/bin/
+COPY --chmod=0755 vm-on-demand/udp-proxy /usr/libexec/infrastructure/vm-udp-proxy
+COPY vm-on-demand/idle.service /usr/lib/systemd/system/vm-on-demand-idle.service
+COPY vm-on-demand/idle.timer /usr/lib/systemd/system/vm-on-demand-idle.timer
 COPY --chmod=0644 infrastructure-policy.container /usr/share/containers/systemd/
 COPY --chmod=0755 bin/artifacts-prepare bin/btrfs-backup bin/nut-activate /usr/libexec/infrastructure/
 COPY artifacts-prepare.service /etc/systemd/system/artifacts-prepare.service

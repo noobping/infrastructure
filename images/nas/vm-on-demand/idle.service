@@ -1,0 +1,9 @@
+[Unit]
+Description=Shut down on-demand VMs after application-confirmed idle time
+After=libvirtd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/vm-on-demand idle
+TimeoutStartSec=20min
+UMask=0077

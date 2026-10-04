@@ -10,6 +10,8 @@ COPY immich.nft /etc/nftables/rules/20-immich.nft
 COPY immich-prepare.service /etc/systemd/system/immich-prepare.service
 COPY --chmod=0755 bin/ /usr/libexec/infrastructure/
 
+RUN systemctl enable vm-idle-report@immich.timer
+
 RUN set -euxo pipefail; \
   grep -qF 'include "/etc/nftables/rules/*.nft"' /etc/nftables/main.nft \
   || sed -i '/tcp dport @allowed_tcp_dports accept/i\        include "/etc/nftables/rules/*.nft"' /etc/nftables/main.nft

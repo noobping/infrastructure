@@ -96,7 +96,7 @@ class Deploy(unittest.TestCase):
         self.assertIn('16384', xml)
         self.assertEqual(xml.count("device='disk'"), 1)
         calls = (self.root / 'calls').read_text()
-        self.assertIn('virsh autostart immich', calls)
+        self.assertNotIn('virsh autostart immich', calls)
         self.assertNotIn('virsh start immich', calls)
         result = self.deploy('immich', success=False)
         self.assertIn('refusing to replace', result.stderr)

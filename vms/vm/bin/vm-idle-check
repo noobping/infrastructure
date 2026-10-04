@@ -1,0 +1,166 @@
+#!/usr/bin/python3
+"""Local idle probe; publish a short report readable through the QEMU agent."""
+import json
+import os
+from pathlib import Path
+import re
+import signal
+import socket
+import stat
+import struct
+import subprocess
+import sys
+import time
+import urllib.request
+
+KEY_FILE = Path('/etc/infrastructure/vm-idle-api-key')
+BACKUP = Path('/var/lib/infrastructure/backup')
+MAGIC = bytes.fromhex('00ffff00fefefefefdfdfdfd12345678')
+IMMICH_QUEUES = {'thumbnailGeneration', 'metadataExtraction', 'videoConversion',
+                'faceDetection', 'facialRecognition', 'smartSearch', 'duplicateDetection',
+                'backgroundTask', 'storageTemplateMigration', 'migration', 'search',
+                'sidecar', 'library', 'notifications', 'backupDatabase', 'ocr',
+                'workflow', 'integrityCheck', 'editor'}
+
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, request, fp, code, message, headers, url):
+        return None
+
+
+def run(*args):
+    result = subprocess.run(args, check=True, text=True, capture_output=True, timeout=4)
+    # ss may exit successfully after a netlink error; that is not proof of idle.
+    if result.stderr.strip():
+        raise RuntimeError(f'Activity command reported an error: {args[0]}')
+    return result.stdout.strip()
+
+
+def api(path, port, header):
+    info = KEY_FILE.stat()
+    if info.st_uid != 0 or stat.S_IMODE(info.st_mode) & 0o077:
+        raise RuntimeError('API key must be owned by root with mode 0600')
+    key = KEY_FILE.read_text().strip()
+    if not key or '\n' in key:
+        raise ValueError('API key is empty or malformed')
+    request = urllib.request.Request(f'http://127.0.0.1:{port}{path}', headers={header: key})
+    # Never send local API credentials through a configured HTTP proxy.
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+    with opener.open(request, timeout=3) as response:
+        return json.load(response)
+
+
+def immich_idle(queues):
+    if not isinstance(queues, list) or not queues:
+        raise ValueError('Missing Immich queues')
+    names = {queue['name'] for queue in queues}
+    if not IMMICH_QUEUES.issubset(names):
+        raise ValueError('Incomplete Immich queue response')
+    for queue in queues:
+        for state in ('active', 'waiting', 'delayed', 'paused'):
+            count = queue['statistics'][state]
+            if type(count) is not int or count < 0:
+                raise ValueError('Invalid Immich job count')
+            if count:
+                return False
+    return True
+
+
+def jellyfin_idle(sessions, tasks):
+    if not isinstance(sessions, list) or not isinstance(tasks, list) or not tasks:
+        raise ValueError('Missing Jellyfin activity data')
+    for session in sessions:
+        if not isinstance(session, dict) or 'Id' not in session:
+            raise ValueError('Invalid Jellyfin session')
+        # Paused playback still holds the VM for the viewer.
+        if session.get('NowPlayingItem') or session.get('TranscodingInfo'):
+            return False
+    for task in tasks:
+        if task['State'] not in ('Idle', 'Running', 'Cancelling'):
+            raise ValueError('Unknown Jellyfin task state')
+        if task['State'] != 'Idle':
+            return False
+    return True
+
+
+def bedrock_players():
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+        sock.settimeout(3)
+        sock.connect(('127.0.0.1', 19132))
+        stamp = struct.pack('>q', time.monotonic_ns()//1000000)
+        sock.send(b'\x01'+stamp+MAGIC+b'\0'*8)
+        pong = sock.recv(65535)
+    if len(pong) < 35 or pong[0] != 0x1c or pong[1:9] != stamp or pong[17:33] != MAGIC:
+        raise ValueError('Invalid Bedrock status response')
+    length = struct.unpack('>H', pong[33:35])[0]
+    fields = pong[35:35+length].decode('utf8').split(';')
+    if len(pong) != 35+length or fields[0] != 'MCPE' or not fields[4].isdigit():
+        raise ValueError('Incomplete Bedrock player count')
+    return int(fields[4])
+
+
+def guest_idle(role):
+    if role not in ('immich', 'jellyfin', 'minecraft'):
+        raise ValueError('Unsupported VM role')
+    if Path('/run/vm-on-demand.hold').exists():
+        return False
+    markers = {'immich': ['server-was-active'], 'minecraft': ['quiesce'],
+               'jellyfin': ['jellyfin-was-active']}
+    if any((BACKUP/role/marker).exists() for marker in markers[role]):
+        return False
+    if run('systemctl', 'show', '--property=ActiveState', '--value',
+           'rpm-ostree-upgrade.service') not in ('inactive', 'failed'):
+        return False
+    ports = {'immich': [2283], 'minecraft': [25565], 'jellyfin': [8096]}[role]
+    # Include direct guest connections and administrator SSH sessions.
+    expression = '( '+' or '.join(f'sport = :{port}' for port in [22, *ports])+' )'
+    if run('ss', '--no-header', '--tcp', '--numeric', 'state', 'established', expression):
+        return False
+    if role == 'immich':
+        # Immich uses a private Podman network: its sockets are not visible in
+        # the guest's host namespace. Include direct uploads bypassing the NAS.
+        pid = run('podman', 'inspect', '--format', '{{.State.Pid}}', 'immich-server')
+        if not pid.isdigit() or int(pid) <= 0:
+            raise ValueError('Immich server is not running')
+        if run('nsenter', '--target', pid, '--net', 'ss', '--no-header', '--tcp', '--numeric',
+               'state', 'established',
+               '( sport = :2283 and not dst 127.0.0.1 and not dst [::1] and not dst [::ffff:127.0.0.1] )'):
+            return False
+        return immich_idle(api('/api/queues', 2283, 'x-api-key'))
+    if role == 'jellyfin':
+        return jellyfin_idle(api('/Sessions', 8096, 'X-Emby-Token'),
+                             api('/ScheduledTasks', 8096, 'X-Emby-Token'))
+    # Vanilla command avoids aliases/plugins that replace the unqualified list.
+    reply = run('podman', 'exec', 'systemd-minecraft', 'rcon-cli', 'minecraft:list')
+    match = re.fullmatch(r'There are (\d+) of a max of \d+ players online:.*', reply)
+    if not match:
+        raise ValueError('Cannot determine Java player count')
+    return int(match[1]) == 0 and bedrock_players() == 0
+
+
+def main():
+    signal.alarm(20)
+    try:
+        idle = guest_idle(sys.argv[1])
+    except Exception as error:
+        print(f'Cannot confirm idle: {error}', file=sys.stderr)
+        idle = False
+    report = json.dumps({'version': 1, 'idle': idle, 'checked_at': time.time()})+'\n'
+    if sys.argv[2:] == ['--report']:
+        target = Path('/run/vm-on-demand/idle.json')
+        temporary = target.with_suffix('.new')
+        target.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+        temporary.write_text(report)
+        temporary.chmod(0o644)
+        temporary.replace(target)
+        return 0
+    print(report, end='')
+    return 0 if idle else 1
+
+
+if __name__ == '__main__':
+    try:
+        sys.exit(main())
+    except Exception as error:
+        print(f'Cannot confirm idle: {error}', file=sys.stderr)
+        sys.exit(2)

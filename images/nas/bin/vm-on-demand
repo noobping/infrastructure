@@ -1,0 +1,405 @@
+#!/usr/bin/python3
+"""Inventory-driven NAS socket activation and conservative VM idle shutdown."""
+import argparse
+import base64
+from contextlib import contextmanager
+import fcntl
+import json
+import os
+from pathlib import Path
+import re
+import socket
+import struct
+import subprocess
+import sys
+import time
+
+CONFIG = Path('/etc/infrastructure/vm-on-demand')
+STATE = Path('/var/lib/infrastructure/vm-on-demand')
+RUNTIME = Path('/run/vm-on-demand')
+UNITS = Path('/etc/systemd/system')
+NAME = re.compile(r'[a-z0-9][a-z0-9-]{0,40}')
+ROLES = {'minecraft', 'jellyfin', 'immich'}
+MAGIC = bytes.fromhex('00ffff00fefefefefdfdfdfd12345678')
+
+
+def command(*args, check=True, timeout=30):
+    return subprocess.run(args, check=check, text=True, capture_output=True,
+                          timeout=timeout, env={**os.environ, 'LC_ALL': 'C'})
+
+
+def virsh(*args):
+    return command('virsh', '--connect', 'qemu:///system', *args).stdout.strip()
+
+
+def property_of(unit, prop):
+    value = command('systemctl', 'show', '--property='+prop, '--value', unit).stdout.strip()
+    if not value:
+        raise RuntimeError(f'Cannot determine {prop} of {unit}')
+    return value
+
+
+def load(name):
+    if name not in ROLES or not NAME.fullmatch(name):
+        raise ValueError('Invalid VM name')
+    return json.loads((CONFIG / (name+'.json')).read_text())
+
+
+def validate_inventory(path, names):
+    inventory = json.loads(Path(path).read_text())
+    ports, found = set(), {}
+    for vm in inventory['vms']:
+        if 'on_demand' not in vm:
+            continue
+        name, policy = vm['name'], vm['on_demand']
+        if name not in ROLES or not NAME.fullmatch(name) or vm['autostart'] is not False:
+            raise ValueError('Only minecraft, jellyfin and immich support on-demand mode; autostart must be false')
+        if not re.fullmatch(r'[a-z0-9][a-z0-9.-]+', vm['hostname']):
+            raise ValueError('Invalid backend hostname')
+        if type(policy['idle_seconds']) is not int or policy['idle_seconds'] < 1800:
+            raise ValueError('Idle time must be at least 1800 seconds')
+        endpoint_names = set()
+        for ep in policy['endpoints']:
+            if not NAME.fullmatch(ep['name']) or ep['name'] in endpoint_names:
+                raise ValueError('Invalid or duplicate endpoint name')
+            endpoint_names.add(ep['name'])
+            if ep['protocol'] not in ('tcp', 'udp'):
+                raise ValueError('Unknown endpoint protocol')
+            for key in ('listen_port', 'guest_port'):
+                if type(ep[key]) is not int or not 1024 <= ep[key] <= 65535:
+                    raise ValueError('Endpoint ports must be in 1024..65535')
+            pair = (ep['protocol'], ep['listen_port'])
+            if pair in ports:
+                raise ValueError('Duplicate listener port')
+            ports.add(pair)
+        if not endpoint_names:
+            raise ValueError('At least one endpoint is required')
+        for unit in policy['legacy_services']:
+            if not re.fullmatch(r'[a-z0-9-]+\.service', unit):
+                raise ValueError('Invalid legacy service')
+        found[name] = {'name': name, 'hostname': vm['hostname'], **policy}
+    selected = names or list(found)
+    if any(name not in found for name in selected):
+        raise ValueError('VM has no on-demand policy (K3s is intentionally excluded)')
+    return [found[name] for name in selected]
+
+
+def prefix(config, ep):
+    return f'vm-demand-{config["name"]}-{ep["name"]}'
+
+
+def units(config, suffix):
+    return [prefix(config, ep)+suffix for ep in config['endpoints']]
+
+
+def render(config):
+    files = {}
+    name = config['name']
+    for ep in config['endpoints']:
+        stem = prefix(config, ep)
+        kind = 'ListenStream' if ep['protocol'] == 'tcp' else 'ListenDatagram'
+        files[stem+'.socket'] = f'''[Unit]
+Description=Wake {name} on {ep['name']} traffic
+
+[Socket]
+{kind}={ep['listen_port']}
+BindIPv6Only=both
+Service={stem}.service
+
+[Install]
+WantedBy=sockets.target
+'''
+        if ep['protocol'] == 'tcp':
+            executable = f'/usr/lib/systemd/systemd-socket-proxyd --exit-idle-time=1s {config["hostname"]}:{ep["guest_port"]}'
+        else:
+            executable = f'/usr/libexec/infrastructure/vm-udp-proxy {config["hostname"]} {ep["guest_port"]}'
+        files[stem+'.service'] = f'''[Unit]
+Description=Forward {name} {ep['name']} after waking the VM
+Requires={stem}.socket libvirtd.service nfs-server.service
+After={stem}.socket libvirtd.service nfs-server.service network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+ExecStartPre=/usr/bin/vm-on-demand wake {name} --endpoint {ep['name']}
+ExecStart={executable}
+ExecStopPost=/usr/bin/vm-on-demand touch {name}
+TimeoutStartSec=15min
+TimeoutStopSec=30s
+Restart=on-failure
+RestartSec=10s
+UMask=0077
+RuntimeDirectory=vm-on-demand
+RuntimeDirectoryMode=0700
+RuntimeDirectoryPreserve=yes
+StateDirectory=infrastructure/vm-on-demand
+StateDirectoryMode=0700
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+CapabilityBoundingSet=
+MemoryMax=128M
+TasksMax=64
+'''
+    return files
+
+
+def atomic_write(path, value, mode=0o600):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix+'.new')
+    with temporary.open('w') as file:
+        os.chmod(temporary, mode)
+        file.write(value)
+    temporary.replace(path)
+
+
+@contextmanager
+def locked(name):
+    RUNTIME.mkdir(mode=0o700, parents=True, exist_ok=True)
+    with (RUNTIME/(name+'.lock')).open('a') as file:
+        fcntl.flock(file, fcntl.LOCK_EX)
+        yield
+
+
+def touch(name):
+    atomic_write(RUNTIME/(name+'.activity'), str(time.monotonic()))
+    (RUNTIME/(name+'.confirmed-idle')).unlink(missing_ok=True)
+
+
+def guard_legacy(config):
+    for unit in config['legacy_services']:
+        if property_of(unit, 'LoadState') == 'not-found':
+            continue
+        if (property_of(unit, 'ActiveState') not in ('inactive', 'failed')
+                or property_of(unit, 'UnitFileState') != 'masked'):
+            raise RuntimeError(f'{unit} shares writable data: stop and persistently mask it before enabling this VM')
+
+
+def state(name):
+    return virsh('domstate', name)
+
+
+def start(config):
+    name = config['name']
+    guard_legacy(config)
+    current = state(name)
+    if current == 'shut off':
+        try:
+            virsh('start', name)
+        except subprocess.CalledProcessError:
+            # An administrator may have started it concurrently.
+            if state(name) != 'running':
+                raise
+    elif current != 'running':
+        raise RuntimeError(f'{name} is {current}; refusing to change a paused or transitional VM')
+    touch(name)
+
+
+def bedrock_probe(host, port):
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+        sock.settimeout(2)
+        sock.connect((host, port))
+        stamp = struct.pack('>q', time.monotonic_ns()//1000000)
+        sock.send(b'\x01'+stamp+MAGIC+b'\0'*8)
+        pong = sock.recv(65535)
+        if len(pong) < 35 or pong[0] != 0x1c or pong[1:9] != stamp or pong[17:33] != MAGIC:
+            raise ValueError('Invalid Bedrock status response')
+
+
+def ready(config, ep, timeout=600):
+    deadline = time.monotonic()+timeout
+    while True:
+        try:
+            if ep['protocol'] == 'tcp':
+                with socket.create_connection((config['hostname'], ep['guest_port']), timeout=2):
+                    return
+            else:
+                bedrock_probe(config['hostname'], ep['guest_port'])
+                return
+        except (OSError, ValueError):
+            if time.monotonic() >= deadline:
+                raise RuntimeError(f'{config["name"]} did not open {ep["name"]} before the startup deadline')
+            time.sleep(2)
+
+
+def qga(config, arguments):
+    return json.loads(virsh('qemu-agent-command', config['name'], '--timeout', '10',
+                            json.dumps(arguments)))['return']
+
+
+def guest_idle(config):
+    handle = qga(config, {'execute': 'guest-file-open', 'arguments': {
+        'path': '/run/vm-on-demand/idle.json', 'mode': 'r'}})
+    try:
+        result = qga(config, {'execute': 'guest-file-read', 'arguments': {'handle': handle, 'count': 4096}})
+        if not result['eof']:
+            return False
+        report = json.loads(base64.b64decode(result['buf-b64'], validate=True))
+        return (type(report.get('version')) is int and report['version'] == 1
+                and report.get('idle') is True
+                and type(report.get('checked_at')) in (int, float)
+                and -5 <= time.time()-report['checked_at'] <= 90)
+    finally:
+        qga(config, {'execute': 'guest-file-close', 'arguments': {'handle': handle}})
+
+
+def proxy_busy(config):
+    return any(property_of(unit, 'ActiveState') not in ('inactive', 'failed')
+               for unit in units(config, '.service'))
+
+
+def enabled(config):
+    return any(command('systemctl', 'is-enabled', '--quiet', unit, check=False).returncode == 0
+               for unit in units(config, '.socket'))
+
+
+def shutdown(config, timeout=180):
+    virsh('shutdown', config['name'])
+    deadline = time.monotonic()+timeout
+    while state(config['name']) != 'shut off':
+        if time.monotonic() >= deadline:
+            raise RuntimeError(f'{config["name"]}: graceful shutdown timed out; VM was not forced off')
+        time.sleep(2)
+    touch(config['name'])
+
+
+def idle_one(config):
+    name = config['name']
+    with locked(name):
+        if not enabled(config) or state(name) != 'running':
+            touch(name)
+            return
+        if ((STATE/(name+'.hold')).exists() or proxy_busy(config)
+                or property_of('btrfs-backup.service', 'ActiveState') not in ('inactive', 'failed')):
+            touch(name)
+            return
+        activity = RUNTIME/(name+'.activity')
+        if not activity.exists():
+            touch(name)
+            return
+        # Check the application on every quiet timer tick so background work
+        # resets the full idle interval, even when no clients are connected.
+        if not guest_idle(config):
+            touch(name)
+            return
+        confirmed = RUNTIME/(name+'.confirmed-idle')
+        if not confirmed.exists():
+            # Start the quiet interval at the first positive observation,
+            # never at a previous busy sample before a long job finished.
+            touch(name)
+            confirmed.touch()
+            return
+        if time.monotonic()-float(activity.read_text()) < config['idle_seconds']:
+            return
+        # An activation that arrived during the guest check wins. A later
+        # activation waits on our lock until graceful shutdown has completed.
+        if proxy_busy(config):
+            touch(name)
+            return
+        print(f'{name}: applications idle for {config["idle_seconds"]} seconds; shutting down', flush=True)
+        shutdown(config)
+
+
+def enable(config):
+    name = config['name']
+    with locked(name):
+        guard_legacy(config)
+        virsh('dominfo', name)  # Never create domains here.
+        files = render(config)
+        config_path = CONFIG/(name+'.json')
+        payload = json.dumps(config, indent=2)+'\n'
+        if config_path.exists() and config_path.read_text() != payload:
+            raise RuntimeError(f'Disable {name} and remove {config_path} before changing its activation policy')
+        for filename, content in files.items():
+            path = UNITS/filename
+            if path.exists() and path.read_text() != content:
+                raise RuntimeError(f'Existing unit differs: {path}; disable and review it before replacing')
+        for filename, content in files.items():
+            atomic_write(UNITS/filename, content, 0o644)
+        atomic_write(config_path, payload)
+        STATE.mkdir(mode=0o700, parents=True, exist_ok=True)
+        touch(name)
+        command('systemctl', 'daemon-reload')
+        virsh('autostart', '--disable', name)
+        command('systemctl', 'enable', '--now', *units(config, '.socket'), 'vm-on-demand-idle.timer')
+        print(f'{name}: wake listeners enabled; idle shutdown after {config["idle_seconds"]//60} minutes')
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('action', choices=['render', 'enable', 'disable', 'wake', 'sleep', 'hold', 'release', 'idle', 'touch'])
+    parser.add_argument('names', nargs='*')
+    parser.add_argument('--inventory', default='vms/inventory.json')
+    parser.add_argument('--output', type=Path)
+    parser.add_argument('--endpoint')
+    args = parser.parse_intermixed_args()
+    if args.action == 'render':
+        if not args.output:
+            parser.error('render requires --output')
+        for config in validate_inventory(args.inventory, args.names):
+            for filename, content in render(config).items():
+                atomic_write(args.output/filename, content, 0o644)
+            atomic_write(args.output/(config['name']+'.json'), json.dumps(config, indent=2)+'\n')
+        return
+    if os.geteuid() != 0:
+        parser.error('Run host operations with sudo; render is available without root')
+    if args.action == 'idle':
+        for path in sorted(CONFIG.glob('*.json')):
+            try:
+                idle_one(load(path.stem))
+            except Exception as error:
+                # Failure to prove idleness must reset the clock, never power off.
+                with locked(path.stem):
+                    touch(path.stem)
+                print(f'{path.stem}: keeping VM running: {error}', file=sys.stderr)
+        return
+    if not args.names:
+        parser.error('Specify at least one VM')
+    if args.action == 'enable':
+        for config in validate_inventory(args.inventory, args.names):
+            enable(config)
+        return
+    for name in args.names:
+        config = load(name)
+        if args.action == 'disable':
+            # Stop sockets first: no new activations during maintenance.
+            command('systemctl', 'disable', '--now', *units(config, '.socket'))
+            command('systemctl', 'stop', *units(config, '.service'), timeout=120)
+            continue
+        if args.action == 'sleep' and proxy_busy(config):
+            raise RuntimeError(f'{name}: client traffic is still active')
+        with locked(name):
+            if args.action == 'wake':
+                start(config)
+            elif args.action == 'touch':
+                touch(name)
+            elif args.action == 'hold':
+                atomic_write(STATE/(name+'.hold'), 'Manual maintenance or backup hold\n')
+                touch(name)
+            elif args.action == 'release':
+                (STATE/(name+'.hold')).unlink(missing_ok=True)
+                touch(name)
+            elif args.action == 'sleep':
+                if state(name) == 'shut off':
+                    continue
+                if ((STATE/(name+'.hold')).exists() or proxy_busy(config) or not guest_idle(config)
+                        or property_of('btrfs-backup.service', 'ActiveState') not in ('inactive', 'failed')):
+                    raise RuntimeError(f'{name}: cannot confirm the VM is idle')
+                shutdown(config)
+        if args.action == 'wake' and args.endpoint:
+            ep = next(ep for ep in config['endpoints'] if ep['name'] == args.endpoint)
+            ready(config, ep)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (OSError, ValueError, KeyError, RuntimeError, StopIteration, subprocess.SubprocessError) as error:
+        print(f'vm-on-demand: {error}', file=sys.stderr)
+        sys.exit(1)

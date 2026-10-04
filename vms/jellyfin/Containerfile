@@ -9,5 +9,7 @@ COPY containers /etc/containers/systemd
 COPY jellyfin.nft /etc/nftables/rules/20-jellyfin.nft
 COPY --chmod=0755 bin/ /usr/libexec/infrastructure/
 
+RUN systemctl enable vm-idle-report@jellyfin.timer
+
 RUN if test -d /sysroot/ostree/repo; then ostree container commit; fi
 RUN if ! test -d /sysroot/ostree/repo; then bootc container lint; fi

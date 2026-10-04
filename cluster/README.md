@@ -77,7 +77,8 @@ replacement write the same live NFS path.
    subvolumes. Never copy a live SQLite database or application directory.
 4. Boot the current NAS deployment. Verify NFS is active and the legacy
    services replaced by K3s are absent before starting K3s and restoring its
-   autostart. The retained NAS Jellyfin service remains enabled.
+   autostart. The NAS Jellyfin service remains enabled until the explicit
+   [on-demand VM handover](../vms/ON-DEMAND.md).
 5. Reuse or restore the stopped NFS data, complete the checks below, then
    change service DNS and allow writes.
 
@@ -143,6 +144,9 @@ curl --cacert root.crt https://registry.vm/v2/
 
 All PVCs must be `Bound`. Verify service DNS, Paperless ingestion, Office
 editing, Uptime Kuma history, `music.vm`, and registry push/pull.
-`photos.vm` points to this cluster's Caddy and proxies to `immich.vm:2283`.
+`photos.vm` points to this cluster's Caddy and proxies through the NAS wake
+listener at `nas.vm:2283`. `music.vm` uses the Jellyfin wake listener at
+`nas.vm:18096`; arm it after stopping the legacy NAS writer and before applying
+these routes. K3s stays running and keeps its existing autostart policy.
 Follow the [Immich VM runbook](../vms/immich/README.md) for NFS, phone certificate
 trust, sample imports, and database backups before indexing the whole library.

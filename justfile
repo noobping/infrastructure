@@ -92,6 +92,7 @@ check-vm:
     bash test/vm-command
     python3 test/vm-deploy.py
     python3 vms/immich/test/hooks.py
+    python3 images/nas/test/vm-on-demand.py
 
 # Boot a persistent AMD64 test VM; install from the ISO when its disk is new.
 vm profile="workstation" media="offline":
