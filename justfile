@@ -76,7 +76,7 @@ check-workstation:
 
 # Exercise online build selection and publication with isolated container-tool fixtures.
 check-online:
-    bash test/online-build
+    bash test/online-build {{ quote(just_executable()) }}
 
 # Run real Ansible in a disposable image, then repeat under runtime restrictions.
 test-policy:

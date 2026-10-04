@@ -1,13 +1,29 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
+
+just="${1:-}"
+if [[ -z "$just" ]] && ! just="$(command -v just)"; then
+    echo 'online build tests need Just; run check-online through Just/Pipeline or pass its executable path.' >&2
+    exit 1
+fi
 
 repo="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 work_dir="$(mktemp -d)"
 trap 'rm -rf -- "$work_dir"' EXIT
+test_case=setup
+report_failure() {
+    local status=$?
+    printf 'online build test failed: case=%s, line=%s, status=%s\n  %s\n' \
+        "$test_case" "$1" "$status" "$2" >&2
+    if [[ -f "$work_dir/output.log" ]]; then
+        tail -40 "$work_dir/output.log" >&2
+    fi
+    exit "$status"
+}
+trap 'report_failure "$LINENO" "$BASH_COMMAND"' ERR
 mkdir -p "$work_dir/bin" "$work_dir/repo"
 cp "$repo/justfile" "$repo/online.just" "$work_dir/repo/"
 cp -r "$repo/butane" "$work_dir/repo/"
-just="$(command -v just)"
 
 # Only external container operations are replaced. Run the real Just recipes,
 # dependency selection, digest handling, publication, and installer rendering.
@@ -89,9 +105,11 @@ unset REGISTRY_TOKEN GITHUB_TOKEN REGISTRY_USER TEST_FAIL_IMAGE
 cd "$work_dir/repo"
 
 run_case() {
+    test_case="$*"
     rm -rf dist
     : > "$TEST_LOG"
     if ! "$just" "$@" > "$work_dir/output.log" 2>&1; then
+        printf 'online build test command failed: %s\n' "$test_case" >&2
         cat "$work_dir/output.log" >&2
         exit 1
     fi
