@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+script="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)/bin/system-flatpaks"
+work="$(mktemp -d)"
+trap 'rm -rf -- "$work"' EXIT
+trap 'echo "system-flatpaks test failed at line $LINENO: $BASH_COMMAND" >&2; cat "$work/output" >&2' ERR
+mkdir -p "$work/bin" "$work/cache"
+export TEST_LOG="$work/commands"
+export SYSTEM_FLATPAKS_LIST="$work/apps"
+export SYSTEM_FLATPAKS_DONE="$work/done"
+export SYSTEM_FLATPAKS_CACHE="$work/cache"
+export FLATPAK_SYSTEM_DIR="$work/system"
+export SYSTEM_FLATPAKS_MODE=init TEST_ARCH=x86_64
+export PATH="$work/bin:$PATH"
+
+cat > "$work/bin/flatpak" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'flatpak %s\n' "$*" >> "$TEST_LOG"
+case "$1" in
+    --default-arch) echo "$TEST_ARCH" ;;
+    info) [[ "${TEST_INSTALLED:-false}" == true ]] ;;
+    install) [[ "${TEST_INSTALL_FAIL:-false}" != true ]] ;;
+    list) printf 'org.example.Removed\tflathub\norg.example.App\tfedora\n' ;;
+esac
+EOF
+cat > "$work/bin/ostree" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'ostree %s\n' "$*" >> "$TEST_LOG"
+if [[ "$*" == *pull-local* ]]; then
+    [[ "$*" == *--gpg-verify* && "$*" == *--remote=flathub* ]]
+    [[ "${TEST_IMPORT_FAIL:-false}" != true ]]
+fi
+EOF
+chmod +x "$work/bin/"*
+
+make_cache() {
+    printf 'org.example.App\n' > "$work/cache/apps"
+    printf '# Recommended\n org.example.App  # comment\norg.example.App\n' > "$work/apps"
+    printf '%s\n' "$TEST_ARCH" > "$work/cache/architecture"
+    printf '%064d app/org.example.App/%s/stable\n' 1 "$TEST_ARCH" > "$work/cache/refs"
+    printf '%064d runtime/org.example.Platform/%s/1\n' 2 "$TEST_ARCH" >> "$work/cache/refs"
+    printf '%064d runtime/org.example.App.Locale/%s/stable\n' 3 "$TEST_ARCH" >> "$work/cache/refs"
+}
+run_script() {
+    rm -f "$work/done"
+    : > "$TEST_LOG"
+    bash "$script" > "$work/output" 2>&1
+}
+expect_failure() {
+    if run_script; then
+        echo 'expected installation to fail' >&2
+        exit 1
+    fi
+    [[ ! -e "$work/done" ]]
+    ! grep -q '^flatpak remote-add ' "$TEST_LOG"
+}
+
+for TEST_ARCH in x86_64 aarch64; do
+    make_cache
+    run_script
+    [[ -f "$work/done" ]]
+    ! grep -q '^flatpak remote-add ' "$TEST_LOG"
+    [[ "$(grep -c 'pull-local .*--gpg-verify' "$TEST_LOG")" == 3 ]]
+    grep -q "install --system --noninteractive --no-pull --no-auto-pin flathub .*runtime/org.example.App.Locale/$TEST_ARCH/stable" "$TEST_LOG"
+done
+
+# A retry must not import older cached commits over an existing installation.
+export TEST_INSTALLED=true
+run_script
+! grep -q 'pull-local\|refs --create' "$TEST_LOG"
+unset TEST_INSTALLED
+
+export TEST_IMPORT_FAIL=true
+expect_failure
+! grep -q '^flatpak install ' "$TEST_LOG"
+unset TEST_IMPORT_FAIL
+export TEST_INSTALL_FAIL=true
+expect_failure
+unset TEST_INSTALL_FAIL
+printf 'wrong-architecture\n' > "$work/cache/architecture"
+expect_failure
+make_cache
+printf 'org.example.NewApp\n' >> "$work/apps"
+expect_failure
+make_cache
+sed -i '/ app\//d' "$work/cache/refs"
+expect_failure
+make_cache
+rm "$work/cache/refs"
+expect_failure
+
+# Images without a cache keep their online setup and managed-removal behavior.
+export SYSTEM_FLATPAKS_CACHE="$work/absent"
+run_script
+[[ -f "$work/done" ]]
+grep -q 'remote-add --system --if-not-exists flathub https://' "$TEST_LOG"
+grep -q 'remote-add --system --if-not-exists fedora oci+' "$TEST_LOG"
+grep -q '^flatpak install --system --noninteractive flathub org.example.App$' "$TEST_LOG"
+! grep -q -- '--no-pull' "$TEST_LOG"
+
+export SYSTEM_FLATPAKS_MODE=managed
+run_script
+[[ ! -e "$work/done" ]]
+grep -q 'uninstall --system --noninteractive org.example.Removed' "$TEST_LOG"
+grep -q 'uninstall --system --noninteractive org.example.App' "$TEST_LOG"
+grep -q 'uninstall --system --noninteractive --unused' "$TEST_LOG"
+
+export SYSTEM_FLATPAKS_MODE=invalid
+expect_failure
+[[ ! -s "$TEST_LOG" ]]
+echo 'system-flatpaks tests passed'

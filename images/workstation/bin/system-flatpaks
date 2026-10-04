@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-LIST_FILE="/etc/recommended/flathub"
-DONE_FILE="/var/lib/system-flatpaks.done"
+LIST_FILE="${SYSTEM_FLATPAKS_LIST:-/etc/recommended/flathub}"
+DONE_FILE="${SYSTEM_FLATPAKS_DONE:-/var/lib/system-flatpaks.done}"
+CACHE="${SYSTEM_FLATPAKS_CACHE:-/usr/share/infrastructure/flatpak-cache}"
 MODE="${SYSTEM_FLATPAKS_MODE:-init}"
+
+case "$MODE" in
+  init|managed) ;;
+  *) echo "Unknown SYSTEM_FLATPAKS_MODE: $MODE" >&2; exit 1 ;;
+esac
 
 declare -A wanted=()
 declare -a refs=()
@@ -16,7 +22,7 @@ if [ -f "$LIST_FILE" ]; then
       -e 's/[[:space:]]*$//' \
       -e '/^$/d' \
       "$LIST_FILE" \
-    | sort -u
+    | LC_ALL=C sort -u
   )
 fi
 
@@ -24,28 +30,77 @@ for ref in "${refs[@]}"; do
   wanted["$ref"]=1
 done
 
-flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-flatpak remote-add --system --if-not-exists fedora oci+https://registry.fedoraproject.org
-
-if [ "$MODE" = "managed" ]; then
-  while IFS=$'\t' read -r app origin; do
-    [ -n "${app:-}" ] || continue
-
-    if [ -z "${wanted[$app]+x}" ] || [ "${origin:-}" != "flathub" ]; then
-      flatpak uninstall --system --noninteractive "$app"
+if [[ "$MODE" == init && -d "$CACHE" ]]; then
+  # An incomplete cache must fail visibly, without silently requiring internet
+  # access or marking first-boot installation complete.
+  arch="$(flatpak --default-arch)"
+  if [[ "$(cat "$CACHE/architecture")" != "$arch" ]] \
+      || ! diff -u "$CACHE/apps" <(printf '%s\n' "${refs[@]}" | sed '/^$/d'); then
+    echo 'Flatpak cache does not match this system; rebuild the offline image.' >&2
+    exit 1
+  fi
+  system_repo="${FLATPAK_SYSTEM_DIR:-/var/lib/flatpak}/repo"
+  if [[ ! -f "$system_repo/config" ]]; then
+    mkdir -p "$system_repo"
+    ostree --repo="$system_repo" init --mode=bare-user-only
+  fi
+  # Flatpak's remote-add refreshes remote metadata even with a local descriptor.
+  # Configure the signed Flathub remote locally, without any network request.
+  ostree --repo="$system_repo" remote add --if-not-exists \
+    --set=xa.title=Flathub flathub https://dl.flathub.org/repo/
+  ostree --repo="$system_repo" remote gpg-import \
+    --keyring="$CACHE/flathub.gpg" flathub
+  declare -a cached_refs=()
+  while read -r commit ref; do
+    [[ "$commit" =~ ^[0-9a-f]{64}$ ]] || { echo 'Invalid Flatpak cache commit' >&2; exit 1; }
+    case "$ref" in
+      app/*/"$arch"/*|runtime/*/"$arch"/*) ;;
+      *) echo "Invalid Flatpak cache ref: $ref" >&2; exit 1 ;;
+    esac
+    cached_refs+=("$ref")
+    # Retrying first boot must preserve apps already installed or updated.
+    if flatpak info --system "$ref" >/dev/null 2>&1; then
+      continue
     fi
-  done < <(flatpak list --system --app --columns=application,origin)
-fi
+    ostree --repo="$system_repo" pull-local --remote=flathub --gpg-verify "$CACHE/repo" "$commit"
+    ostree --repo="$system_repo" refs --create="flathub:$ref" --force "$commit"
+  done < "$CACHE/refs"
+  for app in "${refs[@]}"; do
+    found=false
+    for ref in "${cached_refs[@]}"; do
+      [[ "$ref" != app/"$app"/"$arch"/* ]] || found=true
+    done
+    if [[ "$found" != true ]]; then
+      echo "Flatpak cache is missing $app" >&2
+      exit 1
+    fi
+  done
+  if ((${#cached_refs[@]})); then
+    # Explicitly include extensions and locales; no-pull cannot discover them
+    # through remote metadata on a freshly installed, disconnected machine.
+    flatpak install --system --noninteractive --no-pull --no-auto-pin flathub "${cached_refs[@]}"
+  fi
+else
+  flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+  flatpak remote-add --system --if-not-exists fedora oci+https://registry.fedoraproject.org
 
-for ref in "${refs[@]}"; do
-  flatpak install --system --noninteractive flathub "$ref"
-done
+  if [ "$MODE" = "managed" ]; then
+    while IFS=$'\t' read -r app origin; do
+      [ -n "${app:-}" ] || continue
+
+      if [ -z "${wanted[$app]+x}" ] || [ "${origin:-}" != "flathub" ]; then
+        flatpak uninstall --system --noninteractive "$app"
+      fi
+    done < <(flatpak list --system --app --columns=application,origin)
+  fi
+
+  for ref in "${refs[@]}"; do
+    flatpak install --system --noninteractive flathub "$ref"
+  done
+fi
 
 if [ "$MODE" = "managed" ]; then
   flatpak uninstall --system --noninteractive --unused
-elif [ "$MODE" != "init" ]; then
-  echo "Unknown SYSTEM_FLATPAKS_MODE: $MODE" >&2
-  exit 1
 fi
 
 if [ -x /usr/libexec/infrastructure/fapolicyd-flatpak-sync ]; then

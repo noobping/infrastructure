@@ -48,6 +48,10 @@ cat > "$work_dir/bin/podman" <<'EOF'
 set -euo pipefail
 printf 'podman %s\n' "$*" >> "$TEST_LOG"
 [[ "$1" != pull ]] || exit 0
+if [[ "$1" == save ]]; then
+    printf 'OCI archive with embedded Flatpak cache\n' > "$5"
+    exit 0
+fi
 arguments=("$@")
 if [[ "${*: -2}" == 'uname -m' ]]; then
     for ((i=0; i<$#; i++)); do
@@ -61,22 +65,39 @@ if [[ "${*: -2}" == 'uname -m' ]]; then
     done
 fi
 case "$*" in
+    *' /build-flatpak-cache')
+        [[ "${TEST_CACHE_FAIL:-false}" != true ]] || exit 42
+        for ((i=0; i<$#; i++)); do
+            if [[ "${arguments[i]}" == -v && "${arguments[i+1]}" == *:/cache ]]; then
+                cache="${arguments[i+1]%:/cache}"
+                mkdir -p "$cache/payload"
+                printf 'cached refs\n' > "$cache/payload/refs"
+            fi
+        done
+        ;;
     *quay.io/coreos/butane:release*) cat "${*: -1}" ;;
     *quay.io/coreos/ignition-validate:release*) cat >/dev/null ;;
     *' download '*)
         for ((i=0; i<$#; i++)); do
             if [[ "${arguments[i]}" == -a ]]; then
-                printf 'base ISO\n' > "dist/online/cache/fedora-coreos-test-live-iso.${arguments[i+1]}.iso"
+                cache="${TEST_ISO_CACHE:-dist/online/cache}"
+                printf 'base ISO\n' > "$cache/fedora-coreos-test-live-iso.${arguments[i+1]}.iso"
             fi
         done
         ;;
     *' iso customize '*)
+        work_tmp=
         for ((i=0; i<$#; i++)); do
             case "${arguments[i]}" in
                 -o) output="${arguments[i+1]}" ;;
                 --dest-ignition) ignition="${arguments[i+1]}" ;;
+                -v)
+                    mount="${arguments[i+1]}"
+                    [[ "$mount" != *:/work-tmp:Z ]] || work_tmp="${mount%:/work-tmp:Z}"
+                    ;;
             esac
         done
+        [[ -z "$work_tmp" ]] || output="${output/\/work-tmp/$work_tmp}"
         cp "$ignition" "$output"
         ;;
     *) echo "unexpected podman command: $*" >&2; exit 1 ;;
@@ -202,4 +223,56 @@ for arguments in 'unknown amd64' 'workstation unknown'; do
     [[ ! -s "$TEST_LOG" ]]
 done
 
-echo 'online build selection tests passed'
+# Offline desktop builds must embed the cache before Sway inherits the image
+# and before an installer archives it. NAS and online graphs need no cache.
+git init -q
+git -c user.name=Test -c user.email=test@example.invalid \
+    -c commit.gpgsign=false -c core.hooksPath=/dev/null commit --allow-empty -qm fixture
+cat > "$work_dir/bin/curl" <<'EOF'
+#!/usr/bin/env bash
+[[ "$*" == *http://localhost:5000/v2/* ]]
+EOF
+cat > "$work_dir/bin/xorriso" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'xorriso %s\n' "$*" >> "$TEST_LOG"
+while (($#)); do
+    case "$1" in
+        -indev) input="$2"; shift ;;
+        -outdev) output="$2"; shift ;;
+        -map) archive="$2"; shift ;;
+    esac
+    shift
+done
+archives=("$archive/"*.ociarchive)
+[[ -f "${archives[0]}" ]]
+cp "$input" "$output"
+EOF
+chmod +x "$work_dir/bin/curl" "$work_dir/bin/xorriso"
+export TEST_ISO_CACHE=.
+
+for arch in amd64 arm64; do
+    run_case offline workstation "$arch"
+    expect_builds "images/policy images/ips images/workstation $PWD/dist/flatpak/$arch/payload"
+    grep -q "podman run .*--arch $arch .*workstation:$arch /build-flatpak-cache$" "$TEST_LOG"
+    grep -q "buildah bud .*Containerfile.offline .*BASE_IMAGE=$IMAGE_NAMESPACE/workstation:$arch" "$TEST_LOG"
+    grep -q "podman save .*workstation:$arch$" "$TEST_LOG"
+    [[ "$(find dist/iso -name '*.iso' | wc -l)" == 1 ]]
+done
+run_case offline sway amd64
+expect_builds "images/policy images/ips images/workstation $PWD/dist/flatpak/amd64/payload images/sway"
+grep -q 'podman save .*sway:amd64$' "$TEST_LOG"
+run_case offline nas amd64
+expect_builds 'images/policy images/ips images/nas'
+! grep -q 'build-flatpak-cache\|Containerfile.offline' "$TEST_LOG"
+
+export TEST_CACHE_FAIL=true
+rm -rf dist
+: > "$TEST_LOG"
+if "$just" offline workstation amd64 > "$work_dir/output.log" 2>&1; then
+    echo 'expected Flatpak cache failure' >&2
+    exit 1
+fi
+! grep -q 'Containerfile.offline\|^podman save\|^buildah tag' "$TEST_LOG"
+[[ "$(find dist/iso -name '*.iso' | wc -l)" == 0 ]]
+echo 'online and offline build selection tests passed'

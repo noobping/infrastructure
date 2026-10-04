@@ -1,0 +1,6 @@
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+# /var in a bootc image is not a seed for the installed system's writable /var.
+# Carry the signed repository in /usr; system-flatpaks deploys it on first boot.
+COPY . /usr/share/infrastructure/flatpak-cache/

@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Run inside an offline workstation image with Podman's network disabled.
+set -euo pipefail
+export FLATPAK_SYSTEM_DIR=/var/tmp/test-system-flatpaks
+export SYSTEM_FLATPAKS_DONE=/var/tmp/test-system-flatpaks.done
+cache=/usr/share/infrastructure/flatpak-cache
+test -f "$cache/refs"
+test ! -e "$FLATPAK_SYSTEM_DIR"
+
+/usr/libexec/infrastructure/system-flatpaks
+test -f "$SYSTEM_FLATPAKS_DONE"
+diff -u "$cache/apps" <(flatpak list --system --app --columns=application | LC_ALL=C sort -u)
+while read -r commit ref; do
+    actual="$(flatpak info --system --show-commit "$ref")"
+    if [[ "$actual" != "$commit" ]]; then
+        echo "Unexpected installed commit for $ref: $actual (expected $commit)" >&2
+        exit 1
+    fi
+done < "$cache/refs"
+
+# Exercise retries after the apps have already been deployed.
+/usr/libexec/infrastructure/system-flatpaks
+echo 'All cached Flatpak apps and dependencies installed successfully offline.'

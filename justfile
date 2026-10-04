@@ -73,8 +73,15 @@ check-shell:
 
 check-workstation:
     bash images/workstation/test/chatgpt-install
+    bash images/workstation/test/system-flatpaks
 
-# Exercise online build selection and publication with isolated container-tool fixtures.
+# Validate all bundled Flathub apps in an already-built offline desktop image.
+test-flatpak-cache image:
+    podman run --rm --network none --security-opt label=disable \
+        -v {{ quote(justfile_directory() / "images/workstation/test/flatpak-cache") }}:/test-flatpak-cache:ro \
+        --entrypoint /bin/bash {{ quote(image) }} /test-flatpak-cache
+
+# Exercise build selection and publication with isolated container-tool fixtures.
 check-online:
     bash test/online-build {{ quote(just_executable()) }}
 
@@ -444,6 +451,21 @@ _offline target architecture:
             --tls-verify="$tls_verify" \
             --build-arg "IMAGE_NAMESPACE=${namespace}" \
             --build-arg "TAG=${image_arch}"
+
+        local cache_dir="$repo/dist/flatpak/$image_arch"
+        mkdir -p "$cache_dir"
+        printf '\n==> Caching Flathub apps for %s\n' "$image_arch"
+        run_podman run --rm --pull=never --arch "$image_arch" \
+            --userns=keep-id --user "$(id -u):$(id -g)" \
+            --security-opt label=disable \
+            -v "$cache_dir:/cache" \
+            -v "$repo/images/workstation/build-flatpak-cache:/build-flatpak-cache:ro" \
+            --entrypoint /bin/bash "${namespace}/workstation:${image_arch}" \
+            /build-flatpak-cache
+        build_image "$cache_dir/payload" workstation \
+            --tls-verify="$tls_verify" \
+            -f "$repo/images/workstation/Containerfile.offline" \
+            --build-arg "BASE_IMAGE=${namespace}/workstation:${image_arch}"
     }
 
     build_nas() {

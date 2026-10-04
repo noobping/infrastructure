@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# Run in the matching workstation image; /cache persists between offline builds.
+set -euo pipefail
+
+list_file="${1:-/etc/recommended/flathub}"
+cache="${2:-/cache}"
+arch="$(flatpak --default-arch)"
+mkdir -p "$cache"
+exec 8>"$cache/.lock"
+flock 8
+export FLATPAK_USER_DIR="$cache/download"
+export XDG_CACHE_HOME="$cache/tmp"
+# A build host's GPU must not change which generic graphics runtime is bundled.
+export FLATPAK_GL_DRIVERS=default
+
+stage="$(mktemp -d "$cache/.payload.XXXXXX")"
+trap 'rm -rf -- "$stage"' EXIT
+sed -e 's/[[:space:]]*#.*$//' -e 's/^[[:space:]]*//' \
+    -e 's/[[:space:]]*$//' -e '/^$/d' "$list_file" | LC_ALL=C sort -u > "$stage/apps"
+mapfile -t apps < "$stage/apps"
+printf '%s\n' "$arch" > "$stage/architecture"
+
+curl --fail --location --retry 3 https://dl.flathub.org/repo/flathub.flatpakrepo \
+    -o "$cache/flathub.flatpakrepo"
+flatpak remote-add --user --if-not-exists flathub "$cache/flathub.flatpakrepo"
+flatpak config --user --set languages '*'
+
+# Retain downloaded objects, but rebuild the ref set so removed apps and old
+# runtime branches do not accumulate in subsequent installer images.
+ostree --repo="$FLATPAK_USER_DIR/repo" refs > "$stage/old-refs"
+while IFS= read -r ref; do
+    ostree --repo="$FLATPAK_USER_DIR/repo" refs --delete "$ref"
+done < "$stage/old-refs"
+rm "$stage/old-refs"
+if ((${#apps[@]})); then
+    flatpak install --user --noninteractive --no-deploy --arch="$arch" flathub "${apps[@]}"
+fi
+
+cp "$FLATPAK_USER_DIR/repo/flathub.trustedkeys.gpg" "$stage/flathub.gpg"
+ostree --repo="$stage/repo" init --mode=bare-user-only
+ostree --repo="$stage/repo" remote add --gpg-import="$stage/flathub.gpg" \
+    flathub https://dl.flathub.org/repo/
+ostree --repo="$FLATPAK_USER_DIR/repo" refs | LC_ALL=C sort > "$stage/downloaded-refs"
+: > "$stage/refs"
+while IFS= read -r remote_ref; do
+    case "$remote_ref" in
+        flathub:app/*/"$arch"/*|flathub:runtime/*/"$arch"/*) ;;
+        *) continue ;;
+    esac
+    ref="${remote_ref#flathub:}"
+    commit="$(ostree --repo="$FLATPAK_USER_DIR/repo" rev-parse "$remote_ref")"
+    # Import entire signed commits, including detached extra-data metadata.
+    ostree --repo="$stage/repo" pull-local --remote=flathub --gpg-verify \
+        "$FLATPAK_USER_DIR/repo" "$commit"
+    ostree --repo="$stage/repo" refs --create="$remote_ref" "$commit"
+    printf '%s %s\n' "$commit" "$ref" >> "$stage/refs"
+done < "$stage/downloaded-refs"
+rm "$stage/downloaded-refs"
+
+for app in "${apps[@]}"; do
+    if ! awk -v prefix="app/$app/$arch/" 'index($2, prefix) == 1 { found=1 } END { exit !found }' "$stage/refs"; then
+        echo "Flatpak cache is missing $app ($arch)" >&2
+        exit 1
+    fi
+done
+
+# Publish only after every requested app and dependency has been downloaded.
+rm -rf -- "$cache/payload"
+mv "$stage" "$cache/payload"
+echo "Flatpak cache ready: $cache/payload ($arch)"
