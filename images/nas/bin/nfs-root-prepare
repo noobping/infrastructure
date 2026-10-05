@@ -1,0 +1,39 @@
+#!/usr/bin/bash
+set -euo pipefail
+
+root=/run/infrastructure-nfs
+exports=/etc/exports.d/infrastructure.exports
+sources=()
+while read -r source clients; do
+  [[ -n $source && $source != \#* ]] || continue
+  if [[ $source != /var/* || $(realpath -ms -- "$source") != "$source" ]]; then
+    echo "unsupported NFS export path: $source" >&2
+    exit 1
+  fi
+  sources+=("$source")
+done < "$exports"
+# The music export uses crossmnt for this separate persistent filesystem.
+sources+=(/var/srv/music/touhou)
+for source in "${sources[@]}"; do
+  [[ -d $source ]] || { echo "missing NFS export directory: $source" >&2; exit 1; }
+done
+
+if mountpoint -q "$root"; then
+  echo "NFS export view is already mounted: $root" >&2
+  exit 1
+fi
+install -d -m 0755 "$root"
+mount --bind "$root" "$root"
+trap 'umount --recursive "$root"' EXIT
+mount --make-private "$root"
+
+# Bind only exported data, never /var or the container storage tree. Recursive
+# binds retain Podman overlay/shm mounts and can make container removal fail.
+# Sort parents before children; make each view private to exclude future mounts.
+while IFS= read -r source; do
+  target=$root$source
+  mkdir -p "$target"
+  mount --bind "$source" "$target"
+  mount --make-private "$target"
+done < <(printf '%s\n' "${sources[@]}" | sort -u)
+trap - EXIT

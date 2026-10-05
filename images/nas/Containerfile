@@ -33,6 +33,7 @@ RUN set -euxo pipefail; \
   /etc/ups \
   /etc/containers/registries.conf.d \
   /etc/systemd/system/multi-user.target.wants \
+  /etc/systemd/system/nfs-mountd.service.d \
   /etc/systemd/system/nfs-server.service.d \
   /etc/systemd/system/timers.target.wants \
   /usr/libexec/infrastructure \
@@ -51,7 +52,7 @@ COPY --chmod=0755 vm-on-demand/udp-proxy /usr/libexec/infrastructure/vm-udp-prox
 COPY vm-on-demand/idle.service /usr/lib/systemd/system/vm-on-demand-idle.service
 COPY vm-on-demand/idle.timer /usr/lib/systemd/system/vm-on-demand-idle.timer
 COPY --chmod=0644 infrastructure-policy.container /usr/share/containers/systemd/
-COPY --chmod=0755 bin/artifacts-prepare bin/btrfs-backup bin/nut-activate /usr/libexec/infrastructure/
+COPY --chmod=0755 bin/artifacts-prepare bin/btrfs-backup bin/nut-activate bin/nfs-root-prepare /usr/libexec/infrastructure/
 COPY artifacts-prepare.service /etc/systemd/system/artifacts-prepare.service
 COPY btrfs-backup.service /etc/systemd/system/btrfs-backup.service
 COPY btrfs-backup.timer /etc/systemd/system/btrfs-backup.timer
@@ -64,6 +65,7 @@ COPY mdadm.conf /etc/mdadm.conf
 COPY nfs/exports /etc/exports.d/infrastructure.exports
 COPY nfs/nfs.conf /etc/nfs.conf.d/infrastructure.conf
 COPY nfs/nfs-root-prepare.service /etc/systemd/system/nfs-root-prepare.service
+COPY nfs/nfs-mountd.conf /etc/systemd/system/nfs-mountd.service.d/10-infrastructure.conf
 COPY nfs/nfs-server.conf /etc/systemd/system/nfs-server.service.d/10-infrastructure.conf
 COPY nfs/storage.conf /usr/lib/tmpfiles.d/infrastructure-nfs.conf
 COPY --chmod=0644 nut-activate.service /usr/lib/systemd/system/infrastructure-policy-nut-activate.service

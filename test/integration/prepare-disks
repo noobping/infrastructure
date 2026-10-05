@@ -32,6 +32,7 @@ if [[ $1 == nas ]]; then
     mkdir -p /run/test-ssd/music/touhou
     printf 'integration document\n' > /run/test-ssd/docs/example.txt
     printf 'integration artifact\n' > /run/test-ssd/artifacts/example.txt
+    printf 'integration nested music\n' > /run/test-ssd/touhou/example.txt
     # A real one-pixel PNG; originals stay separate from generated application data.
     base64 -d > /run/test-ssd/photos/example.png <<'EOF'
 iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jN1kAAAAASUVORK5CYII=

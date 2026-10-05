@@ -111,10 +111,13 @@ NAS additionally uses labeled Btrfs fixture disks and real PNG/document data:
 
 - Every configured data mount must be on its intended fixture disk; an empty
   directory left on the OS disk is a failure.
-- The real kernel NFS server/client exercise the existing exports, read-only
-  photos, root squashing, UID 1005 uploads and artifact downloads. Mounts are
-  isolated in a private namespace. This tests local protocol and permissions,
-  not routing/firewall traversal from another machine.
+- The real kernel NFS server/client exercise NFSv3/v4, existing exports, read-only
+  photos, root squashing, UID 1005 uploads, artifact downloads and the nested
+  music filesystem. Mounts are isolated in a private namespace. This tests local
+  protocol and permissions, not routing/firewall traversal from another machine.
+- Restart NFS while a real container is running, remove that container, and run
+  the NAS policy twice. Removal must leave no container storage or retained
+  shared-memory mounts in the export view.
 - The production backup script snapshots photos/docs, performs incremental
   send/receive, prunes retention, restores a writable copy, and retries after an
   injected destination failure. It intentionally avoids copying all container

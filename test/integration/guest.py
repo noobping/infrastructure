@@ -184,8 +184,7 @@ def storage():
         "/var/srv/hdd": "hdd", "/var/srv/data": "hdd",
     }
     for path, label in mounts.items():
-        # The NAS NFS root recursively binds /var, so mountinfo can contain
-        # several entries for the same mountpoint. Inspect one mount record.
+        # Older NAS images can contain duplicate bind mounts. Inspect one record.
         fstype = command("findmnt", "--first-only", "-n", "-o", "FSTYPE", "--mountpoint", path)
         require(fstype == "btrfs", f"{path}: expected Btrfs, got {fstype}")
         require(command("findmnt", "--first-only", "-n", "-o", "LABEL", "--mountpoint", path) == label, f"Wrong disk for {path}")
@@ -195,6 +194,42 @@ def storage():
         require(pwd.getpwnam(name).pw_uid == uid, f"Wrong UID for {name}")
     uploads = Path("/var/lib/containers/immich/data")
     require(uploads.stat().st_uid == 1005 and uploads.stat().st_gid == 1005, "Wrong upload ownership")
+
+
+def nfs_container_cleanup():
+    # Run in the guest's main mount namespace. The surrounding test namespace
+    # must not itself retain new Podman mounts while we check their removal.
+    def host(*args, **kwargs):
+        return command("nsenter", "--mount=/proc/1/ns/mnt", "--", *args, **kwargs)
+
+    name = "integration-nfs-cleanup"
+    container = None
+    try:
+        container = host("podman", "run", "-d", "--name", name, "--network", "none",
+                         "--read-only", "--read-only-tmpfs", "--security-opt", "no-new-privileges",
+                         "--security-opt", "label=disable", "--cap-drop", "all",
+                         "--rootfs", "/usr/lib/infrastructure-policy/rootfs", "/usr/bin/sleep", "300")
+        # Mount the NFS view while a container owns a live /dev/shm mount.
+        host("systemctl", "stop", "nfs-server.service", "nfs-root-prepare.service")
+        host("systemctl", "start", "nfs-server.service")
+        host("podman", "rm", "--force", name)
+        mounts = host("findmnt", "-rn", "-o", "TARGET").splitlines()
+        require(not any(container in path for path in mounts), "NFS retained a removed container mount")
+        graphroot = host("podman", "info", "--format", "{{.Store.GraphRoot}}")
+        host("test", "!", "-e", graphroot + "/overlay-containers/" + container)
+        host("test", "!", "-e", graphroot + "/btrfs-containers/" + container)
+        for _ in range(2):
+            host("systemctl", "restart", "infrastructure-policy.service", timeout=600)
+            result = host("podman", "container", "exists", "infrastructure-policy-nas", check=False)
+            require(result.returncode == 1, "NAS policy left a container behind")
+        mounts = host("findmnt", "-rn", "-o", "TARGET").splitlines()
+        require(not any("/storage/" in path and "/userdata/shm" in path for path in mounts
+                        if "/sysroot/ostree/deploy/fedora-coreos/var/" in path
+                        or path.startswith("/run/infrastructure-nfs/")), "NFS retains container shared memory")
+    finally:
+        if container:
+            host("podman", "rm", "--force", "--ignore", name, check=False)
+        host("systemctl", "start", "nfs-server.service", check=False)
 
 
 def nfs():
@@ -208,13 +243,15 @@ def nfs():
     root.chmod(0o755)
     mounted = []
     try:
-        for label, export in (("photos", "/var/srv/photos"), ("uploads", "/var/lib/containers/immich/data"),
-                              ("artifacts", "/var/srv/ssd/artifacts")):
+        for label, export, version in (("photos", "/var/srv/photos", 4), ("photos-v3", "/var/srv/photos", 3),
+                                       ("uploads", "/var/lib/containers/immich/data", 4),
+                                       ("artifacts", "/var/srv/ssd/artifacts", 4), ("music", "/var/srv/music", 4)):
             target = root / label
             target.mkdir(exist_ok=True)
-            command("mount", "-t", "nfs", "-o", "vers=4,proto=tcp,hard,timeo=10,retrans=2", "127.0.0.1:" + export, str(target))
+            command("mount", "-t", "nfs", "-o", f"vers={version},proto=tcp,hard,timeo=10,retrans=2", "127.0.0.1:" + export, str(target))
             mounted.append(target)
         require((root / "photos/example.png").read_bytes() == Path("/var/srv/photos/example.png").read_bytes(), "NFS read differs")
+        require((root / "photos-v3/example.png").read_bytes() == Path("/var/srv/photos/example.png").read_bytes(), "NFSv3 read differs")
         # Use the library owner: a squashed root would also be denied on a
         # mistakenly writable export because it lacks ordinary write access.
         result = command("setpriv", "--reuid", "1005", "--regid", "1005", "--clear-groups",
@@ -225,6 +262,7 @@ def nfs():
         command("setpriv", "--reuid", "1005", "--regid", "1005", "--clear-groups", "touch", str(root / "uploads/phone-upload"))
         require(Path("/var/lib/containers/immich/data/phone-upload").stat().st_uid == 1005, "Upload has wrong UID")
         require((root / "artifacts/example.txt").read_text() == "integration artifact\n", "Artifact export failed")
+        require((root / "music/touhou/example.txt").read_text() == "integration nested music\n", "Nested music export failed")
     finally:
         for target in reversed(mounted):
             command("umount", str(target), check=False, timeout=20)
@@ -295,6 +333,7 @@ def nas(phase):
     case("NAS policy applies at boot", lambda: eventually(lambda: oneshot("infrastructure-policy.service")))
     case("NUT reports synthetic UPS status through real driver and server",
          lambda: eventually(lambda: require(command("upsc", "lab@localhost", "ups.status") == "OL", "Unexpected UPS status")))
+    case("NFS restart permits container removal and repeated NAS policy", nfs_container_cleanup)
     case("NFS reads, root squash, phone-upload identity and read-only originals", nfs)
     case("Btrfs snapshots, incremental transfer, retention, restore and failure retry", lambda: backups(phase))
     case("registry blob round-trip and persistence", lambda: eventually(lambda: registry(phase)))
