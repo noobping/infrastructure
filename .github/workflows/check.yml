@@ -35,7 +35,7 @@ jobs:
           fetch-depth: 2
 
       - name: Check with Pipeline
-        uses: noobping/pipeline@continuous
+        uses: ./.github/actions/pipeline
         with:
           arguments: |
             --cap-jobs

@@ -48,7 +48,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
-      - uses: noobping/pipeline@continuous
+      - uses: ./.github/actions/pipeline
         with:
           arguments: |
             --cap-jobs

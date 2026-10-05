@@ -15,7 +15,7 @@ runs:
         set -euo pipefail
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends \
-          buildah ca-certificates curl fuse-overlayfs git jq podman \
+          buildah ca-certificates curl fuse-overlayfs git jq podman python3 \
           skopeo slirp4netns uidmap xorriso
         sudo update-ca-certificates
 
