@@ -303,7 +303,11 @@ class Network(unittest.TestCase):
                             self.assertFalse(host.guest_idle({'name':'immich'}))
             finally:
                 agent.terminate()
-                agent.communicate(timeout=5)
+                try:
+                    agent.communicate(timeout=5)
+                except subprocess.TimeoutExpired:
+                    agent.kill()
+                    agent.communicate(timeout=5)
 
     def test_udp_preserves_client_sessions_and_exits_after_idle(self):
         backend = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

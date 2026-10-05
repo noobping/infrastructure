@@ -28,7 +28,9 @@ case "$mode" in
     ;;
   standalone|netserver)
     if command -v upsdrvsvcctl >/dev/null 2>&1; then
-      upsdrvsvcctl reconfigure
+      # NUT otherwise returns 42 after successfully changing driver instances.
+      # We restart the dependent services below; genuine errors must still fail.
+      REPORT_RESTART_42=no upsdrvsvcctl reconfigure
     fi
     enable_restart nut.target
     enable_restart nut-driver-enumerator.service

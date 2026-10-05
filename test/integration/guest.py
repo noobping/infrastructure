@@ -184,8 +184,11 @@ def storage():
         "/var/srv/hdd": "hdd", "/var/srv/data": "hdd",
     }
     for path, label in mounts.items():
-        require(command("findmnt", "-n", "-o", "FSTYPE", "--mountpoint", path) == "btrfs", f"{path} fell back to OS disk")
-        require(command("findmnt", "-n", "-o", "LABEL", "--mountpoint", path) == label, f"Wrong disk for {path}")
+        # The NAS NFS root recursively binds /var, so mountinfo can contain
+        # several entries for the same mountpoint. Inspect one mount record.
+        fstype = command("findmnt", "--first-only", "-n", "-o", "FSTYPE", "--mountpoint", path)
+        require(fstype == "btrfs", f"{path}: expected Btrfs, got {fstype}")
+        require(command("findmnt", "--first-only", "-n", "-o", "LABEL", "--mountpoint", path) == label, f"Wrong disk for {path}")
     require(Path("/var/srv/docs/example.txt").read_text() == "integration document\n", "Seed document changed")
     require(Path("/var/srv/photos/example.png").read_bytes().startswith(b"\x89PNG"), "Seed photo missing")
     for name, uid in (("music", 1001), ("minecraft", 1003), ("docs", 1004), ("photos", 1005), ("videos", 1006)):
@@ -200,6 +203,9 @@ def nfs():
     original = hashlib.sha256(Path("/var/srv/photos/example.png").read_bytes()).hexdigest()
     root = Path("/run/infrastructure-nfs-test")
     root.mkdir(exist_ok=True)
+    # The private control agent uses umask 077. The media user must be able to
+    # traverse this test-only parent to exercise permissions on the NFS export.
+    root.chmod(0o755)
     mounted = []
     try:
         for label, export in (("photos", "/var/srv/photos"), ("uploads", "/var/lib/containers/immich/data"),
@@ -209,7 +215,10 @@ def nfs():
             command("mount", "-t", "nfs", "-o", "vers=4,proto=tcp,hard,timeo=10,retrans=2", "127.0.0.1:" + export, str(target))
             mounted.append(target)
         require((root / "photos/example.png").read_bytes() == Path("/var/srv/photos/example.png").read_bytes(), "NFS read differs")
-        result = command("touch", str(root / "photos/must-not-write"), check=False)
+        # Use the library owner: a squashed root would also be denied on a
+        # mistakenly writable export because it lacks ordinary write access.
+        result = command("setpriv", "--reuid", "1005", "--regid", "1005", "--clear-groups",
+                         "touch", str(root / "photos/must-not-write"), check=False)
         require(result.returncode != 0, "Original library accepts writes")
         result = command("touch", str(root / "uploads/root-must-not-write"), check=False)
         require(result.returncode != 0, "Root squashing failed")
@@ -337,7 +346,9 @@ def main():
         nas(phase)
     else:
         workstation(phase)
-    case("no unexpected failed services", lambda: unexpected_failures(profile))
+    # Podman's periodic health-check unit can fail before an app is listening.
+    # Give it the shared startup grace to retry; persistent failures still fail.
+    case("no unexpected failed services", lambda: eventually(lambda: unexpected_failures(profile)))
     skip("internet signature, rule, firmware and OS updates", "Deliberately isolated from external networks; seeded definitions and running engines are tested")
     print(json.dumps(RESULTS, indent=2))
     return 0  # Host consumes structured failures and sets the overall exit code.

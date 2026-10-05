@@ -243,10 +243,11 @@ _offline target architecture:
     registry_volume="${LOCAL_REGISTRY_VOLUME:-pipeline-registry}"
 
     run_podman() {
+        # A detached registry must not retain the offline build's flock.
         if command -v podman >/dev/null 2>&1; then
-            podman "$@"
+            podman "$@" 9>&-
         elif command -v flatpak-spawn >/dev/null 2>&1; then
-            flatpak-spawn --host podman "$@"
+            flatpak-spawn --host podman "$@" 9>&-
         else
             echo "podman is required to build offline artifacts" >&2
             exit 1

@@ -19,6 +19,11 @@ just test-vms --pull
 ```
 
 `pipeline test-vms` runs the same suite, requiring cached application images.
+Tests use the existing ISO in `dist/iso`; they do not rebuild it. After changing
+image or installer configuration, rebuild with `just offline nas amd64` (or the
+matching profile) before testing. `--pull` does not update the NAS operating
+system image embedded in that ISO.
+
 `--pull` lets the host fetch the NAS application images named in the **installed
 image's** Quadlets and stream them into the test VM. Without it, those references
 must already exist in the host Podman cache. References, IDs and available

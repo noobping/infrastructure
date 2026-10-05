@@ -9,7 +9,13 @@ fi
 
 repo="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 work_dir="$(mktemp -d)"
-trap 'rm -rf -- "$work_dir"' EXIT
+cleanup() {
+    if [[ -f "$work_dir/registry.pid" ]]; then
+        kill "$(cat "$work_dir/registry.pid")" 2>/dev/null || true
+    fi
+    rm -rf -- "$work_dir"
+}
+trap cleanup EXIT
 test_case=setup
 report_failure() {
     local status=$?
@@ -47,6 +53,17 @@ cat > "$work_dir/bin/podman" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 printf 'podman %s\n' "$*" >> "$TEST_LOG"
+if [[ -n "${TEST_REGISTRY_DAEMON_PID:-}" ]]; then
+    case "$*" in
+        'container exists '*) exit 1 ;;
+        'volume exists '*) exit 0 ;;
+        'run -d '*)
+            sleep 60 </dev/null >/dev/null 2>&1 &
+            printf '%s\n' "$!" > "$TEST_REGISTRY_DAEMON_PID"
+            exit 0
+            ;;
+    esac
+fi
 [[ "$1" != pull ]] || exit 0
 if [[ "$1" == save ]]; then
     printf 'OCI archive with embedded Flatpak cache\n' > "$5"
@@ -245,6 +262,9 @@ done
 # commits here: Git hooks can export paths to the real repository and index.
 cat > "$work_dir/bin/curl" <<'EOF'
 #!/usr/bin/env bash
+if [[ -n "${TEST_REGISTRY_DAEMON_PID:-}" && ! -f "$TEST_REGISTRY_DAEMON_PID" ]]; then
+    exit 1
+fi
 [[ "$*" == *http://localhost:5000/v2/* ]]
 EOF
 cat > "$work_dir/bin/xorriso" <<'EOF'
@@ -265,6 +285,14 @@ cp "$input" "$output"
 EOF
 chmod +x "$work_dir/bin/curl" "$work_dir/bin/xorriso"
 export TEST_ISO_CACHE=.
+
+# A daemon started by Podman must not hold the lock after the build exits.
+export TEST_REGISTRY_DAEMON_PID="$work_dir/registry.pid"
+run_case offline nas amd64
+flock -n dist/.offline.lock true
+kill "$(cat "$TEST_REGISTRY_DAEMON_PID")"
+rm "$TEST_REGISTRY_DAEMON_PID"
+unset TEST_REGISTRY_DAEMON_PID
 
 for arch in amd64 arm64; do
     run_case offline workstation "$arch"
