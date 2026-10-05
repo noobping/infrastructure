@@ -10,7 +10,7 @@ picture-uri='file:///usr/share/backgrounds/wallpaper.png'
 accent-color='green'
 gtk-enable-primary-paste=true
 
-[org/gnome/system/locale]
+[system/locale]
 region='nl_NL.UTF-8'
 
 [org/gnome/settings-daemon/plugins/media-keys]

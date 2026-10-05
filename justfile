@@ -50,6 +50,8 @@ check-just:
         "_offline sway both"
         "vm workstation offline"
         "vm-install workstation online"
+        "test-vm nas --preflight"
+        "test-vms --preflight"
     )
     for command in "${commands[@]}"; do
         read -r -a arguments <<< "$command"
@@ -93,6 +95,19 @@ check-vm:
     python3 test/vm-deploy.py
     python3 vms/immich/test/hooks.py
     python3 images/nas/test/vm-on-demand.py
+    python3 -B test/integration/test_runner.py
+
+# Install, assert settings/services, reboot, and test persistence in a fresh VM.
+test-vm profile="nas" *options:
+    @python3 -B {{ quote(justfile_directory() / "test/integration/runner.py") }} {{ quote(profile) }} {{ options }}
+
+# Run the real NAS and Workstation suites sequentially (not part of commit hooks).
+test-vms *options:
+    @python3 -B {{ quote(justfile_directory() / "test/integration/runner.py") }} all {{ options }}
+
+# Check local virtualization tools and built installer availability.
+test-vms-preflight:
+    @python3 -B {{ quote(justfile_directory() / "test/integration/runner.py") }} all --preflight
 
 # Boot a persistent AMD64 test VM; install from the ISO when its disk is new.
 vm profile="workstation" media="offline":

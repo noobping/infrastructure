@@ -25,6 +25,16 @@ podman cp --archive=false "$container:/usr/share/suricata/rules/." "$fixture/dat
 # This catches accidentally nesting a rules directory during image assembly.
 test -s "$fixture/data/usr/share/suricata/rules/suricata.rules"
 
+# Rootless Podman can populate these in a writable extraction before applying
+# --read-only. On a booted image /usr is immutable, so the mount targets must
+# already be shipped. Check before starting a container can hide the omission.
+for name in hostname hosts resolv.conf; do
+  if [[ ! -f "$fixture/runtime/etc/$name" || -L "$fixture/runtime/etc/$name" ]]; then
+    echo "Embedded policy runtime lacks regular /etc/$name; cannot start from immutable /usr" >&2
+    exit 1
+  fi
+done
+
 for profile in clamav suricata gssproxy; do
   mounts=(
     -v "$fixture/data/etc/passwd:/host/etc/passwd:ro"

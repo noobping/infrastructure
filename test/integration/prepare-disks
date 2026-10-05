@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Runs ONLY inside the disposable installer VM, before coreos-installer.
+set -euo pipefail
+
+disk_by_serial() {
+    lsblk -dnpo NAME,SERIAL | awk -v serial="$1" '$2 == serial { print $1 }'
+}
+
+os_disk=$(disk_by_serial integration-os)
+ssd=$(disk_by_serial integration-ssd)
+hdd=$(disk_by_serial integration-hdd)
+usb=$(disk_by_serial integration-usb)
+for disk in "$os_disk" "$ssd" "$hdd" "$usb"; do
+    [[ -n "$disk" && -b "$disk" ]] || { echo 'Missing disposable test disk' >&2; exit 1; }
+done
+[[ $(readlink -f "$(cat /run/coreos-installer/dest-device)") == "$os_disk" ]]
+[[ $(lsblk -dn -o TRAN "$usb") == usb ]]
+printf 'infrastructure-usb-preserved\n' | dd of="$usb" conv=fsync status=none
+
+if [[ $1 == nas ]]; then
+    mkfs.btrfs -f -L ssd "$ssd"
+    mkfs.btrfs -f -L hdd "$hdd"
+    mkdir -p /run/test-ssd /run/test-hdd
+    mount "$ssd" /run/test-ssd
+    mount "$hdd" /run/test-hdd
+    trap 'umount /run/test-hdd; umount /run/test-ssd' EXIT
+    for subvolume in apps books caddy docs git music photos touhou videos; do
+        btrfs subvolume create "/run/test-ssd/$subvolume"
+    done
+    btrfs subvolume create /run/test-hdd/data
+    btrfs subvolume create /run/test-ssd/artifacts
+    mkdir -p /run/test-ssd/music/touhou
+    printf 'integration document\n' > /run/test-ssd/docs/example.txt
+    printf 'integration artifact\n' > /run/test-ssd/artifacts/example.txt
+    # A real one-pixel PNG; originals stay separate from generated application data.
+    base64 -d > /run/test-ssd/photos/example.png <<'EOF'
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jN1kAAAAASUVORK5CYII=
+EOF
+    chown 1005:1005 /run/test-ssd/photos /run/test-ssd/photos/example.png
+    chown 1004:1004 /run/test-ssd/docs /run/test-ssd/docs/example.txt
+    chown 1001:1001 /run/test-ssd/music /run/test-ssd/books /run/test-ssd/touhou
+    # Files created below /run otherwise inherit installer-only labels. Give the
+    # synthetic media their destination labels before the real NAS mounts them.
+    chcon -R system_u:object_r:var_t:s0 /run/test-ssd /run/test-hdd
+    chcon system_u:object_r:container_var_lib_t:s0 /run/test-ssd/apps
+else
+    printf 'infrastructure-ssd-preserved\n' | dd of="$ssd" conv=fsync status=none
+    printf 'infrastructure-hdd-preserved\n' | dd of="$hdd" conv=fsync status=none
+fi
+echo INTEGRATION_DISKS_READY

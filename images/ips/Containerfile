@@ -43,7 +43,12 @@ COPY suricata-update.service /etc/systemd/system/suricata-update.service
 COPY suricata-update.timer /etc/systemd/system/suricata-update.timer
 COPY suricata.service.d/10-inline.conf /etc/systemd/system/suricata.service.d/10-inline.conf
 
+# OCI runtime mount targets must exist before this tree lives under immutable /usr.
 RUN set -euxo pipefail; \
+  touch \
+    /usr/lib/infrastructure-policy/rootfs/etc/hostname \
+    /usr/lib/infrastructure-policy/rootfs/etc/hosts \
+    /usr/lib/infrastructure-policy/rootfs/etc/resolv.conf; \
   chmod 0644 \
     /etc/clamd.d/scan.conf \
     /etc/freshclam.conf \

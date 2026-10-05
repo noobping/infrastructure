@@ -4,6 +4,11 @@ on:
   pre-receive: [check]
 
 pipelines:
+  test-vms:
+    jobs:
+      integration:
+        just: test-vms
+
   test-policy:
     jobs:
       policy:
