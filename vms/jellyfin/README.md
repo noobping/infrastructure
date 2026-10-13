@@ -40,3 +40,14 @@ sudo systemctl start jellyfin.service
 For a backup while the guest is active, follow the
 [shared backup order](../README.md#safety-and-backups). Its prepare hook stops
 Jellyfin; the finish hook restarts it if it was previously active.
+
+
+## AudioMuse-AI
+
+[AudioMuse](../audiomuse/README.md) runs in a separate on-demand VM and initially
+connects to the retained NAS server. It does not authorize handover or start this
+guest. The optional [plugin installer](install-audiomuse-plugin) pins ABI-compatible
+0.1.55.0 for Jellyfin 10.11.11, checks the running version, and preserves existing
+configuration. Its CA-bundle Quadlet drop-in enables trust of the administrator's
+Caddy CA for authenticated `https://discovery.vm` calls. Follow the AudioMuse
+runbook for setup, schedules and plugin updates before installing.

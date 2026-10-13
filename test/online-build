@@ -191,9 +191,13 @@ grep -q 'localhost:5000/online-test/nas:latest$' "$TEST_LOG"
 
 run_case online::_images stable amd64 immich graph
 expect_builds 'images/policy images/ips vms/vm vms/immich'
+run_case online::_images stable amd64 audiomuse graph
+expect_builds 'images/policy images/ips vms/vm vms/audiomuse'
 run_case online::_media amd64 nas
 [[ -f dist/online/ign/immich.ign ]]
 grep -q immich.vm dist/online/ign/immich.ign
+[[ -f dist/online/ign/audiomuse.ign ]]
+grep -q audiomuse.vm dist/online/ign/audiomuse.ign
 # Guest rendering follows inventory, including future roles.
 jq '.vms += [(.vms[-1] | .name = "fixture" | .ignition = "dist/ign/fixture.ign")]' \
     vms/inventory.json > vms/fixture.json
@@ -204,8 +208,8 @@ run_case online::_media amd64 nas
 
 # Defaults preserve the complete two-architecture publication graph.
 run_case online::stable
-[[ "$(grep -c '^buildah bud ' "$TEST_LOG")" == 20 ]]
-[[ "$(grep -c '^buildah manifest push ' "$TEST_LOG")" == 10 ]]
+[[ "$(grep -c '^buildah bud ' "$TEST_LOG")" == 22 ]]
+[[ "$(grep -c '^buildah manifest push ' "$TEST_LOG")" == 11 ]]
 run_case online::next
 [[ "$(grep -c '^buildah bud ' "$TEST_LOG")" == 8 ]]
 [[ "$(grep -c '^buildah manifest push ' "$TEST_LOG")" == 4 ]]

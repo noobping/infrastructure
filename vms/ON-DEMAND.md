@@ -1,10 +1,11 @@
 # On-demand VMs
 
-Minecraft, Immich, and Jellyfin wake on connections to NAS listening sockets.
+Minecraft, Immich, Jellyfin, and AudioMuse wake on connections to NAS listening sockets.
 After at least 30 minutes without client traffic or application work, the NAS
 requests a graceful guest shutdown. K3s keeps its existing boot policy, services,
-and Caddy deployment. The NAS must be on; its existing nightly host shutdown
-and Wake-on-LAN configuration are unchanged.
+and Caddy deployment. The NAS must be on. Wake-on-LAN is unchanged; nightly poweroff now defers
+while AudioMuse runs or a persistent VM hold/active NAS backup exists. See the
+[AudioMuse runbook](audiomuse/README.md#on-demand-lifecycle-and-nas-power).
 
 The NAS image supplies native systemd services and a small controller, without
 an additional container or an exposed VM-management API. `vms/inventory.json`
@@ -20,7 +21,8 @@ creates or replaces a domain and does not reconcile other guests.
   NAS port 8096 remains reserved for the retained legacy service until migration.
 - Connect Minecraft Java to `nas.vm:25565`, Bedrock to `nas.vm:19132` (also
   exposed on 19133). An optional `play.vm` DNS alias can point to the NAS.
-- Keep `minecraft.vm`, `immich.vm`, and `jellyfin.vm` pointing at their guests.
+- `discovery.vm` uses K3s/Caddy and `nas.vm:18000` to wake AudioMuse.
+- Keep `minecraft.vm`, `immich.vm`, `jellyfin.vm`, and `audiomuse.vm` pointing at their guests.
   They are backend/NFS identities and direct maintenance addresses. Do not point
   those names to the NAS: the proxy would connect back to itself.
 
@@ -43,9 +45,9 @@ if you want the guests to sleep.
 
 ## Rollout on the NAS
 
-Build/publish the updated NAS, VM base, Minecraft, Immich and Jellyfin role images
+Build/publish the updated NAS, VM base and selected application role images
 through the existing signed-image pipeline. Boot the new NAS image and update
-the three guests so their `/usr/libexec/infrastructure/vm-idle-check` helper is
+the selected guests so their `/usr/libexec/infrastructure/vm-idle-check` helper is
 present. Complete each guest's first-boot rebase and application setup manually
 before enabling demand activation. Keep K3s running normally.
 
@@ -116,7 +118,9 @@ and role backup markers. Minecraft checks Java and Bedrock player counts.
 Jellyfin checks playing/paused sessions, transcoding and scheduled tasks. Immich
 checks active, waiting, delayed and paused queue work, including scans, face
 recognition, video conversion and database dumps. Failed or completed Immich
-jobs alone do not hold the guest. A missing helper, blocked guest-agent file read,
+jobs alone do not hold the guest. AudioMuse checks its complete PostgreSQL queue
+(including child/control jobs), database transactions, health and direct clients.
+It needs no idle API key and never probes Jellyfin from its idle timer. A missing helper, blocked guest-agent file read,
 API failure, stale/unknown report, clock skew, paused VM or failed shutdown keeps it running.
 The controller never uses `virsh destroy`. An administrator who deliberately
 stops only an application should hold the VM during that maintenance.
@@ -141,7 +145,9 @@ participating on-demand VM **before** invoking any guest prepare hook. Release
 it only after every finish hook succeeds. Leave it in place on recovery failure;
 it survives host reboot and prevents shutdown of a half-finished backup. The
 existing NAS snapshot service also inhibits idle shutdown while it is active.
-These holds do not cancel the NAS's existing nightly physical power-off.
+These holds now defer the NAS's nightly physical power-off as well. Cancel any
+legacy shutdown reservation and restart the updated nightly service before the
+first analysis, as documented in the AudioMuse runbook.
 
 ## Scheduled work
 
@@ -149,8 +155,8 @@ Guest schedules cannot run while their VM is off. Use NAS systemd timers to run
 `/usr/bin/vm-on-demand wake immich` ahead of the scan/database-backup times chosen
 in Immich. Put those schedules inside the NAS's powered-on hours and wake at
 most 20 minutes beforehand; queued work then keeps the guest running. The NAS's
-existing 21:30 shutdown means overnight schedules require changing the host
-power schedule separately. The same consideration applies to Jellyfin scans
+21:30 shutdown now waits for AudioMuse to shut down normally and for all holds
+to clear. Sleeping guests still need explicit wakes for future scheduled work. The same consideration applies to AudioMuse schedules, Jellyfin scans
 and guest OS updates. Until timers are configured, run scans/backups during an
 awake session; socket traffic alone cannot guarantee daily maintenance.
 

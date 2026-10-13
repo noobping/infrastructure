@@ -100,22 +100,32 @@ def bedrock_players():
 
 
 def guest_idle(role):
-    if role not in ('immich', 'jellyfin', 'minecraft'):
+    if role not in ('immich', 'jellyfin', 'minecraft', 'audiomuse'):
         raise ValueError('Unsupported VM role')
     if Path('/run/vm-on-demand.hold').exists():
         return False
     markers = {'immich': ['server-was-active'], 'minecraft': ['quiesce'],
-               'jellyfin': ['jellyfin-was-active']}
+               'jellyfin': ['jellyfin-was-active'], 'audiomuse': ['prepared', 'restoring']}
     if any((BACKUP/role/marker).exists() for marker in markers[role]):
         return False
     if run('systemctl', 'show', '--property=ActiveState', '--value',
            'rpm-ostree-upgrade.service') not in ('inactive', 'failed'):
         return False
-    ports = {'immich': [2283], 'minecraft': [25565], 'jellyfin': [8096]}[role]
+    ports = {'immich': [2283], 'minecraft': [25565], 'jellyfin': [8096], 'audiomuse': [8000]}[role]
     # Include direct guest connections and administrator SSH sessions.
     expression = '( '+' or '.join(f'sport = :{port}' for port in [22, *ports])+' )'
     if run('ss', '--no-header', '--tcp', '--numeric', 'state', 'established', expression):
         return False
+    if role == 'audiomuse':
+        if run('/usr/libexec/infrastructure/audiomuse-idle') != 'idle':
+            return False
+        pid = run('podman', 'inspect', '--format', '{{.State.Pid}}', 'audiomuse-web')
+        if not pid.isdigit() or int(pid) <= 0:
+            raise ValueError('AudioMuse web is not running')
+        # Ignore only container-local health checks; direct clients hold it.
+        return not run('nsenter', '--target', pid, '--net', 'ss', '--no-header',
+                       '--tcp', '--numeric', 'state', 'established',
+                       '( sport = :8000 and not dst 127.0.0.1 and not dst [::1] and not dst [::ffff:127.0.0.1] )')
     if role == 'immich':
         # Immich uses a private Podman network: its sockets are not visible in
         # the guest's host namespace. Include direct uploads bypassing the NAS.

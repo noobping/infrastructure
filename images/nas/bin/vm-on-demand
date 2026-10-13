@@ -2,6 +2,7 @@
 """Inventory-driven NAS socket activation and conservative VM idle shutdown."""
 import argparse
 import base64
+import datetime
 from contextlib import contextmanager
 import fcntl
 import json
@@ -19,7 +20,7 @@ STATE = Path('/var/lib/infrastructure/vm-on-demand')
 RUNTIME = Path('/run/vm-on-demand')
 UNITS = Path('/etc/systemd/system')
 NAME = re.compile(r'[a-z0-9][a-z0-9-]{0,40}')
-ROLES = {'minecraft', 'jellyfin', 'immich'}
+ROLES = {'minecraft', 'jellyfin', 'immich', 'audiomuse'}
 MAGIC = bytes.fromhex('00ffff00fefefefefdfdfdfd12345678')
 
 
@@ -53,7 +54,7 @@ def validate_inventory(path, names):
             continue
         name, policy = vm['name'], vm['on_demand']
         if name not in ROLES or not NAME.fullmatch(name) or vm['autostart'] is not False:
-            raise ValueError('Only minecraft, jellyfin and immich support on-demand mode; autostart must be false')
+            raise ValueError('Only minecraft, jellyfin, immich and audiomuse support on-demand mode; autostart must be false')
         if not re.fullmatch(r'[a-z0-9][a-z0-9.-]+', vm['hostname']):
             raise ValueError('Invalid backend hostname')
         if type(policy['idle_seconds']) is not int or policy['idle_seconds'] < 1800:
@@ -331,9 +332,46 @@ def enable(config):
         print(f'{name}: wake listeners enabled; idle shutdown after {config["idle_seconds"]//60} minutes')
 
 
+def nightly_ready():
+    # Physical poweroff cannot preserve a running analysis VM. Let its existing
+    # controller finish the full quiet interval and shut it down first. Never
+    # wake or probe a sleeping guest; disabled activation must also be safe.
+    if any(STATE.glob('*.hold')):
+        return False
+    if property_of('btrfs-backup.service', 'ActiveState') not in ('inactive', 'failed'):
+        return False
+    domains = virsh('list', '--all', '--name').splitlines()
+    if 'audiomuse' in domains and state('audiomuse') != 'shut off':
+        return False
+    return True
+
+
+def nightly():
+    now = datetime.datetime.now().astimezone()
+    target = now.replace(hour=21, minute=30, second=0, microsecond=0)
+    if now >= target:
+        target += datetime.timedelta(days=1)
+    # Replaces shutdown's advance reservation so the decision is made at the
+    # actual deadline. This process is a systemd service, not a VM wake probe.
+    while datetime.datetime.now().astimezone() < target:
+        time.sleep(min(60, max(1, (target-datetime.datetime.now().astimezone()).total_seconds())))
+    while True:
+        try:
+            with locked('audiomuse'):
+                if nightly_ready():
+                    command('systemctl', '--no-block', 'poweroff')
+                    # Keep new socket activations behind this lock until
+                    # systemd stops this service during host shutdown.
+                    while True:
+                        time.sleep(60)
+        except Exception as error:
+            print(f'Nightly poweroff deferred: {error}', file=sys.stderr, flush=True)
+        time.sleep(60)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=['render', 'enable', 'disable', 'wake', 'sleep', 'hold', 'release', 'idle', 'touch'])
+    parser.add_argument('action', choices=['render', 'enable', 'disable', 'wake', 'sleep', 'hold', 'release', 'idle', 'touch', 'nightly'])
     parser.add_argument('names', nargs='*')
     parser.add_argument('--inventory', default='vms/inventory.json')
     parser.add_argument('--output', type=Path)
@@ -349,6 +387,9 @@ def main():
         return
     if os.geteuid() != 0:
         parser.error('Run host operations with sudo; render is available without root')
+    if args.action == 'nightly':
+        nightly()
+        return
     if args.action == 'idle':
         for path in sorted(CONFIG.glob('*.json')):
             try:

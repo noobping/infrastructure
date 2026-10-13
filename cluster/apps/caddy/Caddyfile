@@ -45,6 +45,12 @@ music.vm {
 	reverse_proxy http://nas.vm:18096
 }
 
+discovery.vm {
+	import internal_tls
+	# No active health checks: a user request wakes AudioMuse.
+	reverse_proxy http://nas.vm:18000
+}
+
 photos.vm {
 	import internal_tls
 	# The NAS socket starts Immich before forwarding to the guest.

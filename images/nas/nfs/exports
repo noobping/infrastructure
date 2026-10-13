@@ -34,3 +34,6 @@
 # Immich originals and uploads are separate; its database stays in the guest.
 /var/srv/photos immich.vm(ro,sync,no_subtree_check,root_squash)
 /var/lib/containers/immich/data immich.vm(rw,sync,no_subtree_check,root_squash)
+
+# AudioMuse live database is local; only logical backup bundles use NFS.
+/var/lib/containers/audiomuse/backups audiomuse.vm(rw,sync,no_subtree_check,root_squash)

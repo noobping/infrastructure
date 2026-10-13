@@ -1,0 +1,16 @@
+ARG IMAGE_NAMESPACE=ghcr.io/noobping
+ARG TAG=latest
+FROM ${IMAGE_NAMESPACE}/vm:${TAG}
+
+LABEL org.opencontainers.image.title="AudioMuse-AI VM"
+LABEL org.opencontainers.image.description="Local CPU music analysis for the authoritative Jellyfin server"
+
+COPY containers /etc/containers/systemd
+COPY audiomuse-prepare.service /etc/systemd/system/
+COPY --chmod=0755 bin/ /usr/libexec/infrastructure/
+COPY local.env /usr/share/audiomuse/local.env
+COPY idle.sql /usr/share/audiomuse/idle.sql
+
+RUN systemctl enable vm-idle-report@audiomuse.timer
+RUN if test -d /sysroot/ostree/repo; then ostree container commit; fi
+RUN if ! test -d /sysroot/ostree/repo; then bootc container lint; fi

@@ -1,0 +1,13 @@
+#!/usr/bin/bash
+# Local-only probe: never contact Jellyfin or a NAS wake listener.
+set -euo pipefail
+for service in database web worker; do
+  test "$(podman inspect --format '{{.State.Health.Status}}' "audiomuse-$service")" = healthy
+done
+result=$(podman exec --interactive audiomuse-database \
+  psql -X -qAt -v ON_ERROR_STOP=1 -U audiomuse -d audiomusedb \
+  < /usr/share/audiomuse/idle.sql)
+case "$result" in
+  idle|busy) printf '%s\n' "$result" ;;
+  *) echo 'Unknown AudioMuse activity response' >&2; exit 1 ;;
+esac

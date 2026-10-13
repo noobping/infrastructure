@@ -8,17 +8,19 @@ Each guest has one qcow2 root disk. Storage placement:
 - every Kubernetes claim is a static NFS volume;
 - Minecraft and Jellyfin use Quadlet NFS volumes, not host-path binds;
 - Immich uses NFS for media and local guest volumes for PostgreSQL and ML models;
+- AudioMuse uses local PostgreSQL and application caches, reads music through
+  Jellyfin, and exports only logical backup bundles over NFS;
 - K3s runtime, containerd state, and SQLite stay on the VM root disk;
 - every guest uses `cachefilesd` and the NFS `fsc` option.
 
 `inventory.json` is authoritative for resources, MAC addresses, autostart, and
-Ignition paths. Minecraft, Jellyfin, and Immich use [on-demand activation](ON-DEMAND.md)
+Ignition paths. Minecraft, Jellyfin, Immich, and AudioMuse use [on-demand activation](ON-DEMAND.md)
 and a 30-minute application-aware idle shutdown. K3s keeps autostart enabled.
 
 ## Prerequisites
 
 - Reserve the inventory MAC addresses and make `nas.vm`, `k3s.vm`,
-  `minecraft.vm`, `jellyfin.vm`, and `immich.vm` resolvable before starting NFS workloads.
+  `minecraft.vm`, `jellyfin.vm`, `immich.vm`, and `audiomuse.vm` resolvable before starting NFS workloads.
 - The existing `infrastructure-vms` pool must be active at
   `/var/srv/ssd/vms`.
 - The existing `br0` bridge must be ready.
@@ -36,7 +38,7 @@ validates the inventory's guest Ignition files before create-only provisioning.
 
 ```sh
 sudo vm-deploy --all
-for vm in k3s minecraft jellyfin immich; do
+for vm in k3s minecraft jellyfin immich audiomuse; do
   sudo virsh domblklist "$vm" --details
 done
 sudo virsh autostart --disable jellyfin
@@ -44,7 +46,7 @@ sudo virsh autostart --disable jellyfin
 
 Each domain must show one guest disk. Complete first boot only after NFS is
 available and any legacy writer using the same paths is stopped. Follow the
-[on-demand rollout](ON-DEMAND.md#rollout-on-the-nas) to arm the three application
+[on-demand rollout](ON-DEMAND.md#rollout-on-the-nas) to arm the application
 VMs; changing inventory alone does not reconcile existing domains.
 
 ```sh
@@ -96,7 +98,8 @@ Before booting a legacy deployment, shut down affected guests, clear any
 managed-save state, and disable their autostart. Follow the role runbooks for
 Jellyfin and Minecraft.
 
-The existing libvirt shutdown policy is unchanged. Verify it stops guests
+The libvirt shutdown policy is unchanged. The NAS nightly poweroff now defers
+while AudioMuse is running or backup holds exist (see its runbook). Verify libvirt stops guests
 before NFS and the backing filesystems disappear during NAS shutdown.
 
 For an application-consistent snapshot:
@@ -110,6 +113,11 @@ For an application-consistent snapshot:
    hook succeeds; preserve holds when recovery fails.
 
 The [K3s](k3s/README.md), [Minecraft](minecraft/README.md),
-[Jellyfin](jellyfin/README.md), and [Immich](immich/README.md) notes describe
+[Jellyfin](jellyfin/README.md), [Immich](immich/README.md), and
+[AudioMuse](audiomuse/README.md) notes describe
 role-specific behavior. Include Immich's database dump/stop hooks when taking
 an application-consistent NAS snapshot; its live database is on the guest disk.
+
+AudioMuse adds an online PostgreSQL dump/secret bundle to the same prepare/snapshot/finish
+workflow; its live database is never on NFS. Provisioning it does not change
+Jellyfin authority or mount the Jellyfin configuration.

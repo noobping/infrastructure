@@ -1,0 +1,12 @@
+[Unit]
+Description=Root-squashed AudioMuse logical backups on the NAS
+Wants=network-online.target
+Requires=cachefilesd.service nfs-selinux.service
+After=network-online.target cachefilesd.service nfs-selinux.service
+
+[Volume]
+VolumeName=audiomuse-backups
+Type=nfs
+Device=:/var/lib/containers/audiomuse/backups
+Options=addr=nas.vm,nfsvers=4.2,hard,fsc,nosuid,nodev,noexec
+Copy=false

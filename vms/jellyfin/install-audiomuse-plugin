@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+"""Explicit opt-in installer on the authoritative Jellyfin host; never starts a VM."""
+import argparse
+import hashlib
+import io
+import json
+import os
+from pathlib import Path
+import subprocess
+import tempfile
+import urllib.request
+import zipfile
+
+LOCK = Path(__file__).with_name('audiomuse-plugin.lock.json')
+FILES = {'Jellyfin.Plugin.AudioMuseAi.dll', 'audiomuseai.png', 'meta.json'}
+
+
+def verified_archive(data, pin):
+    if hashlib.sha256(data).hexdigest() != pin['sha256']:
+        raise ValueError('Plugin archive checksum mismatch')
+    archive = zipfile.ZipFile(io.BytesIO(data))
+    if set(archive.namelist()) != FILES or len(archive.namelist()) != len(FILES):
+        raise ValueError('Unexpected archive contents')
+    meta = json.loads(archive.read('meta.json'))
+    if meta['version'] != pin['version'] or meta['targetAbi'] != pin['target_abi']:
+        raise ValueError('Plugin version/ABI mismatch')
+    return archive
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--config', required=True, type=Path, help='Existing authoritative Jellyfin config directory')
+    args = parser.parse_args()
+    if os.geteuid() != 0:
+        parser.error('Run as root on the authoritative host after taking a configuration backup')
+    config = args.config.resolve(strict=True)
+    if not (config/'config/system.xml').is_file():
+        parser.error('Not an initialized Jellyfin configuration directory')
+    subprocess.run(['systemctl', 'is-active', '--quiet', 'jellyfin.service'], check=True)
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    with opener.open('http://127.0.0.1:8096/System/Info/Public', timeout=10) as response:
+        version = json.load(response)['Version']
+    # Both repository Quadlets use Podman's default systemd-jellyfin name.
+    inspect = subprocess.run(['podman', 'inspect', 'systemd-jellyfin'],
+                             check=True, capture_output=True, text=True)
+    mounts = json.loads(inspect.stdout)[0]['Mounts']
+    active_config = next(Path(m['Source']).resolve() for m in mounts if m['Destination'] == '/config')
+    if config != active_config:
+        parser.error('The supplied directory is not the running container config mount')
+    pin = json.loads(LOCK.read_text())
+    if version != pin['jellyfin_version']:
+        parser.error(f"Expected Jellyfin {pin['jellyfin_version']}; running {version}. Review compatibility first.")
+    with urllib.request.urlopen(pin['source_url'], timeout=60) as response:
+        archive = verified_archive(response.read(), pin)
+    plugins = config/'plugins'
+    destination = plugins/f"AudioMuse AI_{pin['version']}"
+    existing = list(plugins.glob('AudioMuse*'))
+    if existing:
+        if existing == [destination] and all((destination/name).is_file() and
+                (destination/name).read_bytes() == archive.read(name) for name in FILES):
+            print('Pinned plugin already installed; no changes made')
+            return
+        parser.error('An AudioMuse installation already exists; back it up and remove only its version directory before updating')
+    # All validation precedes the service interruption. The parent remains root
+    # only to resume the SAME service; the writer is UID 1001 for root-squashed NFS.
+    subprocess.run(['systemctl', 'stop', 'jellyfin.service'], check=True)
+    try:
+        pid = os.fork()
+        if pid == 0:
+            try:
+                os.setgroups([])
+                os.setgid(1001)
+                os.setuid(1001)
+                plugins.mkdir(mode=0o750, exist_ok=True)
+                with tempfile.TemporaryDirectory(prefix='.audiomuse-', dir=plugins) as staging:
+                    stage = Path(staging)
+                    for name in FILES:
+                        (stage/name).write_bytes(archive.read(name))
+                        (stage/name).chmod(0o644)
+                    stage.chmod(0o755)
+                    stage.rename(destination)
+                os._exit(0)
+            except Exception as error:
+                print(str(error), flush=True)
+                os._exit(1)
+        _, status = os.waitpid(pid, 0)
+        if status != 0:
+            raise RuntimeError('Plugin installation failed; existing configuration was preserved')
+    finally:
+        subprocess.run(['systemctl', 'start', 'jellyfin.service'], check=True)
+    print('Pinned plugin installed. Set its Backend URL and API token in the Jellyfin dashboard.')
+
+
+if __name__ == '__main__':
+    main()

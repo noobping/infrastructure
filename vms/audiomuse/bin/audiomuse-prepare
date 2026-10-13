@@ -1,0 +1,26 @@
+#!/usr/bin/bash
+set -euo pipefail
+umask 077
+state_root=/var/lib/audiomuse
+install -d -o root -g root -m 0700 "$state_root"
+exec 9>"$state_root/prepare.lock"
+flock 9
+# Never silently rotate credentials of a surviving database.
+if [[ -e "$state_root/database.env" || -e "$state_root/auth.env" ]]; then
+  test -s "$state_root/database.env"
+  test -s "$state_root/auth.env"
+  chmod 0600 "$state_root/database.env" "$state_root/auth.env"
+  exit 0
+fi
+if podman volume exists audiomuse-postgres; then
+  echo 'Existing PostgreSQL volume without credentials: restore the secrets backup' >&2
+  exit 1
+fi
+staging=$(mktemp -d "$state_root/.credentials.XXXXXX")
+trap 'rm -rf -- "$staging"' EXIT
+random() { od -An -N32 -tx1 /dev/urandom | tr -d ' \n'; }
+printf 'POSTGRES_USER=audiomuse\nPOSTGRES_DB=audiomusedb\nPOSTGRES_PASSWORD=%s\n' "$(random)" > "$staging/database.env"
+printf 'AUDIOMUSE_USER=admin\nAUDIOMUSE_PASSWORD=%s\nAPI_TOKEN=%s\nJWT_SECRET=%s\n' \
+  "$(random)" "$(random)" "$(random)" > "$staging/auth.env"
+mv "$staging/database.env" "$state_root/database.env"
+mv "$staging/auth.env" "$state_root/auth.env"

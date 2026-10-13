@@ -1,0 +1,7 @@
+storage:
+  files:
+    - path: /etc/hostname
+      overwrite: true
+      contents:
+        inline: |
+          audiomuse.vm

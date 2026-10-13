@@ -1,0 +1,8 @@
+[Unit]
+# Credentials must exist before the empty volume can be created. The prepare
+# helper refuses to rotate credentials if a database volume already exists.
+Requires=audiomuse-prepare.service
+After=audiomuse-prepare.service
+
+[Volume]
+VolumeName=audiomuse-postgres

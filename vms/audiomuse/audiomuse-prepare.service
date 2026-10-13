@@ -1,0 +1,9 @@
+[Unit]
+Description=Create persistent AudioMuse credentials without rotating existing secrets
+Before=audiomuse-database.service audiomuse-web.service audiomuse-worker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/infrastructure/audiomuse-prepare
+RemainAfterExit=yes
+UMask=0077

@@ -1,0 +1,259 @@
+#!/usr/bin/env python3
+"""Disposable real-container smoke test. No production volumes, keys or servers."""
+import array
+import hashlib
+import math
+import wave
+import http.client
+import json
+import os
+from pathlib import Path
+import secrets
+import subprocess
+import tempfile
+import time
+import urllib.error
+import urllib.request
+
+ROLE = Path(__file__).resolve().parents[1]
+PREFIX = f'audiomuse-test-{os.getpid()}'
+CONTAINERS, VOLUMES = [], []
+RUN_ARGUMENTS = {}
+
+
+def podman(*args, **kwargs):
+    result = subprocess.run(['podman', *args], capture_output=True, **kwargs)
+    if result.returncode:
+        raise RuntimeError(result.stderr)
+    return result.stdout
+
+
+def image(role):
+    return next(line[6:] for line in (ROLE/f'containers/audiomuse-{role}.container').read_text().splitlines()
+                if line.startswith('Image='))
+
+
+def volume(name):
+    name = f'{PREFIX}-{name}'
+    podman('volume', 'create', name)
+    VOLUMES.append(name)
+    return name
+
+
+def start(role, *args):
+    name = f'{PREFIX}-{role}'
+    RUN_ARGUMENTS[role] = args
+    if name not in CONTAINERS:
+        CONTAINERS.append(name)
+    resources = {'database':('2g','1'), 'web':('3g','1.5'), 'worker':('6g','3')}
+    memory, cpus = resources[role]
+    podman('run', '-d', '--pull=never', '--name', name, '--network', PREFIX,
+           '--memory='+memory, '--cpus='+cpus, '--pids-limit=512',
+           '--security-opt=no-new-privileges', '--cap-drop=all', '--read-only',
+           *args, image(role))
+    return name
+
+
+def wait_for(fn, seconds=240):
+    end = time.monotonic() + seconds
+    while time.monotonic() < end:
+        try:
+            return fn()
+        except (RuntimeError, OSError, http.client.HTTPException, AssertionError):
+            time.sleep(2)
+    raise RuntimeError('Timed out waiting for service')
+
+
+def request(url, path, token=None, data=None, method=None, headers=None):
+    headers = dict(headers or {})
+    if token:
+        headers['Authorization'] = f'Bearer {token}'
+    if data is not None:
+        headers['Content-Type'] = 'application/json'
+        data = json.dumps(data).encode()
+    req = urllib.request.Request(url+path, headers=headers, data=data, method=method)
+    with urllib.request.urlopen(req, timeout=30) as response:
+        body = response.read()
+        return json.loads(body) if body else None
+
+
+def jellyfin_fixture(work, audiomuse_token):
+    pin = json.loads((ROLE.parent/'jellyfin/audiomuse-plugin.lock.json').read_text())
+    with urllib.request.urlopen(pin['source_url'], timeout=60) as response:
+        archive = response.read()
+    assert hashlib.sha256(archive).hexdigest() == pin['sha256']
+    config = volume('jellyfin-config')
+    # Download outside the internal test network; install only the verified zip.
+    body = """import sys,zipfile,io,pathlib
+p=pathlib.Path('/config/plugins/AudioMuse AI_0.1.55.0');p.mkdir(parents=True)
+z=zipfile.ZipFile(io.BytesIO(sys.stdin.buffer.read()))
+for name in ('meta.json','Jellyfin.Plugin.AudioMuseAi.dll','audiomuseai.png'):
+    (p/name).write_bytes(z.read(name))
+"""
+    podman('run', '--rm', '-i', '--network=none', '--user=1001:1001', '-v', config+':/config:U',
+           '--entrypoint=python3', image('web'), '-c', body, input=archive)
+    media = work/'music/Fixture Artist/Fixture Album'
+    media.mkdir(parents=True)
+    with wave.open(str(media/'Workout.wav'), 'wb') as wav:
+        wav.setparams((1, 2, 22050, 0, 'NONE', 'not compressed'))
+        samples = array.array('h', (int(18000*math.sin(2*math.pi*110*i/22050)*
+                                (0.25+0.75*math.exp(-((i/22050)%0.375)*22)))
+                                 for i in range(22050*20)))
+        wav.writeframes(samples.tobytes())
+    original = hashlib.sha256((media/'Workout.wav').read_bytes()).hexdigest()
+    jf = PREFIX+'-jellyfin'
+    CONTAINERS.append(jf)
+    jfimage = next(line[6:] for line in (ROLE.parent/'jellyfin/containers/jellyfin.container').read_text().splitlines()
+                   if line.startswith('Image='))
+    podman('run', '-d', '--pull=never', '--name', jf, '--network', PREFIX, '--network-alias=jellyfin',
+           '--user=1001:1001', '--security-opt=no-new-privileges', '--cap-drop=all',
+           '-v', config+':/config:U', '-v', volume('jellyfin-cache')+':/cache:U',
+           '-v', str(work/'music')+':/music:ro,Z', '-p', '127.0.0.1::8096', jfimage)
+    url = 'http://'+podman('port', jf, '8096/tcp', text=True).strip()
+    wait_for(lambda: request(url, '/System/Info/Public'))
+    password = secrets.token_hex(16)
+    request(url, '/Startup/Configuration', data={'UICulture':'en-US', 'MetadataCountryCode':'US', 'PreferredMetadataLanguage':'en'})
+    request(url, '/Startup/User')
+    request(url, '/Startup/User', data={'Name':'fixture', 'Password':password})
+    request(url, '/Startup/RemoteAccess', data={'EnableRemoteAccess':True, 'EnableAutomaticPortMapping':False})
+    request(url, '/Startup/Complete', data={})
+    session = request(url, '/Users/AuthenticateByName', data={'Username':'fixture','Pw':password},
+                      headers={'Authorization':'MediaBrowser Client="Infrastructure", Device="Fixture", DeviceId="fixture", Version="1"'})
+    headers = {'X-Emby-Token': session['AccessToken']}
+    plugins = request(url, '/Plugins', headers=headers)
+    plugin = next(plugin for plugin in plugins if plugin['Name'] == 'AudioMuse AI')
+    assert plugin['Version'] == pin['version'] and plugin['Status'] == 'Active', plugin
+    request(url, '/Plugins/'+plugin['Id']+'/Configuration', data={
+        'BackendUrl':'http://audiomuse-web:8000', 'ApiToken':audiomuse_token}, headers=headers)
+    request(url, '/Library/VirtualFolders?name=Music&collectionType=music&refreshLibrary=true',
+            data={'LibraryOptions':{'PathInfos':[{'Path':'/music'}], 'EnableInternetProviders':False,
+                                   'EnableRealtimeMonitor':False}}, headers=headers)
+    def music_ready():
+        items = request(url, '/Items?Recursive=true&IncludeItemTypes=Audio', headers=headers)['Items']
+        assert items
+        return items
+    wait_for(music_ready)
+    # Analysis uses a non-administrator user with media deletion disabled.
+    user = request(url, '/Users/New', data={'Name':'music', 'Password':password}, headers=headers)
+    assert not user['Policy']['IsAdministrator'] and not user['Policy']['EnableContentDeletion']
+    music_session = request(url, '/Users/AuthenticateByName', data={'Username':'music','Pw':password},
+                            headers={'Authorization':'MediaBrowser Client="Infrastructure", Device="Fixture", DeviceId="music", Version="1"'})
+    return music_session, url, headers, media/'Workout.wav', original
+
+
+
+def main():
+    with tempfile.TemporaryDirectory(prefix=PREFIX) as directory:
+        work = Path(directory)
+        token = secrets.token_hex(32)
+        env = work/'secrets.env'
+        env.write_text(f'POSTGRES_USER=audiomuse\nPOSTGRES_DB=audiomusedb\nPOSTGRES_PASSWORD={secrets.token_hex(32)}\n'
+                       f'JELLYFIN_URL=http://jellyfin:8096\nJELLYFIN_USER_ID=fixture-user\nJELLYFIN_TOKEN=fixture-token\n'
+                       f'AUDIOMUSE_USER=admin\nAUDIOMUSE_PASSWORD={secrets.token_hex(32)}\nAPI_TOKEN={token}\nJWT_SECRET={secrets.token_hex(32)}\n')
+        env.chmod(0o600)
+        podman('network', 'create', '--internal', PREFIX)
+        try:
+            session, jfurl, jfheaders, music_file, original = jellyfin_fixture(work, token)
+            with env.open('a') as handle:
+                handle.write('JELLYFIN_USER_ID='+session['User']['Id']+'\nJELLYFIN_TOKEN='+session['AccessToken']+'\n')
+            db = start('database', '--user=70:70', '--env-file', str(env),
+                       '--network-alias=database', '--tmpfs=/var/run/postgresql:mode=1777',
+                       '-v', volume('postgres')+':/var/lib/postgresql/data:U')
+            wait_for(lambda: podman('exec', db, 'pg_isready', '-h', '127.0.0.1', '-U', 'audiomuse', '-d', 'audiomusedb'))
+            for role in ['web', 'worker']:
+                args = ['--user=1009:1009', '--env-file', str(env), '--env-file', str(ROLE/'local.env'),
+                        '-e', 'SERVICE_TYPE='+('flask' if role == 'web' else 'worker'),
+                        '-v', volume(role)+':/state:U']
+                if role == 'web':
+                    args += ['-p', '127.0.0.1::8000', '--network-alias=audiomuse-web']
+                start(role, *args)
+            web = PREFIX+'-web'
+            url = 'http://'+podman('port', web, '8000/tcp', text=True).strip()
+            wait_for(lambda: request(url, '/api/health'))
+            # Auth must guard API access; empty credentials must not open setup.
+            try:
+                request(url, '/api/config')
+            except urllib.error.HTTPError as error:
+                assert error.code == 401, error.code
+            else:
+                raise AssertionError('Unauthenticated configuration request accepted')
+            config = request(url, '/api/config', token)
+            assert config, 'Authenticated API failed'
+            wait_for(lambda: podman('exec', PREFIX+'-worker', '/usr/bin/supervisorctl', '-c',
+                     '/etc/supervisor/conf.d/supervisord.conf', 'status', 'queue-worker-high',
+                     'queue-worker-default', 'queue-maintenance', 'config-restart-listener'))
+            # Plugin forwards authenticated requests to the real AudioMuse backend.
+            assert request(jfurl, '/AudioMuseAI/active_tasks', headers=jfheaders) is not None
+            # Inference is CPU-only on an internal network: no model/API downloads.
+            job = request(url, '/api/analysis/start', token, data={'num_recent_albums':10})
+            def analysis_done():
+                task = request(url, '/api/status/'+job['task_id'], token)
+                if task['state'] in ('FAIL', 'FAILURE'):
+                    raise ValueError('Analysis failed: '+str(task))
+                assert task['state'] == 'SUCCESS', task['state']
+                return task
+            wait_for(analysis_done, seconds=600)
+            search = wait_for(lambda: request(url, '/api/clap/search', token,
+                                                 data={'query':'high energy electronic workout music', 'limit':5}))
+            assert search['results'], search
+            track = search['results'][0]['item_id']
+            playlist = request(jfurl, '/AudioMuseAI/create_playlist', headers=jfheaders,
+                               data={'playlist_name':'Infrastructure Workout Fixture', 'track_ids':[track]})
+            assert playlist['playlist_id'], playlist
+            assert request(jfurl, '/Playlists/'+playlist['playlist_id']+'/Items', headers=jfheaders)['Items']
+            with urllib.request.urlopen(urllib.request.Request(jfurl+'/Audio/'+track+'/stream?static=true',
+                                                               headers=jfheaders), timeout=30) as response:
+                assert hashlib.sha256(response.read()).hexdigest() == original
+            assert hashlib.sha256(music_file.read_bytes()).hexdigest() == original
+            # Real queue schema and activity SQL, including hidden/delayed/unknown jobs.
+            def sql(statement):
+                return podman('exec', '-i', db, 'psql', '-X', '-qAt', '-v', 'ON_ERROR_STOP=1',
+                              '-U', 'audiomuse', '-d', 'audiomusedb', input=statement, text=True).strip()
+            assert int(sql('SELECT count(*) FROM score WHERE energy IS NOT NULL AND tempo IS NOT NULL')) > 0
+            assert int(sql('SELECT count(*) FROM clap_embedding')) > 0
+            probe = (ROLE/'idle.sql').read_text()
+            def becomes_idle():
+                assert sql(probe) == 'idle'
+            wait_for(becomes_idle, seconds=120)
+            podman('stop', '--time=120', PREFIX+'-worker', web)
+            assert sql(probe) == 'idle'
+            for state in ['NEW', 'RUNNING', 'UNKNOWN', 'SUCCESS', 'FAIL', 'REVOKED']:
+                sql(f"INSERT INTO task_status (task_id, task_type, status) VALUES ('infrastructure-fixture', 'worker_control', '{state}')")
+                assert sql(probe) == ('idle' if state in ['SUCCESS', 'FAIL', 'REVOKED'] else 'busy'), state
+                sql("DELETE FROM task_status WHERE task_id = 'infrastructure-fixture'")
+            # Restart persistence, followed by real logical restore.
+            sql('CREATE TABLE infrastructure_fixture (id integer); INSERT INTO infrastructure_fixture VALUES (42)')
+            dump = podman('exec', db, 'pg_dump', '-U', 'audiomuse', '-d', 'audiomusedb', '--format=custom', '--no-owner', '--no-acl')
+            podman('exec', '-i', db, 'pg_restore', '--list', input=dump)
+            podman('exec', db, 'createdb', '-U', 'audiomuse', 'restore_fixture')
+            podman('exec', '-i', db, 'pg_restore', '-U', 'audiomuse', '-d', 'restore_fixture',
+                   '--single-transaction', '--exit-on-error', '--no-owner', '--no-acl', input=dump)
+            restored = podman('exec', db, 'psql', '-X', '-qAt', '-U', 'audiomuse', '-d', 'restore_fixture',
+                              '-c', 'SELECT id FROM infrastructure_fixture', text=True).strip()
+            assert restored == '42'
+            podman('restart', db, web, PREFIX+'-worker')
+            wait_for(lambda: request(url, '/api/config', token))
+            assert sql('SELECT id FROM infrastructure_fixture') == '42'
+            # Replacing the web container uses the same persistent state and DB.
+            podman('rm', '-f', web)
+            start('web', *RUN_ARGUMENTS['web'])
+            url = 'http://'+podman('port', web, '8000/tcp', text=True).strip()
+            wait_for(lambda: request(url, '/api/config', token))
+            assert int(sql('SELECT count(*) FROM score')) > 0
+            assert json.loads(podman('inspect', web))[0]['HostConfig']['ReadonlyRootfs']
+            print('PASS: Jellyfin plugin/playlist/playback, non-admin API, offline CPU analysis and semantic search, unchanged music, non-root/read-only startup, authenticated API, worker, queue guards, restart/recreation persistence and PostgreSQL restore')
+        except Exception:
+            for name in CONTAINERS:
+                log = subprocess.run(['podman', 'logs', '--tail=30', name], capture_output=True, text=True)
+                print(name, log.stdout, log.stderr)
+            raise
+        finally:
+            for name in reversed(CONTAINERS):
+                subprocess.run(['podman', 'rm', '-f', name], capture_output=True)
+            for name in VOLUMES:
+                subprocess.run(['podman', 'volume', 'rm', name], capture_output=True)
+            subprocess.run(['podman', 'network', 'rm', PREFIX], capture_output=True)
+
+
+if __name__ == '__main__':
+    main()

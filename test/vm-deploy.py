@@ -102,6 +102,22 @@ class Deploy(unittest.TestCase):
         self.assertIn('refusing to replace', result.stderr)
         self.assertEqual(original, disk.read_bytes())
 
+    def test_audiomuse_create_only_and_no_implicit_start(self):
+        self.deploy('audiomuse')
+        disk = self.pool / 'disks/audiomuse-root.qcow2'
+        original = disk.read_bytes()
+        self.assertTrue((self.repo / 'dist/ign/audiomuse.ign').exists())
+        xml = (self.pool / 'config/audiomuse.xml').read_text()
+        self.assertIn('<vcpu placement=\'static\'>4</vcpu>', xml)
+        self.assertIn('12288', xml)
+        self.assertEqual(xml.count("device='disk'"), 1)
+        calls = (self.root / 'calls').read_text()
+        self.assertNotIn('virsh autostart audiomuse', calls)
+        self.assertNotIn('virsh start audiomuse', calls)
+        result = self.deploy('audiomuse', success=False)
+        self.assertIn('refusing to replace', result.stderr)
+        self.assertEqual(original, disk.read_bytes())
+
     def test_all_uses_selected_inventory_and_ignition_paths(self):
         data = json.loads(self.inventory.read_text())
         guest = data['vms'][-1]

@@ -98,6 +98,28 @@
           }
         ]
       }
+    },
+    {
+      "name": "audiomuse",
+      "hostname": "audiomuse.vm",
+      "mac": "52:54:00:00:00:35",
+      "ignition": "dist/ign/audiomuse.ign",
+      "vcpus": 4,
+      "memory_mib": 12288,
+      "root_gib": 80,
+      "autostart": false,
+      "on_demand": {
+        "idle_seconds": 1800,
+        "legacy_services": [],
+        "endpoints": [
+          {
+            "name": "http",
+            "protocol": "tcp",
+            "listen_port": 18000,
+            "guest_port": 8000
+          }
+        ]
+      }
     }
   ]
 }

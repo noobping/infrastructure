@@ -1,0 +1,43 @@
+[Unit]
+Description=AudioMuse web (CPU inference)
+Requires=audiomuse-prepare.service
+Wants=audiomuse-database.service
+After=audiomuse-prepare.service audiomuse-database.service
+ConditionPathExists=!/var/lib/infrastructure/backup/audiomuse/restoring
+StartLimitIntervalSec=0
+
+[Container]
+Image=ghcr.io/neptunehub/audiomuse-ai:3.6.3@sha256:301b2d5c280f43c6e79823337455b6b7d575d7b8040a6f150266804350c51eab
+ContainerName=audiomuse-web
+Network=audiomuse.network
+User=1009
+Group=1009
+NoNewPrivileges=true
+DropCapability=all
+ReadOnly=true
+EnvironmentFile=/usr/share/audiomuse/local.env
+EnvironmentFile=/var/lib/audiomuse/database.env
+EnvironmentFile=/var/lib/audiomuse/auth.env
+EnvironmentFile=/var/lib/audiomuse/jellyfin.env
+Environment=SERVICE_TYPE=flask
+Volume=audiomuse-web-state.volume:/state:U
+PidsLimit=512
+HealthCmd=python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"
+HealthInterval=60s
+HealthTimeout=10s
+HealthStartPeriod=180s
+HealthRetries=5
+StopTimeout=120
+PublishPort=8000:8000
+
+[Service]
+ExecStartPre=/usr/libexec/infrastructure/audiomuse-config-check
+Restart=always
+RestartSec=15
+TimeoutStartSec=900
+TimeoutStopSec=180
+MemoryMax=3G
+CPUQuota=150%
+
+[Install]
+WantedBy=multi-user.target

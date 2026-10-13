@@ -36,9 +36,14 @@ ssh nick@k3s.vm 'findmnt -t nfs,nfs4 && systemctl is-active cachefilesd.service'
 ## On-demand VMs
 
 The image includes `vm-on-demand`, socket forwarding, and a conservative idle
-controller for Minecraft, Immich, and Jellyfin. K3s is excluded. Follow the
+controller for Minecraft, Immich, Jellyfin, and AudioMuse. K3s is excluded. Follow the
 [rollout and maintenance guide](../../vms/ON-DEMAND.md) before enabling listeners;
 legacy writers must be masked and photo/media API keys stay in the guests.
+AudioMuse uses its own VM and only a root-squashed logical backup export; it
+never mounts Jellyfin configuration. The nightly poweroff service defers while
+AudioMuse runs or a VM hold/backup is active. Follow the
+[AudioMuse rollout](../../vms/audiomuse/README.md) before the first analysis,
+including cancellation of a previously scheduled legacy shutdown.
 
 ## Pipeline
 

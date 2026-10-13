@@ -1,0 +1,43 @@
+[Unit]
+Description=AudioMuse worker (CPU inference)
+Requires=audiomuse-prepare.service
+Wants=audiomuse-database.service
+After=audiomuse-prepare.service audiomuse-database.service
+ConditionPathExists=!/var/lib/infrastructure/backup/audiomuse/restoring
+StartLimitIntervalSec=0
+
+[Container]
+Image=ghcr.io/neptunehub/audiomuse-ai:3.6.3@sha256:301b2d5c280f43c6e79823337455b6b7d575d7b8040a6f150266804350c51eab
+ContainerName=audiomuse-worker
+Network=audiomuse.network
+User=1009
+Group=1009
+NoNewPrivileges=true
+DropCapability=all
+ReadOnly=true
+EnvironmentFile=/usr/share/audiomuse/local.env
+EnvironmentFile=/var/lib/audiomuse/database.env
+EnvironmentFile=/var/lib/audiomuse/auth.env
+EnvironmentFile=/var/lib/audiomuse/jellyfin.env
+Environment=SERVICE_TYPE=worker
+Volume=audiomuse-worker-state.volume:/state:U
+PidsLimit=512
+HealthCmd=/usr/bin/supervisorctl -c /etc/supervisor/conf.d/supervisord.conf status queue-worker-high queue-worker-default queue-maintenance config-restart-listener
+HealthInterval=60s
+HealthTimeout=10s
+HealthStartPeriod=180s
+HealthRetries=5
+StopTimeout=120
+
+
+[Service]
+ExecStartPre=/usr/libexec/infrastructure/audiomuse-config-check
+Restart=always
+RestartSec=15
+TimeoutStartSec=900
+TimeoutStopSec=180
+MemoryMax=6G
+CPUQuota=300%
+
+[Install]
+WantedBy=multi-user.target

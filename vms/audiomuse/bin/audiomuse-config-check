@@ -1,0 +1,41 @@
+#!/usr/bin/python3
+"""Reject missing media credentials before exposing upstream's first-run wizard."""
+from pathlib import Path
+import stat
+from urllib.parse import urlsplit
+
+
+def validate(path):
+    info = path.lstat()
+    if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or stat.S_IMODE(info.st_mode) != 0o600:
+        raise ValueError('Jellyfin environment must be a root-owned regular file with mode 0600')
+    values = {}
+    for line in path.read_text().splitlines():
+        if not line or line.startswith('#'):
+            continue
+        key, value = line.split('=', 1)
+        if key in values or key not in ('JELLYFIN_URL', 'JELLYFIN_USER_ID', 'JELLYFIN_TOKEN'):
+            raise ValueError('Unexpected or duplicate Jellyfin setting')
+        if not value or value.strip() != value or any(c in value for c in '\r\n\x00'):
+            raise ValueError('Empty/malformed Jellyfin setting')
+        values[key] = value
+    if set(values) != {'JELLYFIN_URL', 'JELLYFIN_USER_ID', 'JELLYFIN_TOKEN'}:
+        raise ValueError('All three Jellyfin settings are required')
+    url = urlsplit(values['JELLYFIN_URL'])
+    if url.scheme not in ('http', 'https') or not url.hostname or url.username or url.password or url.query or url.fragment:
+        raise ValueError('Jellyfin URL must be a HTTP(S) service URL without credentials')
+    for value in values.values():
+        # Match upstream's placeholder rejection, including URL placeholders.
+        normalized = value.lower()
+        if (any(marker in normalized for marker in ('your_', 'your default', 'your-default',
+                                                     'no-key-needed', 'your-gemini-api-key-here'))
+                or normalized.startswith(('replace', 'example', 'change'))):
+            raise ValueError('Replace placeholder credentials before starting AudioMuse')
+
+
+if __name__ == '__main__':
+    try:
+        validate(Path('/var/lib/audiomuse/jellyfin.env'))
+    except Exception:
+        # Never echo credentials or malformed file contents into the journal.
+        raise SystemExit('Install valid root:root 0600 /var/lib/audiomuse/jellyfin.env; see the AudioMuse runbook')

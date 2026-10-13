@@ -159,7 +159,7 @@ _images stream architecture="both" selection="all" scope="image":
             fcos_stream=stable
             public_tag=latest
             arch_suffix=
-            all_image_names=(ips policy workstation sway nas vm k3s minecraft jellyfin immich)
+            all_image_names=(ips policy workstation sway nas vm k3s minecraft jellyfin immich audiomuse)
             ;;
         next)
             fcos_stream=next
@@ -201,7 +201,7 @@ _images stream architecture="both" selection="all" scope="image":
             ips) image_names=(policy ips) ;;
             workstation|nas|vm) image_names=(policy ips "$selection") ;;
             sway) image_names=(policy ips workstation sway) ;;
-            k3s|minecraft|jellyfin|immich) image_names=(policy ips vm "$selection") ;;
+            k3s|minecraft|jellyfin|immich|audiomuse) image_names=(policy ips vm "$selection") ;;
         esac
     fi
 
@@ -425,6 +425,12 @@ _images stream architecture="both" selection="all" scope="image":
             --build-arg "TAG=${stage_tag}"
     }
 
+    build_audiomuse() {
+        build_image vms/audiomuse audiomuse \
+            --build-arg "IMAGE_NAMESPACE=${namespace}" \
+            --build-arg "TAG=${stage_tag}"
+    }
+
     build_workstation_branch() {
         build_workstation
         build_sway
@@ -432,7 +438,7 @@ _images stream architecture="both" selection="all" scope="image":
 
     build_vm_branch() {
         build_vm
-        run_parallel build_k3s build_minecraft build_jellyfin build_immich
+        run_parallel build_k3s build_minecraft build_jellyfin build_immich build_audiomuse
     }
 
     build_architecture() {
@@ -467,6 +473,7 @@ _images stream architecture="both" selection="all" scope="image":
             minecraft) build_minecraft ;;
             jellyfin) build_jellyfin ;;
             immich) build_immich ;;
+            audiomuse) build_audiomuse ;;
         esac
     }
 

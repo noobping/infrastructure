@@ -1,0 +1,9 @@
+{
+  "jellyfin_version": "10.11.11",
+  "version": "0.1.55.0",
+  "target_abi": "10.11.0.0",
+  "source_url": "https://github.com/NeptuneHub/audiomuse-ai-plugin/releases/download/v0.1.55/audiomuse-ai_0.1.55.0.zip",
+  "sha256": "96dfe08aaae83f1542c334da006eaa8132097827775f23127f4b4327d59f22e4",
+  "source_revision": "695135bc3cc89e416630443a8a1cc7677ee4d29e",
+  "manifest_revision": "baf7e7b39ab6d397bf4a707afbbdc4b4b4d8e115"
+}

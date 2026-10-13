@@ -1,0 +1,8 @@
+[Unit]
+Requires=nftables.service
+After=nftables.service
+
+[Network]
+NetworkName=audiomuse
+Driver=bridge
+InterfaceName=podman-amuse

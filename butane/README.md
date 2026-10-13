@@ -1,6 +1,6 @@
 # Butane
 
-The source fragments in this directory define three host profiles and three
+The source fragments in this directory define three host profiles and five
 VM guests. Workstation and Sway share `workstation.yml`; their rendered
 `__BOOTC_IMAGE__` values select the final image.
 

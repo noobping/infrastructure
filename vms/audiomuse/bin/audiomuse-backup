@@ -1,0 +1,42 @@
+#!/usr/bin/bash
+# PostgreSQL provides a consistent online snapshot: do not interrupt analysis.
+set -euo pipefail
+umask 077
+state_root=/var/lib/infrastructure/backup/audiomuse
+install -d -o root -g root -m 0700 "$state_root"
+exec 9>"$state_root/lock"
+flock -n 9 || { echo 'Another AudioMuse backup operation is running' >&2; exit 1; }
+case "${1:-}" in
+  finish) rm -f "$state_root/prepared"; exit ;;
+  prepare) ;;
+  *) echo 'Usage: audiomuse-backup prepare|finish' >&2; exit 2 ;;
+esac
+# A persistent marker protects interrupted dumps/transfers until backup-finish.
+: > "$state_root/prepared"
+staging=$(mktemp -d "$state_root/.dump.XXXXXX")
+trap 'rm -rf -- "$staging"' EXIT
+systemctl is-active --quiet audiomuse-database.service
+podman exec audiomuse-database pg_dump -U audiomuse -d audiomusedb \
+  --format=custom --no-owner --no-acl > "$staging/audiomuse.dump"
+test -s "$staging/audiomuse.dump"
+podman exec --interactive audiomuse-database pg_restore --list < "$staging/audiomuse.dump" > /dev/null
+cp /var/lib/audiomuse/{database,auth,jellyfin}.env "$staging/"
+# Named NFS volume cannot fall back to an empty guest-local bind mount.
+systemctl start audiomuse-backups-volume.service
+[[ $(podman volume inspect audiomuse-backups --format '{{.Options.type}}') == nfs ]]
+image=$(sed -n 's/^Image=//p' /etc/containers/systemd/audiomuse-web.container)
+[[ -n $image ]]
+tar -C "$staging" -cf - audiomuse.dump database.env auth.env jellyfin.env | \
+  podman run --rm --interactive --pull=never --network=none --read-only \
+    --security-opt no-new-privileges --cap-drop=all --user 1009:1009 \
+    --volume audiomuse-backups:/backups --entrypoint /bin/sh "$image" -eu -c '
+      umask 077
+      temporary=$(mktemp /backups/.bundle.XXXXXX)
+      trap '\''rm -f -- "$temporary"'\'' EXIT
+      cat > "$temporary"
+      test -s "$temporary"
+      sync -f "$temporary"
+      mv "$temporary" /backups/audiomuse.tar
+      sync -f /backups
+    '
+# Leave prepared until the NAS Btrfs snapshot has completed.

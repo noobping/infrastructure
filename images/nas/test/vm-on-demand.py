@@ -124,7 +124,21 @@ class Host(unittest.TestCase):
         with self.assertRaises(ValueError):
             host.validate_inventory(REPO/'vms/inventory.json', ['k3s'])
         configs = host.validate_inventory(REPO/'vms/inventory.json', [])
-        self.assertEqual({c['name'] for c in configs}, {'minecraft', 'immich', 'jellyfin'})
+        self.assertEqual({c['name'] for c in configs}, {'minecraft', 'immich', 'jellyfin', 'audiomuse'})
+
+    def test_nightly_poweroff_waits_for_audiomuse_and_holds(self):
+        with patch.object(host, 'virsh', return_value='k3s\naudiomuse'):
+            self.assertFalse(host.nightly_ready())
+            self.state.return_value = 'paused'
+            self.assertFalse(host.nightly_ready())
+            self.state.return_value = 'shut off'
+            self.assertTrue(host.nightly_ready())
+            (host.STATE/'audiomuse.hold').touch()
+            self.assertFalse(host.nightly_ready())
+            (host.STATE/'audiomuse.hold').unlink()
+            self.property_of.return_value = 'active'
+            self.assertFalse(host.nightly_ready())
+        self.guest_idle.assert_not_called()
 
     def test_unsafe_inventory_rejected_before_rendering(self):
         inventory = json.loads((REPO/'vms/inventory.json').read_text())
@@ -210,6 +224,24 @@ class Reports(unittest.TestCase):
         with self.assertRaises(ValueError): guest.immich_idle([])
         del queues[0]['statistics']['active']
         with self.assertRaises(KeyError): guest.immich_idle(queues)
+
+    def test_audiomuse_activity_unknown_health_and_clients_hold_guest(self):
+        # No API key or request to Jellyfin/NAS is involved in this role's probe.
+        for answer in ['busy', 'unknown', 'idle']:
+            with patch.object(guest, 'run', side_effect=['inactive', '', answer, '123', '']):
+                self.assertEqual(guest.guest_idle('audiomuse'), answer == 'idle')
+        with patch.object(guest, 'run', side_effect=['inactive', '', 'idle', '123', 'client']):
+            self.assertFalse(guest.guest_idle('audiomuse'))
+        with patch.object(guest, 'run', side_effect=['inactive', '', RuntimeError('database down')]):
+            with self.assertRaises(RuntimeError):
+                guest.guest_idle('audiomuse')
+        with tempfile.TemporaryDirectory() as directory, patch.object(guest, 'BACKUP', Path(directory)):
+            (Path(directory)/'audiomuse').mkdir()
+            for marker in ['prepared', 'restoring']:
+                path = Path(directory)/'audiomuse'/marker
+                path.touch()
+                self.assertFalse(guest.guest_idle('audiomuse'))
+                path.unlink()
 
     def test_jellyfin_playback_transcoding_and_tasks_block_sleep(self):
         self.assertTrue(guest.jellyfin_idle([], [{'State':'Idle'}]))

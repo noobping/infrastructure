@@ -50,6 +50,7 @@ COPY --chmod=0755 bin/todo bin/vm-bridge bin/vm-deploy /usr/bin/
 COPY --chmod=0755 bin/vm-on-demand /usr/bin/
 COPY --chmod=0755 vm-on-demand/udp-proxy /usr/libexec/infrastructure/vm-udp-proxy
 COPY vm-on-demand/idle.service /usr/lib/systemd/system/vm-on-demand-idle.service
+COPY vm-on-demand/nightly.conf /etc/systemd/system/nightly-shutdown.service.d/10-audiomuse.conf
 COPY vm-on-demand/idle.timer /usr/lib/systemd/system/vm-on-demand-idle.timer
 COPY --chmod=0644 infrastructure-policy.container /usr/share/containers/systemd/
 COPY --chmod=0755 bin/artifacts-prepare bin/btrfs-backup bin/nut-activate bin/nfs-root-prepare /usr/libexec/infrastructure/
