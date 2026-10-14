@@ -137,3 +137,8 @@ pipelines:
     jobs:
       publish:
         just: online::gitlab-release-assets
+
+  local-publish:
+    jobs:
+      publish:
+        just: online::local-publish

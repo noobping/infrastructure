@@ -1,0 +1,10 @@
+[Unit]
+Description=Root-squashed gitlab-runner backup export
+Requires=cachefilesd.service nfs-selinux.service
+After=network-online.target cachefilesd.service nfs-selinux.service
+[Volume]
+VolumeName=gitlab-runner-backups
+Type=nfs
+Device=:/var/lib/containers/gitlab-runner/backups
+Options=addr=nas.vm,nfsvers=4.2,hard,fsc,nosuid,nodev,noexec
+Copy=false

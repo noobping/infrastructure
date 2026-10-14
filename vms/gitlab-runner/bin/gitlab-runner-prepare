@@ -1,0 +1,22 @@
+#!/usr/bin/bash
+set -euo pipefail
+id gitlab-runner >/dev/null
+[[ $(id -u gitlab-runner) = 1011 && $(id -g gitlab-runner) = 1011 ]]
+install -d -m 0700 -o gitlab-runner -g gitlab-runner /var/home/gitlab-runner
+loginctl enable-linger gitlab-runner
+systemctl start user@1011.service
+python3 - <<'CHECK'
+import os, stat, tomllib
+from pathlib import Path
+p = Path('/etc/gitlab-runner/config.toml')
+s = p.stat()
+assert s.st_uid == 0 and stat.S_IMODE(s.st_mode) == 0o600, 'Runner config must be root:0600'
+c = tomllib.loads(p.read_text())
+assert c['concurrent'] == 1
+assert c['listen_address'] == '127.0.0.1:9252'
+assert len(c['runners']) == 1
+r = c['runners'][0]
+assert r['executor'] == 'shell' and r['url'] == 'https://gitlab.vm:8443'
+assert r['clone_url'] == 'https://git.vm:8443'
+assert r['token'].startswith('glrt-'), 'Use a project runner authentication token'
+CHECK

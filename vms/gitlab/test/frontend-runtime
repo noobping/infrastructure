@@ -1,0 +1,134 @@
+#!/usr/bin/python3
+"""Run the VM frontend through encrypted NAS forwarding with real TLS and isolated loopback backends."""
+import hashlib
+import http.server
+import json
+from pathlib import Path
+import re
+import secrets
+import socket
+import subprocess
+import tempfile
+import threading
+import time
+
+ROOT = Path(__file__).resolve().parents[3]
+
+
+def port():
+    with socket.socket() as sock:
+        sock.bind(('127.0.0.1', 0))
+        return sock.getsockname()[1]
+
+
+def run(*args):
+    result = subprocess.run(args, text=True, capture_output=True)
+    if result.returncode:
+        raise RuntimeError(result.stderr)
+    return result.stdout
+
+
+class Backend(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.server.requests += 1
+        self.send_response(200); self.end_headers()
+        self.wfile.write(self.server.label.encode())
+    do_POST = do_GET
+    def log_message(self, *args): pass
+
+
+def main():
+    name = 'gitlab-frontend-test-'+secrets.token_hex(4)
+    directory = ROOT/'dist/gitlab-test'
+    directory.mkdir(parents=True, exist_ok=True)
+    root = Path(tempfile.mkdtemp(prefix=name+'-', dir=directory))
+    servers = {}
+    proxy = None
+    try:
+        for label in ('app', 'registry', 'cockpit', 'jellyfin', 'admin-ssh-port'):
+            server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Backend)
+            server.label = label; server.requests = 0; servers[label] = server
+            threading.Thread(target=server.serve_forever, daemon=True).start()
+        front, tls, health = port(), port(), port()
+        source = (ROOT/'vms/gitlab/frontend/Caddyfile').read_text()
+        assert 'k3s' not in source
+        (root/'production.Caddyfile').write_text(source)
+        config = source.replace(':8443', f':{tls}').replace(':2020', f':{health}')
+        config = config.replace('{\n', '{\n\tdefault_bind 127.0.0.1\n', 1)
+        for old, label in [('127.0.0.1:8080', 'app'), ('127.0.0.1:5050', 'registry')]:
+            config = config.replace(old, f'127.0.0.1:{servers[label].server_port}')
+        (root/'Caddyfile').write_text(config)
+        (root/'data').mkdir()
+        unit = (ROOT/'vms/gitlab/containers/gitlab-frontend.container').read_text()
+        image = re.search(r'^Image=(\S+)', unit, re.M)[1]
+        # Match production privilege/resource restrictions. keep-id maps the
+        # invoking user's disposable directory to container UID 65532.
+        args = ['podman', 'run', '--name', name, '--network=host', '--read-only',
+                '--userns=keep-id:uid=65532,gid=65532', '--user=65532:65532',
+                '--cap-drop=all', '--cap-add=NET_BIND_SERVICE', '--security-opt=no-new-privileges', '--memory=256m',
+                '--cpus=.5', '--pids-limit=128', '--tmpfs=/tmp:rw,noexec,nosuid,size=16m',
+                '-v', f'{root}:/fixture:ro,Z', '-v', f'{root}/data:/data:Z', image]
+        adapted = json.loads(run(*args[:2], '--rm', *args[2:], 'caddy', 'adapt',
+                                 '--config', '/fixture/production.Caddyfile', '--adapter', 'caddyfile'))
+        listeners = {addr for server in adapted['apps']['http']['servers'].values() for addr in server['listen']}
+        assert listeners == {':8443', '127.0.0.1:2020'}, listeners
+        run(*args[:2], '-d', *args[2:], 'caddy', 'run', '--config', '/fixture/Caddyfile', '--adapter', 'caddyfile')
+        cert = root/'data/caddy/pki/authorities/local/root.crt'
+        def wait_ready():
+            for _ in range(60):
+                result = subprocess.run(['curl', '--noproxy', '*', '-fsS', '--max-time', '1',
+                    f'http://127.0.0.1:{health}/healthz'], capture_output=True)
+                if result.returncode == 0 and cert.exists(): return
+                time.sleep(1)
+            raise RuntimeError('Caddy did not become ready: '+run('podman', 'logs', name))
+        wait_ready()
+        activation = root/'relay-activated'
+        relay = root/'relay.py'
+        relay.write_text("import os\nfrom pathlib import Path\nPath("+repr(str(activation))+").touch()\nos.execv('/usr/lib/systemd/systemd-socket-proxyd', ['systemd-socket-proxyd', '--exit-idle-time=1s', '127.0.0.1:"+str(tls)+"'])\n")
+        proxy = subprocess.Popen(['systemd-socket-activate', '--listen', f'127.0.0.1:{front}',
+                                  'python3', str(relay)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(.2)
+        def request(host, path, method='GET', trusted=True, direct=False):
+            target = tls if direct else front
+            cmd = ['curl', '--noproxy', '*', '--silent', '--show-error', '--max-time', '10',
+                   '--resolve', f'{host}:{target}:127.0.0.1', '-X', method]
+            if trusted: cmd += ['--cacert', str(cert)]
+            return subprocess.run([*cmd, '-w', '\n%{http_code}', f'https://{host}:{target}{path}'], capture_output=True, text=True)
+        def protected_ports():
+            # Protocol-neutral availability sentinels; actual Cockpit/sshd/
+            # Jellyfin services are checked separately in the FCOS VM suite.
+            for label in ('cockpit', 'jellyfin', 'admin-ssh-port'):
+                assert run('curl', '--noproxy', '*', '-fsS', f'http://127.0.0.1:{servers[label].server_port}') == label
+        protected_ports()
+        assert request('gitlab.vm', '/api/v4/jobs/request', 'POST', direct=True).stdout == 'app\n200'
+        assert not activation.exists(), 'Runner polling activated the NAS relay'
+        assert request('gitlab.vm', '/', direct=True).stdout.endswith('\n404')
+        for host, path, method, expected in [('git.vm', '/', 'GET', 'app'),
+                ('git.vm', '/api/v4/projects/1/trigger/pipeline', 'POST', 'app'),
+                ('git-registry.vm', '/v2/', 'GET', 'registry')]:
+            response = request(host, path, method)
+            assert response.returncode == 0, response.stderr
+            assert response.stdout == expected+'\n200', response.stdout
+        assert activation.exists(), 'Public traffic did not use the NAS relay'
+        assert request('git.vm', '/', trusted=False).returncode == 60
+        protected_ports()
+        fingerprint = hashlib.sha256(cert.read_bytes()).hexdigest()
+        run('podman', 'restart', '--time', '10', name)
+        wait_ready()
+        assert hashlib.sha256(cert.read_bytes()).hexdigest() == fingerprint
+        assert request('git.vm', '/').stdout == 'app\n200'
+        run('podman', 'stop', '--time', '10', name)
+        before = activation.stat().st_mtime_ns
+        assert request('gitlab.vm', '/api/v4/jobs/request', 'POST', direct=True).returncode != 0
+        assert activation.stat().st_mtime_ns == before
+        protected_ports()
+        print('VM TLS, encrypted NAS relay, direct Runner polling without wake, CA persistence and service isolation passed')
+    finally:
+        if proxy:
+            proxy.terminate(); proxy.wait(timeout=10)
+        for server in servers.values(): server.shutdown(); server.server_close()
+        subprocess.run(['podman', 'rm', '-f', name], capture_output=True)
+        subprocess.run(['podman', 'unshare', 'rm', '-rf', '--', str(root)], check=True)
+
+
+if __name__ == '__main__': main()

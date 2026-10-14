@@ -1,0 +1,67 @@
+#!/usr/bin/bash
+# Logical application backup + private configuration, then atomic NFS export.
+set -euo pipefail
+umask 077
+role=${1:?role required}
+case "$role" in gitlab) uid=1010 ;; gitlab-runner) uid=1011 ;; *) exit 2 ;; esac
+state=/var/lib/infrastructure/backup/$role
+install -d -m 0700 "$state"
+exec 9>"$state/lock"
+flock -n 9 || { echo 'Another backup operation is running' >&2; exit 1; }
+case "${2:-}" in
+  finish) rm -f "$state/prepared"; exit ;;
+  prepare) ;;
+  *) echo 'Usage: gitlab-backup ROLE prepare|finish' >&2; exit 2 ;;
+esac
+: > "$state/prepared"
+# A previous success cannot authorize an upgrade after a failed new backup.
+rm -f "$state/completed"
+staging=$(mktemp -d "$state/.bundle.XXXXXX")
+trap 'rm -rf -- "$staging"' EXIT
+if [[ "$role" = gitlab ]]; then
+  /usr/libexec/infrastructure/gitlab-idle | python3 -c 'import json,sys; assert json.load(sys.stdin)["idle"], "CI must drain before backup"'
+  backup_id="infrastructure-$(date -u +%Y%m%dT%H%M%SZ)"
+  podman exec gitlab gitlab-backup create BACKUP="$backup_id"
+  ln "/var/lib/gitlab/data/backups/${backup_id}_gitlab_backup.tar" "$staging/application.tar"
+  tar -tf "$staging/application.tar" >/dev/null
+  cp -a /var/lib/gitlab/config "$staging/config"
+  # Include the VM-local CA identity; it is not part of the application backup.
+  test -s /var/lib/gitlab/frontend/data/caddy/pki/authorities/local/root.crt
+  cp -a /var/lib/gitlab/frontend "$staging/frontend"
+  cp /var/lib/gitlab/version "$staging/version"
+else
+  # Caller must drain the manager; no cached checkout or token is copied mid-job.
+  [[ $(systemctl show --property=ActiveState --value gitlab-runner.service) = inactive ]]
+  cp -a /etc/gitlab-runner "$staging/config"
+  gitlab-runner --version > "$staging/version"
+fi
+(cd "$staging"; find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+systemctl start "$role-backups-volume.service"
+[[ $(podman volume inspect "$role-backups" --format '{{.Options.type}}') = nfs ]]
+mount=$(podman volume mount "$role-backups")
+case "$(findmnt -n -o FSTYPE -T "$mount")" in nfs|nfs4) ;; *) echo 'Backup export is not NFS' >&2; exit 1 ;; esac
+# Open a path-only directory handle before dropping privileges: Podman's local
+# storage parents are root-only. Enter the NFS directory as its dedicated UID,
+# preserving root_squash and all parent permissions. O_PATH does not read it as root.
+tar -C "$staging" -cf - . | python3 -c '
+import os, sys
+fd = os.open(sys.argv[1], os.O_PATH | os.O_DIRECTORY)
+uid = int(sys.argv[2])
+os.setgroups([]); os.setgid(uid); os.setuid(uid)
+os.fchdir(fd)
+os.close(fd)
+os.execv("/bin/bash", ["bash", "-eu", "-c", sys.argv[3]])
+' "$mount" "$uid" '
+    umask 077
+    target=.
+    temporary=$(mktemp "$target/.bundle.XXXXXX")
+    trap '\''rm -f -- "$temporary"'\'' EXIT
+    cat > "$temporary"
+    test -s "$temporary"
+    sync -f "$temporary"
+    mv "$temporary" "$target/backup.tar"
+    sync -f "$target"
+  '
+cp "$staging/version" "$state/version"
+date -u +%FT%TZ > "$state/completed"
+# prepared remains until the NAS snapshot and finish hook have succeeded.

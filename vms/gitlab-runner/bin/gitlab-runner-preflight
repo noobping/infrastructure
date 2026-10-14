@@ -1,0 +1,12 @@
+#!/usr/bin/bash
+set -euo pipefail
+[[ $(id -u) = 1011 ]]
+[[ $(stat -fc %T /sys/fs/cgroup) = cgroup2fs ]]
+# Containers left behind by a previous build are never silently killed.
+[[ -z $(podman ps -q) ]]
+free=$(df --output=avail -B1 /var/home/gitlab-runner | tail -1)
+if (( free < 40 * 1024 * 1024 * 1024 )); then
+  echo 'At least 40 GiB free build storage is required; clean the idle worker cache' >&2
+  exit 1
+fi
+for tool in podman buildah skopeo git git-lfs jq xorriso cosign; do command -v "$tool" >/dev/null; done

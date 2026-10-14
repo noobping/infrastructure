@@ -3,7 +3,7 @@
 import argparse
 import base64
 import datetime
-from contextlib import contextmanager
+from contextlib import contextmanager, ExitStack
 import fcntl
 import json
 import os
@@ -20,7 +20,7 @@ STATE = Path('/var/lib/infrastructure/vm-on-demand')
 RUNTIME = Path('/run/vm-on-demand')
 UNITS = Path('/etc/systemd/system')
 NAME = re.compile(r'[a-z0-9][a-z0-9-]{0,40}')
-ROLES = {'minecraft', 'jellyfin', 'immich', 'audiomuse'}
+ROLES = {'minecraft', 'jellyfin', 'immich', 'audiomuse', 'gitlab'}
 MAGIC = bytes.fromhex('00ffff00fefefefefdfdfdfd12345678')
 
 
@@ -54,11 +54,18 @@ def validate_inventory(path, names):
             continue
         name, policy = vm['name'], vm['on_demand']
         if name not in ROLES or not NAME.fullmatch(name) or vm['autostart'] is not False:
-            raise ValueError('Only minecraft, jellyfin, immich and audiomuse support on-demand mode; autostart must be false')
+            raise ValueError('Unsupported on-demand role or autostart is not false')
         if not re.fullmatch(r'[a-z0-9][a-z0-9.-]+', vm['hostname']):
             raise ValueError('Invalid backend hostname')
         if type(policy['idle_seconds']) is not int or policy['idle_seconds'] < 1800:
             raise ValueError('Idle time must be at least 1800 seconds')
+        companions = policy.get('companions', [])
+        if companions:
+            if name != 'gitlab' or companions != ['gitlab-runner']:
+                raise ValueError('Only GitLab supports the gitlab-runner companion')
+            member = next((v for v in inventory['vms'] if v['name'] == companions[0]), None)
+            if not member or member['autostart'] is not False or 'on_demand' in member:
+                raise ValueError('Companion must exist, not autostart, and have no independent listeners')
         endpoint_names = set()
         for ep in policy['endpoints']:
             if not NAME.fullmatch(ep['name']) or ep['name'] in endpoint_names:
@@ -199,6 +206,17 @@ def start(config):
                 raise
     elif current != 'running':
         raise RuntimeError(f'{name} is {current}; refusing to change a paused or transitional VM')
+    still_draining = False
+    for member in config.get('companions', []):
+        current = state(member)
+        if current == 'shut off':
+            virsh('start', member)
+        elif current != 'running':
+            raise RuntimeError(f'{member} is not safely startable')
+        elif (RUNTIME/(name+'.draining')).exists():
+            still_draining = True
+    if not still_draining:
+        (RUNTIME/(name+'.draining')).unlink(missing_ok=True)
     touch(name)
 
 
@@ -217,13 +235,15 @@ def ready(config, ep, timeout=600):
     deadline = time.monotonic()+timeout
     while True:
         try:
+            if config['name'] == 'gitlab' and not guest_report(config).get('ready', False):
+                raise OSError('GitLab bootstrap has not completed')
             if ep['protocol'] == 'tcp':
                 with socket.create_connection((config['hostname'], ep['guest_port']), timeout=2):
                     return
             else:
                 bedrock_probe(config['hostname'], ep['guest_port'])
                 return
-        except (OSError, ValueError):
+        except (OSError, ValueError, KeyError, subprocess.SubprocessError):
             if time.monotonic() >= deadline:
                 raise RuntimeError(f'{config["name"]} did not open {ep["name"]} before the startup deadline')
             time.sleep(2)
@@ -234,20 +254,82 @@ def qga(config, arguments):
                             json.dumps(arguments)))['return']
 
 
-def guest_idle(config):
+def guest_report(config):
     handle = qga(config, {'execute': 'guest-file-open', 'arguments': {
         'path': '/run/vm-on-demand/idle.json', 'mode': 'r'}})
     try:
         result = qga(config, {'execute': 'guest-file-read', 'arguments': {'handle': handle, 'count': 4096}})
         if not result['eof']:
-            return False
+            raise ValueError('Incomplete activity report')
         report = json.loads(base64.b64decode(result['buf-b64'], validate=True))
-        return (type(report.get('version')) is int and report['version'] == 1
-                and report.get('idle') is True
+        if not (type(report.get('version')) is int and report['version'] == 1
+                and type(report.get('idle')) is bool
                 and type(report.get('checked_at')) in (int, float)
-                and -5 <= time.time()-report['checked_at'] <= 90)
+                and -5 <= time.time()-report['checked_at'] <= 90):
+            raise ValueError('Invalid or stale activity report')
+        return report
     finally:
         qga(config, {'execute': 'guest-file-close', 'arguments': {'handle': handle}})
+
+
+def guest_idle(config):
+    try:
+        report = guest_report(config)
+    except ValueError:
+        return False
+    return report['idle'] and report.get('safe_to_stop', True) is True
+
+
+def group_report(config):
+    report = guest_report(config)
+    if type(report.get('safe_to_stop')) is not bool:
+        raise ValueError('GitLab shutdown safety report is missing')
+    draining = (RUNTIME/(config['name']+'.draining')).exists()
+    for member in config.get('companions', []):
+        current = state(member)
+        if current == 'shut off' and draining:
+            continue
+        if current != 'running':
+            raise ValueError('Companion is not running')
+        child = guest_report({'name': member})
+        report['idle'] = report['idle'] and child['idle']
+        report['safe_to_stop'] = report['safe_to_stop'] and child['idle']
+    return report
+
+
+def shutdown_group(config):
+    marker = RUNTIME/(config['name']+'.draining')
+    marker.touch()
+    for member in config.get('companions', []):
+        if state(member) != 'shut off':
+            shutdown({'name': member})
+    # Jobs may have arrived while the worker was draining. Keep the server
+    # available until the worker is off and a fresh server report proves idle.
+    if not idle_after(config, time.time()):
+        start(config)
+        return
+    shutdown(config)
+    marker.unlink(missing_ok=True)
+
+
+def idle_after(config, drained_at, timeout=110):
+    # A report produced before drain can miss the worker's last uploads or a
+    # newly queued pipeline. Wait for a probe that STARTED after the worker stopped.
+    deadline = time.monotonic()+timeout
+    while time.monotonic() < deadline:
+        if proxy_busy(config):
+            return False
+        try:
+            report = guest_report(config)
+            sampled = report.get('sampled_at')
+            if type(sampled) not in (int, float) or not sampled <= report['checked_at']:
+                return False
+            if sampled >= drained_at:
+                return report['idle'] and report.get('safe_to_stop') is True
+        except (ValueError, KeyError, OSError, subprocess.SubprocessError):
+            pass  # Report refresh removes the previous file while probing.
+        time.sleep(2)
+    return False  # Missing evidence recovers the worker, never powers off GitLab.
 
 
 def proxy_busy(config):
@@ -284,9 +366,13 @@ def idle_one(config):
         if not activity.exists():
             touch(name)
             return
-        # Check the application on every quiet timer tick so background work
-        # resets the full idle interval, even when no clients are connected.
-        if not guest_idle(config):
+        # Check each quiet timer tick. CI/user work resets the interval;
+        # GitLab housekeeping only defers shutdown until it is safe.
+        report = group_report(config) if config.get('companions') else {'idle': guest_idle(config), 'safe_to_stop': True}
+        if not report['idle']:
+            if config.get('companions') and (RUNTIME/(name+'.draining')).exists():
+                if all(state(m) == 'shut off' for m in config['companions']):
+                    start(config)
             touch(name)
             return
         confirmed = RUNTIME/(name+'.confirmed-idle')
@@ -303,8 +389,13 @@ def idle_one(config):
         if proxy_busy(config):
             touch(name)
             return
+        if not report['safe_to_stop']:
+            return  # Housekeeping delays shutdown without restarting the quiet interval.
         print(f'{name}: applications idle for {config["idle_seconds"]} seconds; shutting down', flush=True)
-        shutdown(config)
+        if config.get('companions'):
+            shutdown_group(config)
+        else:
+            shutdown(config)
 
 
 def enable(config):
@@ -312,6 +403,8 @@ def enable(config):
     with locked(name):
         guard_legacy(config)
         virsh('dominfo', name)  # Never create domains here.
+        for member in config.get('companions', []):
+            virsh('dominfo', member)
         files = render(config)
         config_path = CONFIG/(name+'.json')
         payload = json.dumps(config, indent=2)+'\n'
@@ -328,6 +421,8 @@ def enable(config):
         touch(name)
         command('systemctl', 'daemon-reload')
         virsh('autostart', '--disable', name)
+        for member in config.get('companions', []):
+            virsh('autostart', '--disable', member)
         command('systemctl', 'enable', '--now', *units(config, '.socket'), 'vm-on-demand-idle.timer')
         print(f'{name}: wake listeners enabled; idle shutdown after {config["idle_seconds"]//60} minutes')
 
@@ -341,8 +436,9 @@ def nightly_ready():
     if property_of('btrfs-backup.service', 'ActiveState') not in ('inactive', 'failed'):
         return False
     domains = virsh('list', '--all', '--name').splitlines()
-    if 'audiomuse' in domains and state('audiomuse') != 'shut off':
-        return False
+    for member in ('audiomuse', 'gitlab', 'gitlab-runner'):
+        if member in domains and state(member) != 'shut off':
+            return False
     return True
 
 
@@ -357,7 +453,9 @@ def nightly():
         time.sleep(min(60, max(1, (target-datetime.datetime.now().astimezone()).total_seconds())))
     while True:
         try:
-            with locked('audiomuse'):
+            with ExitStack() as locks:
+                for name in ('audiomuse', 'gitlab'):
+                    locks.enter_context(locked(name))
                 if nightly_ready():
                     command('systemctl', '--no-block', 'poweroff')
                     # Keep new socket activations behind this lock until
@@ -432,7 +530,13 @@ def main():
                 if ((STATE/(name+'.hold')).exists() or proxy_busy(config) or not guest_idle(config)
                         or property_of('btrfs-backup.service', 'ActiveState') not in ('inactive', 'failed')):
                     raise RuntimeError(f'{name}: cannot confirm the VM is idle')
-                shutdown(config)
+                if config.get('companions'):
+                    report = group_report(config)
+                    if not report['idle'] or not report['safe_to_stop']:
+                        raise RuntimeError('Companion or GitLab is busy')
+                    shutdown_group(config)
+                else:
+                    shutdown(config)
         if args.action == 'wake' and args.endpoint:
             ep = next(ep for ep in config['endpoints'] if ep['name'] == args.endpoint)
             ready(config, ep)

@@ -37,3 +37,9 @@
 
 # AudioMuse live database is local; only logical backup bundles use NFS.
 /var/lib/containers/audiomuse/backups audiomuse.vm(rw,sync,no_subtree_check,root_squash)
+
+# Only completed gitlab backup bundles; live state stays on the guest disk.
+/var/lib/containers/gitlab/backups gitlab.vm(rw,sync,no_subtree_check,root_squash)
+
+# Only completed gitlab-runner backup bundles; live state stays on the guest disk.
+/var/lib/containers/gitlab-runner/backups gitlab-runner.vm(rw,sync,no_subtree_check,root_squash)

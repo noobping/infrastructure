@@ -1,0 +1,45 @@
+{
+	admin off
+	auto_https disable_redirects
+	skip_install_trust
+	persist_config off
+	servers {
+		protocols h1 h2
+	}
+}
+
+(internal_tls) {
+	tls internal
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy same-origin
+	}
+}
+
+https://git.vm:8443 {
+	import internal_tls
+	reverse_proxy http://127.0.0.1:8080
+}
+
+https://git-registry.vm:8443 {
+	import internal_tls
+	reverse_proxy http://127.0.0.1:5050
+}
+
+# Runner control API connects directly to the VM, never to a NAS wake socket.
+# Checkout and registry access retain their canonical public URLs.
+https://gitlab.vm:8443 {
+	import internal_tls
+	handle /api/v4/* {
+		reverse_proxy http://127.0.0.1:8080 {
+			header_up Host git.vm:8443
+		}
+	}
+	respond "Runner API only" 404
+}
+
+# Container-local health only; never contacts or wakes a VM.
+http://127.0.0.1:2020 {
+	bind 127.0.0.1
+	respond /healthz "ok" 200
+}

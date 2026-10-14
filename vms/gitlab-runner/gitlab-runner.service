@@ -1,0 +1,22 @@
+[Unit]
+Description=Trusted infrastructure GitLab Runner
+Requires=gitlab-runner-prepare.service user@1011.service
+After=gitlab-runner-prepare.service user@1011.service network-online.target network.target
+Wants=network-online.target
+ConditionPathExists=!/var/lib/infrastructure/backup/gitlab-runner/restoring
+[Service]
+ExecStart=/usr/bin/gitlab-runner run --config /etc/gitlab-runner/config.toml --working-directory /var/home/gitlab-runner --user gitlab-runner
+Restart=on-failure
+RestartSec=30
+# Only the manager receives SIGQUIT. Its children finish and upload results.
+KillSignal=SIGQUIT
+KillMode=mixed
+TimeoutStopSec=infinity
+SendSIGKILL=no
+Delegate=yes
+MemoryMax=7G
+CPUQuota=400%
+TasksMax=4096
+UMask=0077
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,27 @@
+ARG IMAGE_NAMESPACE=ghcr.io/noobping
+ARG TAG=latest
+FROM ${IMAGE_NAMESPACE}/vm:${TAG}
+ARG TARGETARCH
+LABEL org.opencontainers.image.title="Trusted infrastructure CI worker"
+RUN dnf install -y --setopt=install_weak_deps=False buildah skopeo fuse-overlayfs git-core git-lfs jq xorriso shadow-utils-subid && dnf clean all
+COPY runner.sha256 /usr/share/gitlab-runner/runner.sha256
+RUN set -eux; \
+    arch="${TARGETARCH:-$(uname -m)}"; \
+    case "$arch" in x86_64|amd64) arch=amd64 ;; aarch64|arm64) arch=arm64 ;; *) exit 1 ;; esac; \
+    curl -fL --retry 3 -o /tmp/gitlab-runner-linux-$arch https://gitlab-runner-downloads.s3.amazonaws.com/v19.4.1/binaries/gitlab-runner-linux-$arch; \
+    cd /tmp; grep "gitlab-runner-linux-$arch$" /usr/share/gitlab-runner/runner.sha256 | sha256sum -c --strict; \
+    install -m 0755 /tmp/gitlab-runner-linux-$arch /usr/bin/gitlab-runner; rm /tmp/gitlab-runner-linux-$arch
+RUN set -eux; \
+    arch="${TARGETARCH:-$(uname -m)}"; \
+    case "$arch" in x86_64|amd64) arch=amd64; digest=309779b0c4e409186b0a80daba99041fe2cf65a920ce645013901df6211895a9 ;; aarch64|arm64) arch=arm64; digest=df408e5418129306fed7349ec46e27be0445d05c5127c07f435e9a566af67593 ;; *) exit 1 ;; esac; \
+    curl -fL --retry 3 -o /usr/bin/cosign https://github.com/sigstore/cosign/releases/download/v2.6.4/cosign-linux-$arch; \
+    echo "$digest  /usr/bin/cosign" | sha256sum -c --strict; chmod 0755 /usr/bin/cosign
+COPY gitlab-runner.service gitlab-runner-prepare.service /etc/systemd/system/
+COPY config.toml /usr/share/gitlab-runner/config.toml
+COPY --chmod=0755 bin/ /usr/libexec/infrastructure/
+COPY containers /etc/containers/systemd
+RUN mkdir -p /etc/systemd/system/user-1011.slice.d; \
+    printf '[Slice]\nMemoryMax=7G\nCPUQuota=400%%\nTasksMax=4096\n' > /etc/systemd/system/user-1011.slice.d/resources.conf
+RUN systemctl enable gitlab-runner.service vm-idle-report@gitlab-runner.timer
+RUN if test -d /sysroot/ostree/repo; then ostree container commit; fi
+RUN if ! test -d /sysroot/ostree/repo; then bootc container lint; fi

@@ -1,0 +1,119 @@
+#!/usr/bin/python3
+"""Exercise setup's real Rails/API/Runner operations in a disposable container."""
+import importlib.util
+import json
+import os
+from pathlib import Path
+import secrets
+import socket
+import subprocess
+import tempfile
+import time
+
+ROOT = Path(__file__).resolve().parents[3]
+
+
+def run(*args, **kwargs):
+    result = subprocess.run(args, text=True, capture_output=True, **kwargs)
+    if result.returncode:
+        raise RuntimeError(f'{args[0]} failed ({result.returncode}): '+result.stderr[-1000:])
+    return result.stdout.strip()
+
+
+def port():
+    with socket.socket() as sock:
+        sock.bind(('127.0.0.1', 0))
+        return sock.getsockname()[1]
+
+
+def main():
+    name = 'gitlab-setup-test-'+secrets.token_hex(4)
+    directory = ROOT/'dist/gitlab-test'
+    directory.mkdir(parents=True, exist_ok=True)
+    root = Path(tempfile.mkdtemp(prefix=name+'-', dir=directory))
+    image = next(line[6:] for line in (ROOT/'vms/gitlab/containers/gitlab.container').read_text().splitlines() if line.startswith('Image='))
+    http = port()
+    base = f'http://127.0.0.1:{http}'
+    print('Disposable setup fixture: '+name, flush=True)
+    try:
+        for folder in ('config', 'data', 'logs'):
+            (root/folder).mkdir()
+        (root/'config/gitlab.rb').write_text((ROOT/'vms/gitlab/gitlab.rb').read_text())
+        (root/'config/bootstrap-password').write_text(secrets.token_hex(24))
+        (root/'config/private.rb').write_text(f"external_url '{base}'\nregistry_external_url 'http://127.0.0.1:{port()}'\n")
+        args = ['podman', 'run', '-d', '--name', name, '--hostname', name, '--memory=14g', '--cpus=8',
+                '--pids-limit=4096', '--shm-size=256m', '--security-opt=no-new-privileges', '--cap-drop=all',
+                '--cap-add=CHOWN,DAC_OVERRIDE,FOWNER,FSETID,SETGID,SETUID,NET_BIND_SERVICE,SYS_CHROOT,KILL',
+                '-p', f'127.0.0.1:{http}:8080']
+        for folder, destination in [('config', '/etc/gitlab'), ('data', '/var/opt/gitlab'), ('logs', '/var/log/gitlab')]:
+            args += ['-v', f'{root/folder}:{destination}:Z']
+        run(*args, image)
+        for attempt in range(240):
+            try:
+                health = json.loads(run('podman', 'exec', name, '/opt/gitlab/embedded/bin/curl',
+                                       '-fsS', '--max-time', '3', 'http://127.0.0.1:8080/-/readiness'))
+                if health.get('status') == 'ok': break
+            except Exception: pass
+            time.sleep(5)
+        else: raise RuntimeError('GitLab did not become ready')
+        def bootstrap(value):
+            return json.loads(run('podman', 'exec', '--interactive', name, 'gitlab-rails', 'runner',
+                (ROOT/'vms/gitlab/bootstrap.rb').read_text(), input=json.dumps({'token': value})))['token']
+        monitoring = bootstrap(None)
+        assert bootstrap(monitoring) == monitoring
+        print('Automatic monitoring token is persistent across bootstrap reruns', flush=True)
+        run('openssl', 'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '2', '-subj', '/CN=Setup fixture CA',
+            '-addext', 'basicConstraints=critical,CA:TRUE', '-keyout', str(root/'ca.key'), '-out', str(root/'ca.crt'))
+        run('ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-f', str(root/'ssh'))
+        spec = importlib.util.spec_from_file_location('setup_remote', ROOT/'vms/gitlab/setup-remote.py')
+        helper = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(helper)
+        helper.CONFIG = root/'config'
+        helper.RUNNER_CONFIG = root/'runner'
+        helper.RUNNER_TEMPLATE = root/'runner-template.toml'
+        helper.RUNNER_TEMPLATE.write_text((ROOT/'vms/gitlab-runner/config.toml').read_text().replace('https://git.vm:8443', base).replace('https://gitlab.vm:8443', base))
+        helper.API_URL = base+'/api/v4'
+        os.environ['PATH'] = str(directory/'bin')+':'+os.environ['PATH']
+        original = helper.run
+        def commands(*args, **kwargs):
+            if args[0] == 'systemctl': return 'inactive' if 'show' in args else ''
+            if args[0] == 'podman': args = tuple(name if arg == 'gitlab' else arg for arg in args)
+            return original(*args, **kwargs)
+        helper.run = commands
+        # Host authentication/trust are covered by unit tests; never edit this host's OS trust/user state.
+        helper.vm_identity = lambda user, password: [(root/'ssh.pub').read_text().strip().rsplit(' ', 1)[0]]
+        helper.trust = lambda cert: None
+        signing = helper.worker_keys()
+        assert helper.worker_keys() == signing
+        password = secrets.token_hex(24)
+        data = {'username': 'nick', 'password': password, 'signing': signing, 'certificate': (root/'ca.crt').read_text()}
+        first = helper.server(data)
+        second = helper.server(data)
+        assert first == second
+        helper.worker({'certificate': data['certificate'], 'runner': first})
+        assert (helper.RUNNER_CONFIG/'config.toml').stat().st_mode & 0o777 == 0o600
+        user = helper.api(monitoring, 'GET', '/user')
+        assert user['username'] == 'nick' and user['is_admin']
+        project = helper.api(monitoring, 'GET', '/projects/nick%2Finfrastructure')
+        assert project['visibility'] == 'private'
+        assert project['ci_config_path'] == '.gitlab/ci/self-hosted.yml'
+        variables = helper.api(monitoring, 'GET', f'/projects/{project["id"]}/variables')
+        assert len(variables) == 3 and all(v['protected'] for v in variables)
+        runners = helper.api(monitoring, 'GET', f'/projects/{project["id"]}/runners')
+        assert len(runners) == 1
+        detail = helper.api(monitoring, 'GET', f'/runners/{runners[0]["id"]}')
+        assert detail['locked'] and not detail['run_untagged'] and detail['access_level'] == 'ref_protected'
+        assert helper.api(monitoring, 'GET', '/user/keys')
+        run('podman', 'exec', '--interactive', name, 'gitlab-rails', 'runner',
+            "require 'json'; d=JSON.parse(STDIN.read); raise 'Password mismatch' unless User.find(1).valid_password?(d['password']); raise 'Password expired' if User.find(1).password_expired_if_applicable?; raise 'Leaked setup token' if PersonalAccessToken.where(name: 'infrastructure-setup', revoked: false).exists?",
+            input=json.dumps({'password': password}))
+        print('Real admin password/key, private project, protected Runner verification, signing variables and repeat setup passed', flush=True)
+    finally:
+        if os.environ.get('GITLAB_TEST_KEEP') == '1':
+            print('Kept fixture '+str(root), flush=True)
+        else:
+            subprocess.run(['podman', 'rm', '-f', name], capture_output=True)
+            run('podman', 'unshare', 'rm', '-rf', '--', str(root))
+
+
+if __name__ == '__main__': main()

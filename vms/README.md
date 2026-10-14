@@ -38,7 +38,7 @@ validates the inventory's guest Ignition files before create-only provisioning.
 
 ```sh
 sudo vm-deploy --all
-for vm in k3s minecraft jellyfin immich audiomuse; do
+for vm in k3s minecraft jellyfin immich audiomuse gitlab gitlab-runner; do
   sudo virsh domblklist "$vm" --details
 done
 sudo virsh autostart --disable jellyfin
@@ -114,10 +114,17 @@ For an application-consistent snapshot:
 
 The [K3s](k3s/README.md), [Minecraft](minecraft/README.md),
 [Jellyfin](jellyfin/README.md), [Immich](immich/README.md), and
-[AudioMuse](audiomuse/README.md) notes describe
+[AudioMuse](audiomuse/README.md) and [GitLab/Runner](gitlab/README.md) notes describe
 role-specific behavior. Include Immich's database dump/stop hooks when taking
 an application-consistent NAS snapshot; its live database is on the guest disk.
 
 AudioMuse adds an online PostgreSQL dump/secret bundle to the same prepare/snapshot/finish
 workflow; its live database is never on NFS. Provisioning it does not change
 Jellyfin authority or mount the Jellyfin configuration.
+
+## GitLab and CI
+
+[GitLab CE and its isolated worker](gitlab/README.md) are an on-demand pair. Use
+`vm-on-demand enable gitlab` for both; Runner polling bypasses wake activation.
+The NAS nightly shutdown waits for both guests and their backup holds. Live GitLab
+state stays on SSD-backed guest disks; only completed backup bundles use NFS.

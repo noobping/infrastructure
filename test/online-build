@@ -193,6 +193,19 @@ run_case online::_images stable amd64 immich graph
 expect_builds 'images/policy images/ips vms/vm vms/immich'
 run_case online::_images stable amd64 audiomuse graph
 expect_builds 'images/policy images/ips vms/vm vms/audiomuse'
+run_case online::_images stable amd64 gitlab graph
+expect_builds 'images/policy images/ips vms/vm vms/gitlab'
+run_case online::_images stable amd64 gitlab-runner graph
+expect_builds 'images/policy images/ips vms/vm vms/gitlab-runner'
+export REQUIRE_SIGNING_KEY=true
+if "$just" online::_images stable amd64 gitlab graph > "$work_dir/output.log" 2>&1; then
+    echo 'missing signing key must fail' >&2; exit 1
+fi
+printf 'fixture-key' > "$work_dir/signing.key"
+export COSIGN_KEY="$work_dir/signing.key"
+run_case online::_images stable amd64 gitlab graph
+grep -q -- '--key .* --tlog-upload=false' "$TEST_LOG"
+unset COSIGN_KEY REQUIRE_SIGNING_KEY
 run_case online::_media amd64 nas
 [[ -f dist/online/ign/immich.ign ]]
 grep -q immich.vm dist/online/ign/immich.ign
@@ -208,8 +221,8 @@ run_case online::_media amd64 nas
 
 # Defaults preserve the complete two-architecture publication graph.
 run_case online::stable
-[[ "$(grep -c '^buildah bud ' "$TEST_LOG")" == 22 ]]
-[[ "$(grep -c '^buildah manifest push ' "$TEST_LOG")" == 11 ]]
+[[ "$(grep -c '^buildah bud ' "$TEST_LOG")" == 26 ]]
+[[ "$(grep -c '^buildah manifest push ' "$TEST_LOG")" == 13 ]]
 run_case online::next
 [[ "$(grep -c '^buildah bud ' "$TEST_LOG")" == 8 ]]
 [[ "$(grep -c '^buildah manifest push ' "$TEST_LOG")" == 4 ]]

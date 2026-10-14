@@ -3,7 +3,9 @@
 Minecraft, Immich, Jellyfin, and AudioMuse wake on connections to NAS listening sockets.
 After at least 30 minutes without client traffic or application work, the NAS
 requests a graceful guest shutdown. K3s keeps its existing boot policy, services,
-and Caddy deployment. The NAS must be on. Wake-on-LAN is unchanged; nightly poweroff now defers
+and Caddy deployment. GitLab terminates TLS inside its own VM; the NAS relays encrypted TCP 8443,
+independent of K3s; Cockpit keeps 443, SSH keeps 22, and legacy Jellyfin keeps
+8096/8920 until an explicit handover. The NAS must be on. Wake-on-LAN is unchanged; nightly poweroff now defers
 while AudioMuse runs or a persistent VM hold/active NAS backup exists. See the
 [AudioMuse runbook](audiomuse/README.md#on-demand-lifecycle-and-nas-power).
 
@@ -190,3 +192,10 @@ On the live NAS, validate before relying on automatic shutdown:
 Use `journalctl -u vm-on-demand-idle.service` and
 `journalctl -u 'vm-demand-*'` on the NAS to diagnose startup and idle checks.
 No live NAS behavior is claimed by the development-machine tests.
+
+## GitLab and CI
+
+[GitLab CE and its isolated worker](gitlab/README.md) are an on-demand pair. Use
+`vm-on-demand enable gitlab` for both; Runner polling bypasses wake activation.
+The NAS nightly shutdown waits for both guests and their backup holds. Live GitLab
+state stays on SSD-backed guest disks; only completed backup bundles use NFS.

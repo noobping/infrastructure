@@ -1,0 +1,203 @@
+#!/usr/bin/python3
+"""Disposable GitLab + real shell Runner smoke test. No production endpoints.
+Requires rootless Podman, git, Buildah, Cosign and the pinned Runner binary.
+Use GITLAB_TEST_RUNNER to select that binary. All ports bind to loopback.
+"""
+import hashlib
+import json
+import os
+from pathlib import Path
+import secrets
+import shutil
+import socket
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.parse
+import urllib.request
+
+REPO = Path(__file__).resolve().parents[3]
+IMAGE = next(x[6:] for x in (REPO/'vms/gitlab/containers/gitlab.container').read_text().splitlines() if x.startswith('Image='))
+
+
+def run(*args, **kwargs):
+    return subprocess.run(args, check=True, text=True, capture_output=True, **kwargs).stdout.strip()
+
+
+def port():
+    with socket.socket() as s:
+        s.bind(('127.0.0.1', 0))
+        return s.getsockname()[1]
+
+
+def main():
+    runner = Path(os.environ.get('GITLAB_TEST_RUNNER', REPO/'dist/gitlab-test/bin/gitlab-runner')).resolve()
+    assert hashlib.sha256(runner.read_bytes()).hexdigest() == '5a159b36c5ff54fda9248e00bb0cdfb62c1112ab3741f5282c04a41e94da1306'
+    name = 'gitlab-test-'+secrets.token_hex(4)
+    root = Path(tempfile.mkdtemp(prefix=name+'-', dir=REPO/'dist/gitlab-test'))
+    http, registry, ssh = port(), port(), port()
+    base = f'http://127.0.0.1:{http}'
+    token = secrets.token_hex(24)
+    process = None
+    image_ref = None
+    print(f'Disposable runtime: {name}; files: {root}', flush=True)
+    try:
+        for directory in ('config', 'data', 'logs', 'jobs'):
+            (root/directory).mkdir()
+        (root/'config/bootstrap-password').write_text(secrets.token_hex(24))
+        (root/'config/gitlab.rb').write_text((REPO/'vms/gitlab/gitlab.rb').read_text())
+        (root/'config/private.rb').write_text(f"external_url '{base}'\nregistry_external_url 'http://127.0.0.1:{registry}'\n")
+        args = ['podman','run','-d','--name',name,'--hostname',name,'--memory=14g','--cpus=8',
+                '--pids-limit=4096','--shm-size=256m','--security-opt=no-new-privileges','--cap-drop=all']
+        caps = 'CHOWN,DAC_OVERRIDE,FOWNER,FSETID,SETGID,SETUID,NET_BIND_SERVICE,SYS_CHROOT,KILL'
+        args += ['--cap-add='+caps,'-p',f'127.0.0.1:{http}:8080','-p',f'127.0.0.1:{registry}:5050','-p',f'127.0.0.1:{ssh}:22']
+        for directory, target in [('config','/etc/gitlab'),('data','/var/opt/gitlab'),('logs','/var/log/gitlab')]:
+            args += ['-v',f'{root/directory}:{target}:Z']
+        run(*args,IMAGE)
+
+        def wait_ready():
+            for attempt in range(240):
+                try:
+                    ready = json.loads(run('podman', 'exec', name, '/opt/gitlab/embedded/bin/curl',
+                                           '-fsS', '--max-time', '3', 'http://127.0.0.1:8080/-/readiness'))
+                    if ready['status'] == 'ok':
+                        return
+                except Exception:
+                    pass
+                if run('podman','inspect','--format','{{.State.Running}}',name) != 'true':
+                    raise RuntimeError('GitLab exited; inspect fixture container logs')
+                time.sleep(5)
+            raise TimeoutError('GitLab startup exceeded 20 minutes')
+
+        wait_ready()
+        print('GitLab ready with production capability/resource restrictions',flush=True)
+        script = "ApplicationSetting.current.update!(signup_enabled: false); u=User.find_by_username('root'); t=u.personal_access_tokens.create!(name:'runtime-test',scopes:['api'],expires_at:1.day.from_now); t.set_token('"+token+"'); t.save!"
+        run('podman','exec',name,'gitlab-rails','runner',script)
+
+        def api(method,path,data=None,auth=True):
+            headers={'PRIVATE-TOKEN':token} if auth else {}
+            if data is not None:
+                data=json.dumps(data).encode(); headers['Content-Type']='application/json'
+            request=urllib.request.Request(base+'/api/v4'+path,data=data,headers=headers,method=method)
+            with urllib.request.urlopen(request,timeout=30) as response:
+                body=response.read()
+                return json.loads(body) if body else None
+
+        project=api('POST','/projects',{'name':'fixture','initialize_with_readme':True,'visibility':'private'})
+        project_id=project['id']
+        registration=api('POST','/user/runners',{'runner_type':'project_type','project_id':project_id,
+                          'description':'disposable','tag_list':['fixture'],'run_untagged':False,'access_level':'ref_protected'})
+        config=root/'runner.toml'
+        config.write_text(f'concurrent = 1\ncheck_interval = 2\nlisten_address = "127.0.0.1:{port()}"\n[[runners]]\nurl = "{base}"\ntoken = "{registration["token"]}"\nexecutor = "shell"\nshell = "bash"\n')
+        config.chmod(0o600)
+        logfile=(root/'runner.log').open('w')
+        process=subprocess.Popen([str(runner),'run','--config',str(config),'--working-directory',str(root/'jobs')],stdout=logfile,stderr=logfile)
+        clone=root/'clone'
+        # Credential helper keeps the disposable token out of the Git remote URL.
+        askpass=root/'askpass'
+        askpass.write_text('#!/bin/sh\ncase "$1" in *Username*) echo root ;; *) cat "'+str(root/'token')+'" ;; esac\n')
+        askpass.chmod(0o700);(root/'token').write_text(token);(root/'token').chmod(0o600)
+        env={**os.environ,'GIT_ASKPASS':str(askpass),'GIT_TERMINAL_PROMPT':'0'}
+        run('git','clone',project['http_url_to_repo'],str(clone),env=env)
+        run('ssh-keygen','-q','-t','ed25519','-N','','-f',str(root/'ssh-key'))
+        api('POST','/user/keys',{'title':'fixture','key':(root/'ssh-key.pub').read_text()})
+        ssh_env={**env,'GIT_SSH_COMMAND':f'ssh -i {root/"ssh-key"} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile={root/"known_hosts"}'}
+        run('git','ls-remote',f'ssh://git@127.0.0.1:{ssh}/root/fixture.git',env=ssh_env)
+        keyenv={**os.environ,'COSIGN_PASSWORD':'runtime-test'}
+        run('cosign','generate-key-pair','--output-key-prefix',str(root/'cosign'),env=keyenv)
+        for key, value, kind in [('COSIGN_KEY',(root/'cosign.key').read_text(),'file'),
+                                  ('COSIGN_PUBLIC_KEY',(root/'cosign.pub').read_text(),'file'),
+                                  ('COSIGN_PASSWORD','runtime-test','env_var')]:
+            api('POST',f'/projects/{project_id}/variables',{'key':key,'value':value,'variable_type':kind,'protected':True})
+        (clone/'payload').write_text('immutable runtime fixture\n')
+        (clone/'Containerfile').write_text('FROM scratch\nCOPY payload /payload\n')
+        job = '''stages: [test]
+smoke:
+  tags: [fixture]
+  script:
+    - mkdir -p .docker
+    - export DOCKER_CONFIG="$CI_PROJECT_DIR/.docker" REGISTRY_AUTH_FILE="$CI_PROJECT_DIR/.docker/config.json"
+    - printf '%s' "$CI_REGISTRY_PASSWORD" | buildah login --tls-verify=false --username "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    - buildah bud --isolation=chroot -t "$CI_REGISTRY_IMAGE/app:fixture" .
+    - buildah push --tls-verify=false "$CI_REGISTRY_IMAGE/app:fixture" "docker://$CI_REGISTRY_IMAGE/app:fixture"
+    - cosign sign --yes --key "$COSIGN_KEY" --tlog-upload=false --allow-http-registry "$CI_REGISTRY_IMAGE/app:fixture"
+    - cosign verify --key "$COSIGN_PUBLIC_KEY" --insecure-ignore-tlog --allow-http-registry "$CI_REGISTRY_IMAGE/app:fixture" > signature.json
+    - skopeo inspect --tls-verify=false "docker://$CI_REGISTRY_IMAGE/app:fixture" > image.json
+    - >-
+      curl --fail --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file payload "$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/generic/fixture/1/payload"
+  artifacts:
+    paths: [image.json, signature.json, payload]
+'''
+        (clone/'.gitlab-ci.yml').write_text(job)
+        run('git','-C',str(clone),'add','.')
+        run('git','-C',str(clone),'-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-m','Run isolated CI fixture')
+        run('git','-C',str(clone),'push',env=env)
+        commit=run('git','-C',str(clone),'rev-parse','HEAD')
+        for attempt in range(180):
+            pipelines=api('GET',f'/projects/{project_id}/pipelines?sha={commit}')
+            if pipelines and pipelines[0]['status'] in ('success','failed','canceled'):
+                assert pipelines[0]['status']=='success', f'Pipeline {pipelines[0]["id"]} failed; inspect fixture trace'
+                break
+            time.sleep(5)
+        else:
+            raise TimeoutError('Pipeline did not finish')
+        image_ref=f'127.0.0.1:{registry}/root/fixture/app:fixture'
+        print('Authenticated push/clone, real Runner, image publishing, packages and artifacts passed',flush=True)
+        process.send_signal(__import__('signal').SIGQUIT);process.wait(timeout=60);process=None
+        # Verify local activity APIs used by the production probe.
+        assert api('GET','/user')['is_admin'] is True
+        assert 'processes' in api('GET','/sidekiq/compound_metrics')
+        scope=urllib.parse.urlencode([('scope[]',v) for v in ('pending','running','preparing','waiting_for_resource')])
+        assert api('GET',f'/projects/{project_id}/jobs?{scope}') == []
+        jobs=api('GET',f'/projects/{project_id}/jobs')
+        artifact=f'/projects/{project_id}/jobs/{jobs[0]["id"]}/artifacts/payload'
+        with urllib.request.urlopen(urllib.request.Request(base+'/api/v4'+artifact,headers={'PRIVATE-TOKEN':token})) as response:
+            assert response.read()==(clone/'payload').read_bytes()
+        run('podman','exec',name,'gitlab-backup','create','BACKUP=fixture')
+        run('podman','restart','--time','600',name);wait_ready()
+        assert api('GET',f'/projects/{project_id}')['name']=='fixture'
+        # Change a row after backup so restore must demonstrate actual recovery.
+        api('PUT',f'/projects/{project_id}',{'description':'changed-after-backup'})
+        run('podman','exec',name,'gitlab-ctl','stop','puma')
+        run('podman','exec',name,'gitlab-ctl','stop','sidekiq')
+        run('podman','exec','--env','GITLAB_ASSUME_YES=1',name,'gitlab-backup','restore','BACKUP=fixture','force=yes')
+        run('podman','restart','--time','600',name);wait_ready()
+        assert api('GET',f'/projects/{project_id}')['name']=='fixture'
+        assert api('GET',f'/projects/{project_id}')['description'] != 'changed-after-backup'
+        assert api('GET',f'/projects/{project_id}/packages')
+        with urllib.request.urlopen(urllib.request.Request(base+'/api/v4'+artifact,headers={'PRIVATE-TOKEN':token})) as response:
+            assert response.read()==(clone/'payload').read_bytes()
+        run('git','-C',str(clone),'fetch',env=env)
+        # Recreate the container against the same disks, rather than relying on
+        # its writable layer. Host/FCOS reboots remain a separate acceptance check.
+        run('podman','stop','--time','600',name)
+        run('podman','rm',name)
+        run(*args,IMAGE);wait_ready()
+        assert api('GET',f'/projects/{project_id}/variables/COSIGN_KEY')['value']==(root/'cosign.key').read_text()
+        authdir=root/'registry-auth';authdir.mkdir(mode=0o700)
+        registry_env={**os.environ,'DOCKER_CONFIG':str(authdir),'REGISTRY_AUTH_FILE':str(authdir/'config.json')}
+        run('buildah','login','--tls-verify=false','--username','root','--password-stdin',
+            f'127.0.0.1:{registry}',input=token,env=registry_env)
+        run('skopeo','copy','--src-tls-verify=false','docker://'+image_ref,
+            'dir:'+str(root/'pulled-image'),env=registry_env)
+        run('cosign','verify','--key',str(root/'cosign.pub'),'--insecure-ignore-tlog',
+            '--allow-http-registry',image_ref,env=registry_env)
+        run('git','-C',str(clone),'fetch',env=env)
+        print('Backup/restore, recreation, encrypted variables, registry pull/signature and repository persistence passed',flush=True)
+    finally:
+        if process is not None:
+            process.send_signal(__import__('signal').SIGQUIT)
+            try: process.wait(timeout=60)
+            except subprocess.TimeoutExpired: process.terminate();process.wait(timeout=30)
+        if os.environ.get('GITLAB_TEST_KEEP') == '1':
+            print(f'Kept disposable fixture {name} at {root}',flush=True)
+        else:
+            subprocess.run(['podman','rm','-f',name],capture_output=True)
+            if image_ref:
+                subprocess.run(['buildah','rmi',image_ref],capture_output=True)
+            run('podman','unshare','rm','-rf','--',str(root))
+
+
+if __name__ == '__main__':
+    main()

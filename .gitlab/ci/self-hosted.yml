@@ -1,0 +1,61 @@
+# Select this path only in the project on git.vm. Hosted pipelines keep their defaults.
+workflow:
+  rules:
+    - if: '$CI_SERVER_HOST == "git.vm" && $CI_COMMIT_REF_PROTECTED == "true"'
+    - when: never
+stages: [check, build, publish, media]
+default:
+  tags: [infrastructure-amd64]
+  interruptible: false
+  before_script:
+    - mkdir -p "$TMPDIR"
+    - /usr/libexec/infrastructure/gitlab-runner-preflight
+    - export REGISTRY_USER="$CI_REGISTRY_USER" REGISTRY_TOKEN="$CI_REGISTRY_PASSWORD"
+    - source images/nas/pipeline.sh
+variables:
+  IMAGE_NAMESPACE: "$CI_REGISTRY_IMAGE"
+  PIPELINE_IMAGE: "registry.gitlab.com/noobping/pipeline:latest"
+  BUILD_IMAGE_TAG: amd64
+  PIPELINE_PULL: "newer"
+  PIPELINE_RUN_ID: "$CI_PIPELINE_ID"
+  REGISTRY_TLS_VERIFY: "true"
+  PUBLISH: "true"
+  SIGN_IMAGES: "true"
+  REQUIRE_SIGNING_KEY: "true"
+  BUILDAH_ISOLATION: chroot
+  TMPDIR: /var/home/gitlab-runner/tmp
+  SOURCE_URL: "$CI_PROJECT_URL"
+  REVISION: "$CI_COMMIT_SHA"
+check:
+  stage: check
+  script:
+    - mkdir -p "$TMPDIR"
+    - pipeline --cap-jobs 1 check
+build:
+  stage: build
+  timeout: 12 hours
+  resource_group: local-image-build
+  script:
+    - mkdir -p "$TMPDIR"
+    - test -s "$COSIGN_KEY" && test -s "$COSIGN_PUBLIC_KEY"
+    # Serialize the graph: one worker should not launch three large builds at once.
+    - for image in policy ips workstation sway nas vm k3s minecraft jellyfin immich audiomuse gitlab gitlab-runner; do BUILD_STREAM=stable BUILD_ARCHITECTURE=amd64 BUILD_IMAGE_NAME="$image" pipeline image-task; done
+  artifacts:
+    paths: [dist/online/state/]
+    expire_in: 7 days
+publish:
+  stage: publish
+  resource_group: local-image-publish
+  script:
+    - pipeline local-publish
+  artifacts:
+    paths: [dist/online/state/]
+    expire_in: 30 days
+media:
+  stage: media
+  timeout: 4 hours
+  script:
+    - for profile in nas workstation sway; do BUILD_PROFILE="$profile" BUILD_ARCHITECTURE=amd64 pipeline media-task; BUILD_PROFILE="$profile" BUILD_ARCHITECTURE=amd64 pipeline gitlab-media-publish; done
+  artifacts:
+    paths: [dist/gitlab-media/]
+    expire_in: 30 days

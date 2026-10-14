@@ -1,0 +1,32 @@
+#!/usr/bin/bash
+set -euo pipefail
+# Wait for the complete application before exposing its first-run configuration.
+ready=false
+for attempt in {1..180}; do
+  if podman exec gitlab /opt/gitlab/embedded/bin/curl -fsS --max-time 3 http://127.0.0.1:8080/-/readiness >/dev/null 2>&1; then ready=true; break; fi
+  sleep 5
+done
+[[ "$ready" = true ]] || { echo "GitLab readiness timed out" >&2; exit 1; }
+# Idempotent security setting, also applied to restored instances.
+python3 - <<'BOOTSTRAP'
+import json, os, subprocess
+from pathlib import Path
+os.umask(0o077)
+path = Path('/var/lib/gitlab/config/monitoring-token')
+value = path.read_text().strip() if path.exists() else None
+result = subprocess.run(['podman', 'exec', '--interactive', 'gitlab', 'gitlab-rails', 'runner',
+                         Path('/usr/share/gitlab/bootstrap.rb').read_text()],
+                        input=json.dumps({'token': value}), text=True, capture_output=True, check=True)
+value = json.loads(result.stdout)['token']
+if not isinstance(value, str) or not value or '\n' in value:
+    raise ValueError('Invalid monitoring token response')
+temporary = path.with_suffix('.new')
+temporary.write_text(value+'\n')
+temporary.chmod(0o600)
+temporary.replace(path)
+BOOTSTRAP
+install -d -m 0700 /etc/infrastructure
+install -m 0600 /var/lib/gitlab/config/monitoring-token /etc/infrastructure/vm-idle-api-key
+cp /usr/share/gitlab/version /var/lib/gitlab/version
+rm -f /var/lib/gitlab/upgrade-approved
+touch /run/gitlab-ready

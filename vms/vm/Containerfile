@@ -25,6 +25,7 @@ COPY cachefilesd.conf /etc/cachefilesd.conf
 COPY nfs-selinux.service /etc/systemd/system/nfs-selinux.service
 COPY qemu-guest-agent-selinux.service /etc/systemd/system/qemu-guest-agent-selinux.service
 COPY qemu-guest-agent.conf /etc/systemd/system/qemu-guest-agent.service.d/10-selinux.conf
+COPY --chmod=0755 bin/gitlab-backup /usr/libexec/infrastructure/gitlab-backup
 COPY --chmod=0755 bin/vm-idle-check /usr/libexec/infrastructure/vm-idle-check
 COPY vm-idle-report@.service vm-idle-report@.timer /usr/lib/systemd/system/
 COPY suricata.nft /etc/nftables/suricata-vm.nft

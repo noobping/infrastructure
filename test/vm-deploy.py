@@ -102,6 +102,15 @@ class Deploy(unittest.TestCase):
         self.assertIn('refusing to replace', result.stderr)
         self.assertEqual(original, disk.read_bytes())
 
+    def test_gitlab_pair_is_created_without_implicit_start(self):
+        for name, memory, disk in [('gitlab', 16384, 160), ('gitlab-runner', 8192, 120)]:
+            self.deploy(name)
+            self.assertTrue((self.pool / ('disks/'+name+'-root.qcow2')).exists())
+            xml = (self.pool / ('config/'+name+'.xml')).read_text()
+            self.assertIn(str(memory), xml)
+            self.assertTrue((self.repo / ('dist/ign/'+name+'.ign')).exists())
+            self.deploy(name, success=False)
+
     def test_audiomuse_create_only_and_no_implicit_start(self):
         self.deploy('audiomuse')
         disk = self.pool / 'disks/audiomuse-root.qcow2'

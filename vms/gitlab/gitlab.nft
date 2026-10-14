@@ -1,0 +1,2 @@
+# VM TLS frontend and Git SSH; Omnibus HTTP/registry bind only to loopback.
+tcp dport { 8443, 2222 } accept

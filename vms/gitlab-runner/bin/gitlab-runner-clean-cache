@@ -1,0 +1,11 @@
+#!/usr/bin/bash
+# Explicit maintenance: never evict build layers or checkouts during a job.
+set -euo pipefail
+[[ $(systemctl show --property=ActiveState --value gitlab-runner.service) = inactive ]] || {
+  echo 'Drain the Runner with systemctl stop gitlab-runner first' >&2; exit 1;
+}
+[[ -z $(runuser -u gitlab-runner -- env XDG_RUNTIME_DIR=/run/user/1011 podman ps -q) ]]
+runuser -u gitlab-runner -- env XDG_RUNTIME_DIR=/run/user/1011 \
+  podman image prune --force --filter until=168h
+runuser -u gitlab-runner -- env XDG_RUNTIME_DIR=/run/user/1011 \
+  buildah prune --force

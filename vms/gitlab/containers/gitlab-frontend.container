@@ -1,0 +1,38 @@
+[Unit]
+Description=GitLab VM HTTPS frontend
+Requires=gitlab-frontend-prepare.service
+After=gitlab-frontend-prepare.service network-online.target
+Wants=network-online.target
+RequiresMountsFor=/var/lib/gitlab/frontend
+ConditionPathExists=!/var/lib/infrastructure/backup/gitlab/restoring
+[Container]
+Image=docker.io/library/caddy:2.11.4@sha256:af5fdcd76f2db5e4e974ee92f96ee8c0fc3edb55bd4ba5032547cbf3f65e486d
+ContainerName=gitlab-frontend
+User=65532:65532
+Network=host
+Volume=/etc/gitlab-frontend:/etc/caddy:ro,Z
+Volume=/var/lib/gitlab/frontend/data:/data:Z
+Environment=XDG_DATA_HOME=/data
+Exec=caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
+ReadOnly=true
+Tmpfs=/tmp:rw,noexec,nosuid,size=16m
+DropCapability=all
+# Required to execute the upstream Caddy binary with its file capability.
+AddCapability=NET_BIND_SERVICE
+NoNewPrivileges=true
+PidsLimit=128
+HealthCmd=wget -q -O /dev/null http://127.0.0.1:2020/healthz
+HealthInterval=60s
+HealthTimeout=5s
+HealthRetries=3
+HealthOnFailure=kill
+LogDriver=journald
+[Service]
+Restart=on-failure
+RestartSec=5
+MemoryMax=256M
+CPUQuota=50%
+TimeoutStartSec=180
+TimeoutStopSec=30
+[Install]
+WantedBy=multi-user.target

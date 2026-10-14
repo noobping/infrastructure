@@ -1,0 +1,10 @@
+[Unit]
+Description=Prepare isolated local GitLab frontend storage
+RequiresMountsFor=/var/lib/gitlab/frontend
+After=local-fs.target
+ConditionPathExists=!/var/lib/infrastructure/backup/gitlab/restoring
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/infrastructure/gitlab-frontend-prepare
+RemainAfterExit=yes
+UMask=0077

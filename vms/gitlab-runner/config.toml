@@ -1,0 +1,12 @@
+concurrent = 1
+check_interval = 10
+listen_address = "127.0.0.1:9252"
+[[runners]]
+  name = "infrastructure-amd64"
+  url = "https://gitlab.vm:8443"
+  clone_url = "https://git.vm:8443"
+  executor = "shell"
+  shell = "bash"
+  builds_dir = "/var/home/gitlab-runner/builds"
+  cache_dir = "/var/home/gitlab-runner/cache"
+  environment = ["XDG_RUNTIME_DIR=/run/user/1011", "BUILDAH_ISOLATION=chroot"]

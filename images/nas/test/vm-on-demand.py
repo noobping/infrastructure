@@ -124,7 +124,7 @@ class Host(unittest.TestCase):
         with self.assertRaises(ValueError):
             host.validate_inventory(REPO/'vms/inventory.json', ['k3s'])
         configs = host.validate_inventory(REPO/'vms/inventory.json', [])
-        self.assertEqual({c['name'] for c in configs}, {'minecraft', 'immich', 'jellyfin', 'audiomuse'})
+        self.assertEqual({c['name'] for c in configs}, {'minecraft', 'immich', 'jellyfin', 'audiomuse', 'gitlab'})
 
     def test_nightly_poweroff_waits_for_audiomuse_and_holds(self):
         with patch.object(host, 'virsh', return_value='k3s\naudiomuse'):

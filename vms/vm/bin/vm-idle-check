@@ -100,22 +100,25 @@ def bedrock_players():
 
 
 def guest_idle(role):
-    if role not in ('immich', 'jellyfin', 'minecraft', 'audiomuse'):
+    if role not in ('immich', 'jellyfin', 'minecraft', 'audiomuse', 'gitlab', 'gitlab-runner'):
         raise ValueError('Unsupported VM role')
     if Path('/run/vm-on-demand.hold').exists():
         return False
     markers = {'immich': ['server-was-active'], 'minecraft': ['quiesce'],
-               'jellyfin': ['jellyfin-was-active'], 'audiomuse': ['prepared', 'restoring']}
+               'jellyfin': ['jellyfin-was-active'], 'audiomuse': ['prepared', 'restoring'], 'gitlab': ['prepared', 'restoring'],
+               'gitlab-runner': ['prepared', 'restoring']}
     if any((BACKUP/role/marker).exists() for marker in markers[role]):
         return False
     if run('systemctl', 'show', '--property=ActiveState', '--value',
            'rpm-ostree-upgrade.service') not in ('inactive', 'failed'):
         return False
-    ports = {'immich': [2283], 'minecraft': [25565], 'jellyfin': [8096], 'audiomuse': [8000]}[role]
+    ports = {'immich': [2283], 'minecraft': [25565], 'jellyfin': [8096], 'audiomuse': [8000], 'gitlab': [2222], 'gitlab-runner': []}[role]
     # Include direct guest connections and administrator SSH sessions.
     expression = '( '+' or '.join(f'sport = :{port}' for port in [22, *ports])+' )'
     if run('ss', '--no-header', '--tcp', '--numeric', 'state', 'established', expression):
         return False
+    if role in ('gitlab', 'gitlab-runner'):
+        return True  # Role helper adds authenticated application/worker evidence.
     if role == 'audiomuse':
         if run('/usr/libexec/infrastructure/audiomuse-idle') != 'idle':
             return False
@@ -149,13 +152,28 @@ def guest_idle(role):
 
 
 def main():
-    signal.alarm(20)
+    role = sys.argv[1]
+    sampled_at = time.time()
+    signal.alarm(70 if role == 'gitlab' else 20)
+    extra = {}
     try:
-        idle = guest_idle(sys.argv[1])
+        idle = guest_idle(role)
+        if role in ('gitlab', 'gitlab-runner') and idle:
+            result = subprocess.run(['/usr/libexec/infrastructure/'+role+'-idle'],
+                                    check=True, capture_output=True, text=True, timeout=60 if role == 'gitlab' else 10)
+            extra = json.loads(result.stdout)
+            if type(extra.get('idle')) is not bool or type(extra.get('safe_to_stop')) is not bool:
+                raise ValueError('Malformed GitLab activity response')
+            idle = extra['idle']
     except Exception as error:
         print(f'Cannot confirm idle: {error}', file=sys.stderr)
         idle = False
-    report = json.dumps({'version': 1, 'idle': idle, 'checked_at': time.time()})+'\n'
+        extra = {}
+    if role == 'gitlab':
+        extra.setdefault('safe_to_stop', False)
+        extra['ready'] = Path('/run/gitlab-ready').exists()
+    report = json.dumps({**extra, 'version': 1, 'idle': idle,
+                         'sampled_at': sampled_at, 'checked_at': time.time()})+'\n'
     if sys.argv[2:] == ['--report']:
         target = Path('/run/vm-on-demand/idle.json')
         temporary = target.with_suffix('.new')

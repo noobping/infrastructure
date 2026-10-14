@@ -103,6 +103,36 @@ gitlab-manifest-task:
     just={{ quote(just_executable()) }}
     exec "$just" online::manifest-task
 
+# Publish a completed native-only graph without pretending ARM64 was built.
+local-publish:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    [[ "${CI_SERVER_HOST:-}" == git.vm && "${CI_COMMIT_REF_PROTECTED:-}" == true ]]
+    [[ -s "${COSIGN_KEY:-}" && -s "${COSIGN_PUBLIC_KEY:-}" ]]
+    branch="$(jq -rn --arg value "$CI_DEFAULT_BRANCH" '$value | @uri')"
+    current="$(curl -fsS --header "JOB-TOKEN: $CI_JOB_TOKEN" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/repository/commits/$branch" | jq -r .id)"
+    [[ "$current" == "$CI_COMMIT_SHA" ]] || { echo 'Skipping stale/default-branch mismatch'; exit 0; }
+    auth="$(mktemp -d)"
+    trap 'rm -rf -- "$auth"' EXIT
+    export DOCKER_CONFIG="$auth" REGISTRY_AUTH_FILE="$auth/config.json"
+    printf '%s' "$CI_REGISTRY_PASSWORD" | buildah login --authfile "$REGISTRY_AUTH_FILE" --username "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    chmod 0600 "$REGISTRY_AUTH_FILE"
+    state="dist/online/state/stable/$PIPELINE_RUN_ID"
+    images=(ips policy workstation sway nas vm k3s minecraft jellyfin immich audiomuse gitlab gitlab-runner)
+    # Verify and sign all immutable inputs before updating any stable tag.
+    for name in "${images[@]}"; do
+        digest="$(cat "$state/$name-amd64.digest")"
+        [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+        ref="$CI_REGISTRY_IMAGE/$name@$digest"
+        [[ "$(skopeo inspect --format "$(printf '\173\173.Architecture\175\175')" "docker://$ref")" == amd64 ]]
+        cosign sign --yes --key "$COSIGN_KEY" --tlog-upload=false "$ref"
+        cosign verify --key "$COSIGN_PUBLIC_KEY" --insecure-ignore-tlog "$ref" >/dev/null
+    done
+    for name in "${images[@]}"; do
+        digest="$(cat "$state/$name-amd64.digest")"
+        skopeo copy --preserve-digests "docker://$CI_REGISTRY_IMAGE/$name@$digest" "docker://$CI_REGISTRY_IMAGE/$name:amd64"
+    done
+
 # Verify every staged image digest before any public tag is changed.
 manifest-preflight:
     #!/usr/bin/env bash
@@ -118,7 +148,7 @@ media-task:
     architecture="${BUILD_ARCHITECTURE:?BUILD_ARCHITECTURE is required}"
     profile="${BUILD_PROFILE:?BUILD_PROFILE is required}"
     just={{ quote(just_executable()) }}
-    exec "$just" online::_media "$architecture" "$profile"
+    exec "$just" online::_media "$architecture" "$profile" "${BUILD_IMAGE_TAG:-latest}"
 
 [private]
 _images stream architecture="both" selection="all" scope="image":
@@ -159,7 +189,7 @@ _images stream architecture="both" selection="all" scope="image":
             fcos_stream=stable
             public_tag=latest
             arch_suffix=
-            all_image_names=(ips policy workstation sway nas vm k3s minecraft jellyfin immich audiomuse)
+            all_image_names=(ips policy workstation sway nas vm k3s minecraft jellyfin immich audiomuse gitlab gitlab-runner)
             ;;
         next)
             fcos_stream=next
@@ -201,7 +231,7 @@ _images stream architecture="both" selection="all" scope="image":
             ips) image_names=(policy ips) ;;
             workstation|nas|vm) image_names=(policy ips "$selection") ;;
             sway) image_names=(policy ips workstation sway) ;;
-            k3s|minecraft|jellyfin|immich|audiomuse) image_names=(policy ips vm "$selection") ;;
+            k3s|minecraft|jellyfin|immich|audiomuse|gitlab|gitlab-runner) image_names=(policy ips vm "$selection") ;;
         esac
     fi
 
@@ -275,6 +305,17 @@ _images stream architecture="both" selection="all" scope="image":
         else
             echo "cosign is required when SIGN_IMAGES=true" >&2
             exit 1
+        fi
+    }
+
+    sign_digest() {
+        if [[ -n "${COSIGN_KEY:-}" ]]; then
+            run_cosign sign --yes --key "$COSIGN_KEY" --tlog-upload=false "$@"
+        else
+            [[ "${REQUIRE_SIGNING_KEY:-false}" != true ]] || {
+                echo 'Local publication requires COSIGN_KEY' >&2; return 1;
+            }
+            run_cosign sign --yes "$@"
         fi
     }
 
@@ -431,6 +472,18 @@ _images stream architecture="both" selection="all" scope="image":
             --build-arg "TAG=${stage_tag}"
     }
 
+    build_gitlab() {
+        build_image vms/gitlab gitlab \
+            --build-arg "IMAGE_NAMESPACE=${namespace}" \
+            --build-arg "TAG=${stage_tag}"
+    }
+
+    build_gitlab_runner() {
+        build_image vms/gitlab-runner gitlab-runner \
+            --build-arg "IMAGE_NAMESPACE=${namespace}" \
+            --build-arg "TAG=${stage_tag}"
+    }
+
     build_workstation_branch() {
         build_workstation
         build_sway
@@ -438,7 +491,7 @@ _images stream architecture="both" selection="all" scope="image":
 
     build_vm_branch() {
         build_vm
-        run_parallel build_k3s build_minecraft build_jellyfin build_immich build_audiomuse
+        run_parallel build_k3s build_minecraft build_jellyfin build_immich build_audiomuse build_gitlab build_gitlab_runner
     }
 
     build_architecture() {
@@ -449,7 +502,7 @@ _images stream architecture="both" selection="all" scope="image":
         if [[ "$scope" == graph && "$selection" != all ]]; then
             local name
             for name in "${image_names[@]}"; do
-                "build_$name"
+                "build_${name//-/_}"
             done
             return
         fi
@@ -474,6 +527,8 @@ _images stream architecture="both" selection="all" scope="image":
             jellyfin) build_jellyfin ;;
             immich) build_immich ;;
             audiomuse) build_audiomuse ;;
+            gitlab) build_gitlab ;;
+            gitlab-runner) build_gitlab_runner ;;
         esac
     }
 
@@ -578,7 +633,7 @@ _images stream architecture="both" selection="all" scope="image":
         digest="$(tr -d '\r\n' < "$digest_file")"
         [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
         if [[ "$sign_images" == true ]]; then
-            run_cosign sign --yes --recursive "${namespace}/${name}@${digest}"
+            sign_digest --recursive "${namespace}/${name}@${digest}"
         fi
     }
 
@@ -602,6 +657,12 @@ _images stream architecture="both" selection="all" scope="image":
     if [[ "$sign_images" == true \
         && ( "$architecture" == both || "$architecture" == manifests || "$scope" == graph ) ]]; then
         run_cosign version >/dev/null
+    fi
+
+    if [[ "${REQUIRE_SIGNING_KEY:-false}" == true ]]; then
+        [[ "$sign_images" == true && -s "${COSIGN_KEY:-}" ]] || {
+            echo 'Local publication requires SIGN_IMAGES=true and a signing key file' >&2; exit 1;
+        }
     fi
 
     cd "$repo"
@@ -690,7 +751,7 @@ _images stream architecture="both" selection="all" scope="image":
             promote_architecture "$name" "$architecture"
             if [[ "$sign_images" == true ]]; then
                 digest="$(tr -d '\r\n' < "$state_dir/${name}-${architecture}-public.digest")"
-                run_cosign sign --yes "${namespace}/${name}@${digest}"
+                sign_digest "${namespace}/${name}@${digest}"
             fi
         done
         printf '\nPublished %s %s %s image(s) to %s (multi-architecture tags unchanged).\n' \

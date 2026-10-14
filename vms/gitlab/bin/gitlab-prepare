@@ -1,0 +1,25 @@
+#!/usr/bin/bash
+set -euo pipefail
+umask 077
+root=/var/lib/gitlab
+install -d -m 0700 "$root" "$root/config"
+install -d -m 0755 "$root/data" "$root/logs"
+exec 9>"$root/prepare.lock"
+flock 9
+version=$(cat /usr/share/gitlab/version)
+if [[ -f "$root/version" ]] && [[ $(cat "$root/version") != "$version" ]]; then
+  # A rollback also needs an explicit matching-data restore, never just an image rollback.
+  test "$(cat "$root/upgrade-approved")" = "$(cat "$root/version") $version"
+  test "$(cat /var/lib/infrastructure/backup/gitlab/version)" = "$(cat "$root/version")"
+  test -s /var/lib/infrastructure/backup/gitlab/completed
+fi
+if [[ ! -f "$root/config/bootstrap-password" ]]; then
+  if [[ -e "$root/config/gitlab-secrets.json" || -d "$root/data/postgresql" ]]; then
+    echo 'Existing GitLab data without bootstrap secret: restore configuration' >&2; exit 1
+  fi
+  od -An -N32 -tx1 /dev/urandom | tr -d ' \n' > "$root/config/bootstrap-password"
+fi
+chmod 0600 "$root/config/bootstrap-password"
+
+# Copy from immutable /usr before Podman relabels the writable config tree.
+install -m 0600 /usr/share/gitlab/gitlab.rb "$root/config/gitlab.rb"

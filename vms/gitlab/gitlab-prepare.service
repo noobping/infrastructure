@@ -1,0 +1,9 @@
+[Unit]
+Description=Prepare persistent GitLab configuration and check upgrade authorization
+Before=gitlab.service
+[Service]
+Type=oneshot
+ExecStartPre=/usr/bin/rm -f /run/gitlab-ready
+ExecStart=/usr/libexec/infrastructure/gitlab-prepare
+RemainAfterExit=yes
+UMask=0077

@@ -95,8 +95,14 @@ check-vm:
     python3 test/vm-deploy.py
     python3 vms/immich/test/hooks.py
     python3 -B vms/audiomuse/test/check.py
+    TEST_JUST={{ quote(just_executable()) }} python3 -B vms/gitlab/test/check.py
+    python3 -B vms/gitlab/test/setup.py
     python3 images/nas/test/vm-on-demand.py
     python3 -B test/integration/test_runner.py
+
+# Configure already provisioned GitLab VMs using the existing Butane login.
+gitlab-setup *options:
+    @python3 {{ quote(justfile_directory() / "vms/gitlab/setup.py") }} {{ options }}
 
 # Install, assert settings/services, reboot, and test persistence in a fresh VM.
 test-vm profile="nas" *options:
@@ -558,6 +564,20 @@ _offline target architecture:
             --build-arg "TAG=${image_arch}"
     }
 
+    build_gitlab() {
+        build_image vms/gitlab gitlab \
+            --tls-verify="$tls_verify" \
+            --build-arg "IMAGE_NAMESPACE=${namespace}" \
+            --build-arg "TAG=${image_arch}"
+    }
+
+    build_gitlab_runner() {
+        build_image vms/gitlab-runner gitlab-runner \
+            --tls-verify="$tls_verify" \
+            --build-arg "IMAGE_NAMESPACE=${namespace}" \
+            --build-arg "TAG=${image_arch}"
+    }
+
     build_workstation_branch() {
         build_workstation
         build_sway
@@ -565,7 +585,7 @@ _offline target architecture:
 
     build_vm_branch() {
         build_vm
-        run_parallel build_k3s build_minecraft build_jellyfin build_immich build_audiomuse
+        run_parallel build_k3s build_minecraft build_jellyfin build_immich build_audiomuse build_gitlab build_gitlab_runner
     }
 
     run_parallel() {
@@ -700,7 +720,7 @@ _offline target architecture:
     case "$target" in
         all)
             profiles=(nas workstation sway)
-            image_names=(ips policy workstation sway nas vm k3s minecraft jellyfin immich audiomuse)
+            image_names=(ips policy workstation sway nas vm k3s minecraft jellyfin immich audiomuse gitlab gitlab-runner)
             ;;
         workstation)
             profiles=(workstation)

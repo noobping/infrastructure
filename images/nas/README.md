@@ -88,3 +88,14 @@ The timer is crash-consistent: it does not quiesce guests or snapshot all
 subvolumes atomically. Use the [VM backup order](../../vms/README.md#safety-and-backups)
 when logical database dumps are required. The Caddy backup contains the local
 CA private key; keep backups restricted.
+
+## GitLab and CI
+
+Point `git.vm`, `git-registry.vm` and `git-ssh.vm` at the NAS in UniFi DNS.
+The NAS's **8443** wake socket forwards encrypted bytes to **gitlab.vm:8443**;
+GitLab terminates TLS and stores its CA inside its own VM. There is no NAS Caddy
+or GitLab certificate service, and no K3s dependency. Cockpit stays on **443** with
+its own certificate, admin SSH on **22**, and legacy Jellyfin on **8096/8920** with
+its existing configuration and libraries. Setup never stops, restarts or migrates
+those services. The nightly schedule is preserved, with existing VM/backup holds.
+See the [GitLab runbook](../../vms/gitlab/README.md) for setup and backups.

@@ -1,0 +1,28 @@
+#!/usr/bin/python3
+"""Runner's local metrics include work through final artifact upload."""
+import json
+import re
+import subprocess
+import urllib.request
+
+
+def metrics_idle(text):
+    jobs = []
+    for line in text.splitlines():
+        if re.match(r'^gitlab_runner_jobs(?:\{|\s)', line):
+            jobs.append(float(line.rsplit(' ', 1)[1]))
+    if not jobs or any(not (0 <= value < float('inf')) for value in jobs):
+        raise ValueError('Missing or invalid Runner job metrics')
+    return not any(jobs)
+
+
+def main():
+    subprocess.run(['systemctl', 'is-active', '--quiet', 'gitlab-runner.service'], check=True)
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    with opener.open('http://127.0.0.1:9252/metrics', timeout=3) as response:
+        idle = metrics_idle(response.read().decode())
+    print(json.dumps({'idle': idle, 'safe_to_stop': idle}))
+
+
+if __name__ == '__main__':
+    main()

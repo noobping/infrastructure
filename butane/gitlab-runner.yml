@@ -1,0 +1,31 @@
+passwd:
+  groups:
+    - name: gitlab-runner
+      gid: 1011
+  users:
+    - name: gitlab-runner
+      uid: 1011
+      primary_group: gitlab-runner
+      home_dir: /var/home/gitlab-runner
+      shell: /bin/bash
+storage:
+  files:
+    - path: /etc/hostname
+      overwrite: true
+      contents:
+        inline: |
+          gitlab-runner.vm
+    - path: /etc/subuid
+      overwrite: true
+      mode: 0644
+      contents:
+        inline: |
+          nick:100000:65536
+          gitlab-runner:200000:65536
+    - path: /etc/subgid
+      overwrite: true
+      mode: 0644
+      contents:
+        inline: |
+          nick:100000:65536
+          gitlab-runner:200000:65536
