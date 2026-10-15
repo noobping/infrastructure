@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+just="${1:?pass the Just executable path}"
+repo="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+work="$(mktemp -d)"
+trap 'rm -rf -- "$work"' EXIT
+trap 'echo "Pipeline hook regression failed at line $LINENO: $BASH_COMMAND" >&2; tail -80 "$work/output" >&2' ERR
+
+for variable in "${!GIT_@}"; do unset "$variable"; done
+export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
+mkdir -p "$work/repo" "$work/bin" "$work/template"
+export PIPELINE_HOOK_SOURCE="$repo" PIPELINE_HOOK_FIXTURE="$work/repo"
+python3 - <<'PY'
+import os, shutil, subprocess
+from pathlib import Path
+source = Path(os.environ['PIPELINE_HOOK_SOURCE'])
+target = Path(os.environ['PIPELINE_HOOK_FIXTURE'])
+files = subprocess.check_output(['git', '-C', str(source), 'ls-files', '-z',
+                                 '--cached', '--others', '--exclude-standard'])
+for name in set(files.decode().split('\0')) - {''}:
+    path = source / name
+    if path.is_file():
+        dest = target / name
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(path, dest)
+PY
+
+source "$repo/images/nas/pipeline.sh"
+cd "$work/repo"
+git init -q --template="$work/template"
+git config user.name Test
+git config user.email test@example.invalid
+git config commit.gpgsign false
+git add .
+git commit -qm 'Fixture baseline'
+git commit --allow-empty -qm 'Fixture ready'
+if ! PATH="$(dirname -- "$just"):$PATH" pipeline add --copy pre-commit > "$work/output" 2>&1; then
+    cat "$work/output" >&2
+    exit 1
+fi
+
+for tool in /usr/bin/*; do
+    [[ -x "$tool" && ! -d "$tool" ]] || continue
+    case "${tool##*/}" in podman*|docker*|just|pipeline) continue ;; esac
+    ln -s "$tool" "$work/bin/${tool##*/}"
+done
+ln -s "$just" "$work/bin/just"
+export PATH="$work/bin"
+if command -v podman; then
+    echo 'Podman unexpectedly available in the editor fixture' >&2
+    exit 1
+fi
+
+printf 'staged content\n' > hook-fixture.txt
+git add hook-fixture.txt
+printf 'unstaged content\n' > hook-fixture.txt
+cp .git/index "$work/commit-index"
+GIT_INDEX_FILE="$work/commit-index" git commit -qm 'Requested commit message' > "$work/output" 2>&1
+[[ "$(git log -1 --format=%s)" == 'Requested commit message' ]]
+[[ "$(git show HEAD:hook-fixture.txt)" == 'staged content' ]]
+[[ "$(cat hook-fixture.txt)" == 'unstaged content' ]]
+[[ "$(GIT_INDEX_FILE="$work/commit-index" git diff --cached --name-only)" == '' ]]
+grep -q 'vms/audiomuse/test/check.py' "$work/output"
+grep -q 'vms/gitlab/test/check.py' "$work/output"
+grep -q 'commit-hook isolation tests passed' "$work/output"
+if grep -q 'python3 -B test/quadlet.py' "$work/output"; then
+    echo 'Commit hook unexpectedly selected container validation' >&2
+    exit 1
+fi
+
+if .git/pipeline/pipeline --cap-jobs 3 check > "$work/output" 2>&1; then
+    echo 'Full CI validation unexpectedly passed without Podman' >&2
+    exit 1
+fi
+grep -q 'Quadlet validation requires Podman' "$work/output"
+echo 'Real Pipeline commit passed without Podman; staged content preserved; full CI still requires Quadlet validation'

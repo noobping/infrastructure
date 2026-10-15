@@ -280,7 +280,7 @@ volume when downgrading. Review upstream release notes for re-analysis needs.
 ## Validation and troubleshooting
 
 `just check-vm` covers credentials, backup failure/lock handling, NFS failure
-contracts, Quadlet generation (when Podman is installed), plugin ABI pins,
+contracts, Quadlet generation, plugin ABI pins,
 create-only provisioning, idle decisions and NAS poweroff holds. `just check-online`
 checks the online/offline/CI role selection and inventory-driven Ignition paths.
 For real container tests, pull the three locked images, then run

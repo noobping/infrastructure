@@ -90,7 +90,12 @@ check-online:
     bash test/online-build {{ quote(just_executable()) }}
     bash test/commit-hook {{ quote(just_executable()) }}
 
-check-vm:
+check-vm: check-vm-source check-quadlets
+
+check-quadlets:
+    python3 -B test/quadlet.py
+
+check-vm-source:
     bash test/vm-command
     python3 test/vm-deploy.py
     python3 vms/immich/test/hooks.py
@@ -100,7 +105,9 @@ check-vm:
     python3 images/nas/test/vm-on-demand.py
     python3 -B test/integration/test_runner.py
 
-# Configure already provisioned GitLab VMs using the existing Butane login.
+check-pipeline-hooks:
+    bash test/pipeline-hooks {{ quote(just_executable()) }}
+
 gitlab-setup *options:
     @python3 {{ quote(justfile_directory() / "vms/gitlab/setup.py") }} {{ options }}
 

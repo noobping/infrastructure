@@ -1,7 +1,7 @@
 on:
-  pre-commit: [check]
-  pre-push: [check]
-  pre-receive: [check]
+  pre-commit: [check-source]
+  pre-push: [check-source]
+  pre-receive: [check-source]
 
 pipelines:
   test-vms:
@@ -15,6 +15,14 @@ pipelines:
         just: test-policy
 
   check:
+    needs: [check-source]
+    jobs:
+      quadlets:
+        just: check-quadlets
+      hooks:
+        just: check-pipeline-hooks
+
+  check-source:
     jobs:
       just:
         just: check-just
@@ -27,7 +35,7 @@ pipelines:
       online:
         just: check-online
       vm:
-        just: check-vm
+        just: check-vm-source
 
   online-images:
     needs: [check]

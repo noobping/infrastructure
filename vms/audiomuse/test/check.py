@@ -137,15 +137,7 @@ class Hooks(unittest.TestCase):
 
 
 class Contracts(unittest.TestCase):
-    def test_quadlet_generator_and_security(self):
-        generator = '/usr/lib/systemd/system-generators/podman-system-generator'
-        if Path(generator).exists():
-            result = subprocess.run([generator, '--dryrun'], env={**os.environ, 'QUADLET_UNIT_DIRS':str(ROLE/'containers')},
-                                    capture_output=True, text=True)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertNotIn('unsupported key', result.stderr)
-            for role in ['web','worker','database']:
-                self.assertIn(f'audiomuse-{role}.service', result.stdout)
+    def test_quadlet_security(self):
         for role in ['web','worker','database']:
             data = (ROLE/f'containers/audiomuse-{role}.container').read_text()
             self.assertRegex(data, r'Image=\S+:\d[^\s]+@sha256:[0-9a-f]{64}')

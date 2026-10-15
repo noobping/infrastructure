@@ -64,6 +64,34 @@ same fixtures before publishing the runtime.
 
 ## Publishing and build environment
 
+Run the same check pipeline as GitHub Actions locally:
+
+```sh
+source images/nas/pipeline.sh
+PIPELINE_PULL=newer pipeline --cap-jobs 3 check
+```
+
+This runs every source check and container validation job, including the checks
+in `just check-vm` and `just check-online`; it does not build or publish release
+images. Pipeline and Just come from the
+Pipeline image, while recipes execute on the host. Quadlet generation always
+uses the digest-pinned Fedora CoreOS image in `test/quadlet-image` (Podman 5.8.4),
+including on Ubuntu runners with older Podman. Rootless Podman is required; the
+first run downloads that image and later runs reuse it offline. The generator
+container has no network or extra capabilities and only reads temporary copies
+of the Quadlets. It validates all roles and rejects an invalid fixture; missing
+tools or failed pulls fail the check rather than silently skipping validation.
+Update the FCOS version and multi-architecture manifest digest together when
+changing the compatibility baseline, then rerun this pipeline.
+
+Git hooks run `check-source`: formatting, shell syntax, workstation tests,
+build-selection tests and VM/application/lifecycle fixtures. They need the
+installed Pipeline/Just tools, but do not require Podman or image downloads, so
+commits also work from editors without a container runtime. `check-vm-source`
+runs just the VM fixtures; `check-vm` still includes real Quadlet generation.
+The full `check` pipeline remains mandatory in CI and additionally tests a real
+commit with Podman unavailable. No hook bypass is needed.
+
 Online builds default to `IMAGE_NAMESPACE=ghcr.io/noobping`. GitHub Actions
 uses that namespace; GitLab CI overrides it with its project container
 registry. Authenticate the container tools with `REGISTRY_USER` and
