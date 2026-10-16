@@ -11,8 +11,9 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 import wave
 
 REPO = Path(__file__).resolve().parents[3]
@@ -61,6 +62,42 @@ class Temporary(unittest.TestCase):
         result = patcher.start()
         self.addCleanup(patcher.stop)
         return result
+
+
+class DiscReading(Temporary):
+    def setUp(self):
+        super().setUp()
+        device = self.root / 'sr0'
+        device.touch()
+        self.patch(rip, 'DEVICE', str(device))
+        disc = SimpleNamespace(id=TOC['id'], first_track_num=TOC['first'],
+                               last_track_num=TOC['last'], sectors=TOC['sectors'],
+                               tracks=[SimpleNamespace(**track) for track in TOC['tracks']])
+        self.reader = Mock(return_value=disc)
+        self.enterContext(patch.dict(sys.modules, {'discid': SimpleNamespace(read=self.reader)}))
+
+    def test_audio_cd_uses_disc_type_instead_of_drive_status(self):
+        # Linux cdrom.h: DRIVE_STATUS returns DISC_OK=4, DISC_STATUS returns AUDIO=100.
+        query = self.patch(rip.fcntl, 'ioctl',
+                           side_effect=lambda drive, request, *args: {0x5326: 4, 0x5327: 100}[request])
+        self.assertEqual(rip.read_disc(), TOC)
+        query.assert_called_once()
+        self.assertEqual(query.call_args.args[1], 0x5327)
+        self.reader.assert_called_once_with(rip.DEVICE, features=['read'])
+
+    def test_non_audio_or_missing_disc_is_rejected_before_reading_toc(self):
+        # NO_INFO, NO_DISC, DATA_1/2, XA_2_1/2 and MIXED from Linux cdrom.h.
+        for status in (0, 1, 101, 102, 103, 104, 105):
+            with self.subTest(status=status), patch.object(rip.fcntl, 'ioctl', return_value=status):
+                with self.assertRaisesRegex(RuntimeError, f'CDROM_DISC_STATUS={status}'):
+                    rip.read_disc()
+        self.reader.assert_not_called()
+
+    def test_device_query_failure_does_not_read_toc(self):
+        self.patch(rip.fcntl, 'ioctl', side_effect=OSError('device unavailable'))
+        with self.assertRaisesRegex(OSError, 'device unavailable'):
+            rip.read_disc()
+        self.reader.assert_not_called()
 
 
 class Metadata(Temporary):

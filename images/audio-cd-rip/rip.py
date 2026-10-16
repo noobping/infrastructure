@@ -17,6 +17,9 @@ import urllib.request
 import uuid
 import wave
 
+# Linux UAPI: include/uapi/linux/cdrom.h. DRIVE_STATUS (0x5326) is a different query.
+CDROM_DISC_STATUS = 0x5327
+CDS_AUDIO = 100
 DEVICE = '/dev/sr0'
 LIBRARY = Path('/music')
 STATE = LIBRARY / '.state'
@@ -101,9 +104,10 @@ def run(args, logfile, timeout=1800):
 def read_disc():
     import discid
     with open(DEVICE, 'rb', buffering=0) as drive:
-        # CDS_AUDIO=100. Explicitly reject mixed-mode discs, DVDs and data CDs.
-        if fcntl.ioctl(drive, 0x5326, 0x7fffffff) != 100:  # CDROM_DISC_STATUS
-            raise RuntimeError('the drive does not contain a pure audio CD')
+        # Explicitly reject mixed-mode discs, DVDs and data CDs.
+        status = fcntl.ioctl(drive, CDROM_DISC_STATUS)
+        if status != CDS_AUDIO:
+            raise RuntimeError(f'the drive does not contain a pure audio CD (CDROM_DISC_STATUS={status})')
     disc = discid.read(DEVICE, features=['read'])
     tracks = [{'number': t.number, 'offset': t.offset, 'sectors': t.sectors} for t in disc.tracks]
     if not tracks or any(t['sectors'] <= 0 for t in tracks):

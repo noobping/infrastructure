@@ -80,10 +80,12 @@ volume remains read-only. `audio-cd-storage.service` prepares the NAS directory
 before the NFS export view is built. No live exports are changed by editing or
 building this repository.
 
-Jellyfin already mounts the parent music library as `/music`. Confirm its Music
-library includes `/music` or `/music/cds`, and retain a scheduled **Scan Media
-Library** task. NAS real-time monitoring can detect new files; for NFS use
-scheduled scans or **Scan Library** after waking the VM. No API token is needed.
+The existing NAS Jellyfin Quadlet already mounts the parent music library as
+`/music`, so ripped albums appear under `/music/cds`; no migration to the VM is
+required. Confirm its Music library includes `/music` or `/music/cds`, and retain
+a scheduled **Scan Media Library** task. NAS real-time monitoring can detect new
+files; for NFS use scheduled scans or **Scan Library** after waking the VM.
+No API token is needed.
 The ripper does not wake a sleeping Jellyfin VM or migrate its configuration.
 See [Jellyfin's music layout](https://jellyfin.org/docs/general/server/media/music/).
 
@@ -198,8 +200,10 @@ just test-audio-cd-runtime
 just check-quadlets
 ```
 
-Fixtures cover metadata/artwork, real FLAC tags and PCM, duplicate checks,
-errors and eject, absent mounts, symlinks, interruption recovery, NFS publication,
-shared locking, multi-disc merging and shutdown guards. Full `pipeline check`
+Fixtures cover Linux disc-type detection (distinct from drive readiness),
+rejection of data/mixed/missing discs, metadata/artwork, real FLAC tags and PCM,
+duplicate checks, errors and eject, absent mounts, symlinks, interruption recovery,
+NFS publication, shared locking, multi-disc merging and shutdown guards.
+Full `pipeline check`
 also validates build selection and the pinned FCOS Quadlet generator, including
 the VM's effective drop-in. No test needs live NAS access or an optical disc.
