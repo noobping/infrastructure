@@ -1,6 +1,8 @@
 ARG IMAGE_NAMESPACE=ghcr.io/noobping
 ARG TAG=latest
 
+FROM ${IMAGE_NAMESPACE}/audio-cd-rip:${TAG} AS audio-cd-rip
+
 FROM ${IMAGE_NAMESPACE}/ips:${TAG}
 
 LABEL org.opencontainers.image.title="NAS"
@@ -44,6 +46,11 @@ RUN set -euxo pipefail; \
   install -d -m 0755 /var/www/git; \
   ln -s /var/www/git /web; \
   if test -d /sysroot/ostree/repo; then ostree container commit; fi
+
+COPY --from=audio-cd-rip /usr/share/audio-cd-rip/host-root/ /
+ARG IMAGE_NAMESPACE
+ARG TAG
+RUN sed -i "s|^Image=.*|Image=${IMAGE_NAMESPACE}/audio-cd-rip:${TAG}|" /usr/share/containers/systemd/audio-cd-rip.container
 
 COPY --chmod=0600 nftables /etc/nftables/rules
 COPY --chmod=0755 bin/todo bin/vm-bridge bin/vm-deploy /usr/bin/
@@ -91,6 +98,8 @@ RUN set -euxo pipefail; \
     /etc/systemd/system/multi-user.target.wants/virtlogd.service; \
   ln -sf /usr/lib/systemd/system/nfs-server.service \
     /etc/systemd/system/multi-user.target.wants/nfs-server.service; \
+  ln -sf /usr/lib/systemd/system/audio-cd-detect.timer \
+    /etc/systemd/system/timers.target.wants/audio-cd-detect.timer; \
   ln -sf /etc/systemd/system/btrfs-backup.timer \
     /etc/systemd/system/timers.target.wants/btrfs-backup.timer; \
   if test -d /sysroot/ostree/repo; then ostree container commit; fi

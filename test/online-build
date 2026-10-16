@@ -183,11 +183,16 @@ grep -q 'rebase-to-image sway:arm64$' dist/online/ign/sway.ign
 [[ "$(find dist/online/iso -name '*.iso' | wc -l)" == 1 ]]
 
 run_case online::nas both
-[[ "$(grep -c '^buildah bud ' "$TEST_LOG")" == 6 ]]
-[[ "$(grep -c '^buildah manifest push ' "$TEST_LOG")" == 3 ]]
+[[ "$(grep -c '^buildah bud ' "$TEST_LOG")" == 8 ]]
+[[ "$(grep -c '^buildah manifest push ' "$TEST_LOG")" == 4 ]]
 ! grep -q 'images/workstation\|vms/' "$TEST_LOG"
 grep -q 'localhost:5000/online-test/nas:latest$' "$TEST_LOG"
 [[ -f dist/online/iso/nas-x86_64.iso && -f dist/online/iso/nas-aarch64.iso ]]
+
+run_case online::_images stable amd64 audio-cd-rip graph
+expect_builds 'images/audio-cd-rip'
+run_case online::_images stable amd64 jellyfin graph
+expect_builds 'images/policy images/ips images/audio-cd-rip vms/vm vms/jellyfin'
 
 run_case online::_images stable amd64 immich graph
 expect_builds 'images/policy images/ips vms/vm vms/immich'
@@ -221,8 +226,8 @@ run_case online::_media amd64 nas
 
 # Defaults preserve the complete two-architecture publication graph.
 run_case online::stable
-[[ "$(grep -c '^buildah bud ' "$TEST_LOG")" == 26 ]]
-[[ "$(grep -c '^buildah manifest push ' "$TEST_LOG")" == 13 ]]
+[[ "$(grep -c '^buildah bud ' "$TEST_LOG")" == 28 ]]
+[[ "$(grep -c '^buildah manifest push ' "$TEST_LOG")" == 14 ]]
 run_case online::next
 [[ "$(grep -c '^buildah bud ' "$TEST_LOG")" == 8 ]]
 [[ "$(grep -c '^buildah manifest push ' "$TEST_LOG")" == 4 ]]
@@ -323,7 +328,7 @@ run_case offline sway amd64
 expect_builds "images/policy images/ips images/workstation $PWD/dist/flatpak/amd64/payload images/sway"
 grep -q 'podman save .*sway:amd64$' "$TEST_LOG"
 run_case offline nas amd64
-expect_builds 'images/policy images/ips images/nas'
+expect_builds 'images/policy images/ips images/audio-cd-rip images/nas'
 ! grep -q 'build-flatpak-cache\|Containerfile.offline' "$TEST_LOG"
 run_case offline all amd64
 grep -q '^buildah bud .* vms/immich$' "$TEST_LOG"

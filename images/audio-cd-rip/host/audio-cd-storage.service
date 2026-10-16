@@ -1,0 +1,9 @@
+[Unit]
+Description=Prepare the CD library on the NAS music filesystem
+RequiresMountsFor=/var/srv/music
+Before=nfs-root-prepare.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/libexec/infrastructure/audio-cd-dispatch prepare

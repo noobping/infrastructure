@@ -341,7 +341,7 @@ if n=='cosign' and os.environ.get('SIGN_FAIL')=='1':sys.exit(1)
         for name in ['curl','skopeo','buildah','cosign']:
             p=self.bin/name;p.write_text(stub);p.chmod(0o755)
         state=self.root/'dist/online/state/stable/fixture';state.mkdir(parents=True)
-        for name in ['ips','policy','workstation','sway','nas','vm','k3s','minecraft','jellyfin','immich','audiomuse','gitlab','gitlab-runner']:
+        for name in ['ips','policy','audio-cd-rip','workstation','sway','nas','vm','k3s','minecraft','jellyfin','immich','audiomuse','gitlab','gitlab-runner']:
             (state/(name+'-amd64.digest')).write_text('sha256:'+'a'*64)
         for name in ['key','pub']:(self.root/name).write_text('fixture')
         self.env={**os.environ,'PATH':str(self.bin)+':'+os.environ['PATH'],'XDG_RUNTIME_DIR':str(self.root),
@@ -361,9 +361,9 @@ if n=='cosign' and os.environ.get('SIGN_FAIL')=='1':sys.exit(1)
 
     def test_signatures_are_verified_before_all_amd64_tags_are_promoted(self):
         result,calls=self.publish();self.assertEqual(result.returncode,0,result.stderr)
-        self.assertEqual(calls.count('cosign sign '),13)
-        self.assertEqual(calls.count('cosign verify '),13)
-        self.assertEqual(calls.count('skopeo copy '),13)
+        self.assertEqual(calls.count('cosign sign '),14)
+        self.assertEqual(calls.count('cosign verify '),14)
+        self.assertEqual(calls.count('skopeo copy '),14)
         self.assertLess(calls.rfind('cosign verify '),calls.index('skopeo copy '))
         self.assertNotIn(':latest',calls);self.assertNotIn('manifest',calls)
 

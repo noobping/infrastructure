@@ -1,0 +1,37 @@
+[Unit]
+Description=Secure audio CD extraction into the shared music library
+ConditionPathExists=/dev/sr0
+RequiresMountsFor=/var/srv/music
+After=local-fs.target
+
+[Container]
+Image=ghcr.io/noobping/audio-cd-rip:latest
+Pull=missing
+User=1001
+Group=1001
+# Fedora uses GID 11 for cdrom in both the host and ripper image.
+GroupAdd=cdrom
+AddDevice=/dev/sr0:/dev/sr0:rw
+Volume=/var/srv/music/cds:/music:rw
+Volume=/etc/audio-cd-rip:/config:ro
+ReadOnly=true
+ReadOnlyTmpfs=true
+NoNewPrivileges=true
+DropCapability=all
+# Match the existing NAS media policy without recursively relabeling its NFS data.
+# Only this container's SELinux separation is disabled; host enforcement stays on.
+SecurityLabelDisable=true
+PidsLimit=64
+Memory=1G
+LogDriver=journald
+Environment=PYTHONUNBUFFERED=1
+
+[Service]
+ExecStartPre=/usr/libexec/infrastructure/audio-cd-dispatch prepare
+Restart=no
+TimeoutStartSec=120
+RuntimeMaxSec=3h
+TimeoutStopSec=30
+CPUQuota=150%
+IOWeight=25
+UMask=0022

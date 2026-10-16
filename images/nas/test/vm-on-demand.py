@@ -140,6 +140,21 @@ class Host(unittest.TestCase):
             self.assertFalse(host.nightly_ready())
         self.guest_idle.assert_not_called()
 
+    def test_nightly_poweroff_waits_for_cd_extraction(self):
+        with patch.object(host, 'virsh', return_value=''):
+            for active in ('active', 'activating', 'deactivating'):
+                self.property_of.side_effect = lambda unit, prop: active if unit == 'audio-cd-rip.service' else 'inactive'
+                self.assertFalse(host.nightly_ready())
+            self.property_of.side_effect = lambda unit, prop: 'inactive'
+            self.assertTrue(host.nightly_ready())
+
+    def test_nightly_waits_for_jellyfin_nfs_writer(self):
+        with patch.object(host, 'virsh', return_value='jellyfin'):
+            self.state.return_value = 'running'
+            self.assertFalse(host.nightly_ready())
+            self.state.return_value = 'shut off'
+            self.assertTrue(host.nightly_ready())
+
     def test_unsafe_inventory_rejected_before_rendering(self):
         inventory = json.loads((REPO/'vms/inventory.json').read_text())
         minecraft = inventory['vms'][1]
@@ -224,6 +239,14 @@ class Reports(unittest.TestCase):
         with self.assertRaises(ValueError): guest.immich_idle([])
         del queues[0]['statistics']['active']
         with self.assertRaises(KeyError): guest.immich_idle(queues)
+
+    def test_jellyfin_ripper_prevents_guest_sleep(self):
+        for state in ('activating', 'active', 'deactivating'):
+            with patch.object(guest, 'run', side_effect=['inactive', state]), patch.object(guest, 'api') as api:
+                self.assertFalse(guest.guest_idle('jellyfin'))
+                api.assert_not_called()
+        with patch.object(guest, 'run', side_effect=['inactive', 'inactive', '']), patch.object(guest, 'api', side_effect=[[], [{'State': 'Idle'}]]):
+            self.assertTrue(guest.guest_idle('jellyfin'))
 
     def test_audiomuse_activity_unknown_health_and_clients_hold_guest(self):
         # No API key or request to Jellyfin/NAS is involved in this role's probe.

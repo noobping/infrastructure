@@ -1,0 +1,11 @@
+[Unit]
+Description=Check the optical drive for new audio CDs
+
+[Timer]
+OnBootSec=30s
+OnUnitInactiveSec=10s
+AccuracySec=1s
+Unit=audio-cd-detect.service
+
+[Install]
+WantedBy=timers.target

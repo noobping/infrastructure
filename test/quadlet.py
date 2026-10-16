@@ -20,6 +20,9 @@ def generate(source):
                 shutil.copyfile(path, stage / path.name)
             elif path.is_dir() and any(path.name.endswith(s + '.d') for s in SUFFIXES):
                 shutil.copytree(path, stage / path.name)
+        if source == REPO / 'vms/jellyfin/containers':
+            shutil.copyfile(REPO / 'images/audio-cd-rip/host/audio-cd-rip.container',
+                            stage / 'audio-cd-rip.container')
         return subprocess.run([
             'podman', 'run', '--rm', '--pull=missing', '--network=none',
             '--read-only', '--cap-drop=all', '--security-opt=no-new-privileges',
@@ -45,6 +48,23 @@ class Quadlets(unittest.TestCase):
                 for path in (p for p in units if p.parent == source):
                     service = path.stem + SUFFIXES[path.suffix] + '.service'
                     self.assertIn(f'---{service}---', result.stdout, result.stdout)
+
+    def test_guest_ripper_uses_writable_cds_mount(self):
+        result = generate(REPO / 'vms/jellyfin/containers')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('---audio-cd-rip.service---', result.stdout)
+        self.assertIn('RequiresMountsFor=/var/srv/music/cds', result.stdout)
+        self.assertIn('audio-cd-dispatch prepare-guest', result.stdout)
+        service = result.stdout.split('---audio-cd-rip.service---')[1].split('\n---')[0]
+        prestart = []
+        for line in service.splitlines():
+            if line.startswith('ExecStartPre='):
+                value = line.partition('=')[2]
+                if value:
+                    prestart.append(value)
+                else:
+                    prestart.clear()
+        self.assertEqual(prestart, ['/usr/libexec/infrastructure/audio-cd-dispatch prepare-guest'])
 
     def test_invalid_quadlet_is_rejected(self):
         with tempfile.TemporaryDirectory(prefix='infrastructure-invalid-quadlet-') as directory:

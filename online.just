@@ -118,7 +118,7 @@ local-publish:
     printf '%s' "$CI_REGISTRY_PASSWORD" | buildah login --authfile "$REGISTRY_AUTH_FILE" --username "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     chmod 0600 "$REGISTRY_AUTH_FILE"
     state="dist/online/state/stable/$PIPELINE_RUN_ID"
-    images=(ips policy workstation sway nas vm k3s minecraft jellyfin immich audiomuse gitlab gitlab-runner)
+    images=(ips policy audio-cd-rip workstation sway nas vm k3s minecraft jellyfin immich audiomuse gitlab gitlab-runner)
     # Verify and sign all immutable inputs before updating any stable tag.
     for name in "${images[@]}"; do
         digest="$(cat "$state/$name-amd64.digest")"
@@ -189,7 +189,7 @@ _images stream architecture="both" selection="all" scope="image":
             fcos_stream=stable
             public_tag=latest
             arch_suffix=
-            all_image_names=(ips policy workstation sway nas vm k3s minecraft jellyfin immich audiomuse gitlab gitlab-runner)
+            all_image_names=(ips policy audio-cd-rip workstation sway nas vm k3s minecraft jellyfin immich audiomuse gitlab gitlab-runner)
             ;;
         next)
             fcos_stream=next
@@ -229,9 +229,12 @@ _images stream architecture="both" selection="all" scope="image":
         case "$selection" in
             policy) image_names=(policy) ;;
             ips) image_names=(policy ips) ;;
-            workstation|nas|vm) image_names=(policy ips "$selection") ;;
+            audio-cd-rip) image_names=(audio-cd-rip) ;;
+            nas) image_names=(policy ips audio-cd-rip nas) ;;
+            jellyfin) image_names=(policy ips audio-cd-rip vm jellyfin) ;;
+            workstation|vm) image_names=(policy ips "$selection") ;;
             sway) image_names=(policy ips workstation sway) ;;
-            k3s|minecraft|jellyfin|immich|audiomuse|gitlab|gitlab-runner) image_names=(policy ips vm "$selection") ;;
+            k3s|minecraft|immich|audiomuse|gitlab|gitlab-runner) image_names=(policy ips vm "$selection") ;;
         esac
     fi
 
@@ -430,6 +433,10 @@ _images stream architecture="both" selection="all" scope="image":
             --build-arg "TAG=${stage_tag}"
     }
 
+    build_audio_cd_rip() {
+        build_image images/audio-cd-rip audio-cd-rip
+    }
+
     build_nas() {
         build_image images/nas nas \
             --build-arg "IMAGE_NAMESPACE=${namespace}" \
@@ -511,6 +518,7 @@ _images stream architecture="both" selection="all" scope="image":
                 build_policy
                 build_ips
                 if [[ "$stream" == stable ]]; then
+                    build_audio_cd_rip
                     run_parallel build_workstation_branch build_nas build_vm_branch
                 else
                     build_workstation_branch
@@ -520,6 +528,7 @@ _images stream architecture="both" selection="all" scope="image":
             policy) build_policy ;;
             workstation) build_workstation ;;
             sway) build_sway ;;
+            audio-cd-rip) build_audio_cd_rip ;;
             nas) build_nas ;;
             vm) build_vm ;;
             k3s) build_k3s ;;

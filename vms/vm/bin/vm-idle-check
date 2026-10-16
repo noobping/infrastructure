@@ -112,6 +112,9 @@ def guest_idle(role):
     if run('systemctl', 'show', '--property=ActiveState', '--value',
            'rpm-ostree-upgrade.service') not in ('inactive', 'failed'):
         return False
+    if role == 'jellyfin' and run('systemctl', 'show', '--property=ActiveState', '--value',
+                                  'audio-cd-rip.service') not in ('inactive', 'failed'):
+        return False
     ports = {'immich': [2283], 'minecraft': [25565], 'jellyfin': [8096], 'audiomuse': [8000], 'gitlab': [2222], 'gitlab-runner': []}[role]
     # Include direct guest connections and administrator SSH sessions.
     expression = '( '+' or '.join(f'sport = :{port}' for port in [22, *ports])+' )'

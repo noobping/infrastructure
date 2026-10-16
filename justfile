@@ -90,6 +90,19 @@ check-online:
     bash test/online-build {{ quote(just_executable()) }}
     bash test/commit-hook {{ quote(just_executable()) }}
 
+check-audio-cd:
+    python3 -B images/audio-cd-rip/test/check.py
+
+# Tests the standalone runtime with real FLAC encoding and fixture PCM; no drive access.
+test-audio-cd-runtime:
+    podman build --layers --pull=always --arch "$(uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')" -t localhost/infrastructure-audio-cd-test images/audio-cd-rip
+    podman run --rm --network=none --read-only --cap-drop=all \
+        --security-opt=no-new-privileges --security-opt=label=disable \
+        --entrypoint=/usr/bin/python3 --user=1001:1001 --group-add=cdrom --tmpfs=/tmp:rw,mode=1777 \
+        -v {{ quote(justfile_directory()) }}:/repo:ro \
+        localhost/infrastructure-audio-cd-test \
+        -B /repo/images/audio-cd-rip/test/check.py --runtime
+
 check-vm: check-vm-source check-quadlets
 
 check-quadlets:
@@ -515,6 +528,10 @@ _offline target architecture:
             --build-arg "BASE_IMAGE=${namespace}/workstation:${image_arch}"
     }
 
+    build_audio_cd_rip() {
+        build_image images/audio-cd-rip audio-cd-rip
+    }
+
     build_nas() {
         build_image images/nas nas \
             --tls-verify="$tls_verify" \
@@ -727,7 +744,7 @@ _offline target architecture:
     case "$target" in
         all)
             profiles=(nas workstation sway)
-            image_names=(ips policy workstation sway nas vm k3s minecraft jellyfin immich audiomuse gitlab gitlab-runner)
+            image_names=(ips policy audio-cd-rip workstation sway nas vm k3s minecraft jellyfin immich audiomuse gitlab gitlab-runner)
             ;;
         workstation)
             profiles=(workstation)
@@ -735,7 +752,7 @@ _offline target architecture:
             ;;
         nas)
             profiles=(nas)
-            image_names=(ips policy nas)
+            image_names=(ips policy audio-cd-rip nas)
             ;;
         sway)
             profiles=(sway)
@@ -801,9 +818,9 @@ _offline target architecture:
         build_ips
 
         case "$target" in
-            all) run_parallel build_workstation_branch build_nas build_vm_branch ;;
+            all) build_audio_cd_rip; run_parallel build_workstation_branch build_nas build_vm_branch ;;
             workstation) build_workstation ;;
-            nas) build_nas ;;
+            nas) build_audio_cd_rip; build_nas ;;
             sway) build_workstation_branch ;;
         esac
 

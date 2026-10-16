@@ -1,0 +1,17 @@
+[Unit]
+Description=Detect inserted audio CDs for the shared library
+ConditionPathExists=/dev/sr0
+After=systemd-udevd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/infrastructure/audio-cd-dispatch detect
+RuntimeDirectory=audio-cd-rip-dispatch
+RuntimeDirectoryMode=0700
+RuntimeDirectoryPreserve=yes
+TimeoutStartSec=30
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/run/audio-cd-rip-dispatch

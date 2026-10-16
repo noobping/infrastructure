@@ -45,6 +45,13 @@ AudioMuse runs or a VM hold/backup is active. Follow the
 [AudioMuse rollout](../../vms/audiomuse/README.md) before the first analysis,
 including cancellation of a previously scheduled legacy shutdown.
 
+## Audio CDs
+
+The automatic [audio CD ripper](../audio-cd-rip/README.md) uses the ASUS BW-16D1HT at
+`/dev/sr0`, a shared container image through Quadlet, and the existing `/var/srv/music` mount.
+It writes verified FLAC albums into `cds/` without modifying Jellyfin or the VM
+handover. The nightly shutdown controller waits while extraction is active.
+
 ## Pipeline
 
 Interactive shells expose `pipeline` through

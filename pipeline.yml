@@ -19,6 +19,8 @@ pipelines:
     jobs:
       quadlets:
         just: check-quadlets
+      audio-cd-runtime:
+        just: test-audio-cd-runtime
       hooks:
         just: check-pipeline-hooks
 
@@ -36,6 +38,8 @@ pipelines:
         just: check-online
       vm:
         just: check-vm-source
+      audio-cd:
+        just: check-audio-cd
 
   online-images:
     needs: [check]

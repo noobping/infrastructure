@@ -169,6 +169,20 @@ stable-policy:
     - job: check
       artifacts: false
 
+stable-audio-cd-rip:
+  extends:
+    - .image-task
+    - .architecture-matrix
+    - .stable-rules
+  stage: base
+  variables:
+    BUILD_ARCHITECTURE: "$ARCH"
+    BUILD_IMAGE_NAME: audio-cd-rip
+    BUILD_STREAM: stable
+  needs:
+    - job: check
+      artifacts: false
+
 stable-workstation:
   extends:
     - .image-task
@@ -208,6 +222,11 @@ stable-nas:
         matrix:
           - ARCH: ['$[[ matrix.ARCH ]]']
     - job: stable-policy
+      artifacts: false
+      parallel:
+        matrix:
+          - ARCH: ['$[[ matrix.ARCH ]]']
+    - job: stable-audio-cd-rip
       artifacts: false
       parallel:
         matrix:
@@ -267,6 +286,11 @@ stable-guests:
       parallel:
         matrix:
           - ARCH: ['$[[ matrix.ARCH ]]']
+    - job: stable-audio-cd-rip
+      artifacts: false
+      parallel:
+        matrix:
+          - ARCH: ['$[[ matrix.ARCH ]]']
 
 stable-preflight:
   extends:
@@ -281,6 +305,8 @@ stable-preflight:
     - job: stable-ips
       artifacts: true
     - job: stable-policy
+      artifacts: true
+    - job: stable-audio-cd-rip
       artifacts: true
     - job: stable-workstation
       artifacts: true
@@ -310,7 +336,7 @@ stable-manifests:
     - saas-linux-small-amd64
   parallel:
     matrix:
-      - BUILD_IMAGE_NAME: [ips, policy, workstation, sway, nas, vm, k3s, minecraft, jellyfin, immich, audiomuse, gitlab, gitlab-runner]
+      - BUILD_IMAGE_NAME: [ips, policy, audio-cd-rip, workstation, sway, nas, vm, k3s, minecraft, jellyfin, immich, audiomuse, gitlab, gitlab-runner]
   variables:
     BUILD_STREAM: stable
     COSIGN_YES: "true"

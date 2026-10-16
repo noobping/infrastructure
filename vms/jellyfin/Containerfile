@@ -1,15 +1,21 @@
 ARG IMAGE_NAMESPACE=ghcr.io/noobping
 ARG TAG=latest
+FROM ${IMAGE_NAMESPACE}/audio-cd-rip:${TAG} AS audio-cd-rip
 FROM ${IMAGE_NAMESPACE}/vm:${TAG}
 
 LABEL org.opencontainers.image.title="Jellyfin VM"
 LABEL org.opencontainers.image.description="KVM guest for Jellyfin music and books"
 
+COPY --from=audio-cd-rip /usr/share/audio-cd-rip/host-root/ /
+ARG IMAGE_NAMESPACE
+ARG TAG
+RUN sed -i "s|^Image=.*|Image=${IMAGE_NAMESPACE}/audio-cd-rip:${TAG}|" /usr/share/containers/systemd/audio-cd-rip.container
+COPY var-srv-music-cds.mount /usr/lib/systemd/system/
 COPY containers /etc/containers/systemd
 COPY jellyfin.nft /etc/nftables/rules/20-jellyfin.nft
 COPY --chmod=0755 bin/ /usr/libexec/infrastructure/
 
-RUN systemctl enable vm-idle-report@jellyfin.timer
+RUN systemctl enable vm-idle-report@jellyfin.timer audio-cd-detect.timer
 
 RUN if test -d /sysroot/ostree/repo; then ostree container commit; fi
 RUN if ! test -d /sysroot/ostree/repo; then bootc container lint; fi

@@ -1,0 +1,12 @@
+[Unit]
+Description=Writable CD import subtree from the NAS
+Wants=network-online.target
+After=network-online.target nfs-selinux.service
+Requires=nfs-selinux.service
+
+[Mount]
+What=nas.vm:/var/srv/music/cds
+Where=/var/srv/music/cds
+Type=nfs
+Options=nfsvers=4.2,rw,hard,nosuid,nodev,noexec
+TimeoutSec=60

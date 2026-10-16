@@ -1,7 +1,7 @@
 [Unit]
 Description=Prepare the NFSv4 export root
-Requires=artifacts-prepare.service
-After=artifacts-prepare.service
+Requires=artifacts-prepare.service audio-cd-storage.service
+After=artifacts-prepare.service audio-cd-storage.service
 PartOf=nfs-server.service
 RequiresMountsFor=/var/lib/containers /var/srv/ssd /var/srv/docs /var/srv/music/touhou /var/srv/books /var/srv/photos
 

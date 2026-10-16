@@ -29,6 +29,8 @@
 /var/lib/containers/jellyfin jellyfin.vm(rw,sync,no_subtree_check,root_squash)
 /var/lib/containers/jellyfin/cache jellyfin.vm(rw,sync,no_subtree_check,root_squash)
 /var/srv/music jellyfin.vm(ro,sync,no_subtree_check,root_squash,crossmnt)
+# Only the CD import subtree is writable by the optical-drive guest.
+/var/srv/music/cds jellyfin.vm(rw,sync,subtree_check,root_squash)
 /var/srv/books jellyfin.vm(ro,sync,no_subtree_check,root_squash)
 
 # Immich originals and uploads are separate; its database stays in the guest.

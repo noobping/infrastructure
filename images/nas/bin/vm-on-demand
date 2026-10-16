@@ -435,8 +435,10 @@ def nightly_ready():
         return False
     if property_of('btrfs-backup.service', 'ActiveState') not in ('inactive', 'failed'):
         return False
+    if property_of('audio-cd-rip.service', 'ActiveState') not in ('inactive', 'failed'):
+        return False
     domains = virsh('list', '--all', '--name').splitlines()
-    for member in ('audiomuse', 'gitlab', 'gitlab-runner'):
+    for member in ('audiomuse', 'gitlab', 'gitlab-runner', 'jellyfin'):
         if member in domains and state(member) != 'shut off':
             return False
     return True

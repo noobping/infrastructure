@@ -111,6 +111,34 @@ jobs:
           image: policy
           architecture: ${{ matrix.platform.architecture }}
 
+  stable-audio-cd-rip:
+    name: Stable Audio CD Ripper (${{ matrix.platform.architecture }})
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      inputs.target == 'all' ||
+      inputs.target == 'stable'
+    needs: check
+    runs-on: ${{ matrix.platform.runner }}
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - architecture: amd64
+            runner: ubuntu-latest
+          - architecture: arm64
+            runner: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/image-task
+        with:
+          stream: stable
+          image: audio-cd-rip
+          architecture: ${{ matrix.platform.architecture }}
+
   stable-workstation:
     name: Stable Workstation (${{ matrix.platform.architecture }})
     needs: [stable-ips, stable-policy]
@@ -161,7 +189,7 @@ jobs:
 
   stable-nas:
     name: Stable NAS (${{ matrix.platform.architecture }})
-    needs: [stable-ips, stable-policy]
+    needs: [stable-ips, stable-policy, stable-audio-cd-rip]
     runs-on: ${{ matrix.platform.runner }}
     timeout-minutes: 180
     strategy:
@@ -209,7 +237,7 @@ jobs:
 
   stable-guests:
     name: Stable ${{ matrix.image }} (${{ matrix.platform.architecture }})
-    needs: stable-vm
+    needs: [stable-vm, stable-audio-cd-rip]
     runs-on: ${{ matrix.platform.runner }}
     timeout-minutes: 180
     strategy:
@@ -237,6 +265,7 @@ jobs:
     needs:
       - stable-ips
       - stable-policy
+      - stable-audio-cd-rip
       - stable-workstation
       - stable-sway
       - stable-nas
@@ -269,7 +298,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [ips, policy, workstation, sway, nas, vm, k3s, minecraft, jellyfin, immich, audiomuse, gitlab, gitlab-runner]
+        image: [ips, policy, audio-cd-rip, workstation, sway, nas, vm, k3s, minecraft, jellyfin, immich, audiomuse, gitlab, gitlab-runner]
     permissions:
       contents: read
       id-token: write

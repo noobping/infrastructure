@@ -1,0 +1,20 @@
+ARG FEDORA_VERSION=latest
+FROM registry.fedoraproject.org/fedora:${FEDORA_VERSION}
+LABEL org.opencontainers.image.title="Audio CD ripper"
+LABEL org.opencontainers.image.source="https://github.com/noobping/infrastructure"
+LABEL org.opencontainers.image.description="Secure FLAC extraction with MusicBrainz metadata for NAS and Jellyfin VM"
+RUN dnf install -y --setopt=install_weak_deps=False \
+      python3 python3-discid python3-mutagen cdparanoia flac util-linux ca-certificates \
+    && dnf clean all && rm -rf /var/cache/dnf \
+    && mkdir -p /music /config
+COPY --chmod=0755 rip.py /usr/bin/audio-cd-rip
+COPY --chmod=0755 host/dispatch.py /usr/share/audio-cd-rip/host-root/usr/libexec/infrastructure/audio-cd-dispatch
+COPY host/audio-cd-rip.container /usr/share/audio-cd-rip/host-root/usr/share/containers/systemd/
+COPY host/audio-cd-storage.service host/audio-cd-detect.service host/audio-cd-detect.timer /usr/share/audio-cd-rip/host-root/usr/lib/systemd/system/
+COPY host/70-audio-cd-rip.rules /usr/share/audio-cd-rip/host-root/usr/lib/udev/rules.d/
+COPY host/overrides.json /usr/share/audio-cd-rip/host-root/etc/audio-cd-rip/overrides.json
+RUN python3 -c 'import discid; from mutagen.flac import FLAC' \
+    && command -v cdparanoia && command -v flac && command -v eject
+USER 1001:1001
+ENV PYTHONUNBUFFERED=1
+ENTRYPOINT ["/usr/bin/python3", "-B", "/usr/bin/audio-cd-rip"]
